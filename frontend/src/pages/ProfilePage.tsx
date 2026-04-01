@@ -1,0 +1,88 @@
+import { useEffect, useState } from 'react';
+import { useAuthStore } from '@/app/store/authStore';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Panel } from '@/components/ui/Panel';
+import { useChangePassword, useUpdateProfile } from '@/features/profile/useProfile';
+import { getApiErrorMessage } from '@/lib/api/errors';
+
+export function ProfilePage() {
+  const user = useAuthStore((state) => state.user);
+  const profileMutation = useUpdateProfile();
+  const passwordMutation = useChangePassword();
+  const [profileForm, setProfileForm] = useState({
+    name: user?.name ?? '',
+    email: user?.email ?? '',
+    timezone: user?.timezone ?? 'Europe/Riga',
+  });
+  const [passwordForm, setPasswordForm] = useState({
+    current_password: '',
+    password: '',
+    password_confirmation: '',
+  });
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    setProfileForm({
+      name: user.name,
+      email: user.email,
+      timezone: user.timezone ?? 'Europe/Riga',
+    });
+  }, [user]);
+
+  return (
+    <div>
+      <PageHeader title="Profile & settings" description="Authenticated user profile, company context, role, and password management." />
+      {!user ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500">Loading profile...</div> : null}
+      {user ? (
+      <div className="grid gap-6 xl:grid-cols-3">
+        <Panel title="Profile" description="Update the signed-in account details used throughout the platform.">
+          <div className="space-y-3">
+            <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" value={profileForm.name} onChange={(event) => setProfileForm((state) => ({ ...state, name: event.target.value }))} placeholder="Name" />
+            <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" value={profileForm.email} onChange={(event) => setProfileForm((state) => ({ ...state, email: event.target.value }))} placeholder="Email" />
+            <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" value={profileForm.timezone} onChange={(event) => setProfileForm((state) => ({ ...state, timezone: event.target.value }))} placeholder="Timezone" />
+            <button className="w-full rounded-2xl bg-brand-600 px-4 py-3 font-semibold text-white" onClick={() => profileMutation.mutate(profileForm)}>
+              {profileMutation.isPending ? 'Saving...' : 'Save profile'}
+            </button>
+            {profileMutation.isSuccess ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">Profile updated.</div> : null}
+            {profileMutation.isError ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{getApiErrorMessage(profileMutation.error)}</div> : null}
+          </div>
+        </Panel>
+        <Panel title="Identity" description="Current tenant and role information from the authenticated session.">
+          <div className="space-y-4 text-sm">
+            <div><div className="text-slate-500">Role</div><div className="mt-1 font-semibold capitalize">{user?.role?.replace(/_/g, ' ')}</div></div>
+            <div><div className="text-slate-500">Company</div><div className="mt-1 font-semibold">{user?.company?.name ?? 'Platform'}</div></div>
+            <div><div className="text-slate-500">Company timezone</div><div className="mt-1 font-semibold">{user?.company?.timezone ?? 'N/A'}</div></div>
+          </div>
+        </Panel>
+        <Panel title="Password" description="Change the current account password safely.">
+          <div className="space-y-3">
+            <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" type="password" value={passwordForm.current_password} onChange={(event) => setPasswordForm((state) => ({ ...state, current_password: event.target.value }))} placeholder="Current password" />
+            <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" type="password" value={passwordForm.password} onChange={(event) => setPasswordForm((state) => ({ ...state, password: event.target.value }))} placeholder="New password" />
+            <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" type="password" value={passwordForm.password_confirmation} onChange={(event) => setPasswordForm((state) => ({ ...state, password_confirmation: event.target.value }))} placeholder="Confirm new password" />
+            <button
+              className="w-full rounded-2xl bg-slate-950 px-4 py-3 font-semibold text-white"
+              onClick={() =>
+                passwordMutation.mutate(passwordForm, {
+                  onSuccess: () =>
+                    setPasswordForm({
+                      current_password: '',
+                      password: '',
+                      password_confirmation: '',
+                    }),
+                })
+              }
+            >
+              {passwordMutation.isPending ? 'Updating...' : 'Update password'}
+            </button>
+            {passwordMutation.isSuccess ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">Password updated successfully.</div> : null}
+            {passwordMutation.isError ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{getApiErrorMessage(passwordMutation.error)}</div> : null}
+          </div>
+        </Panel>
+      </div>
+      ) : null}
+    </div>
+  );
+}
