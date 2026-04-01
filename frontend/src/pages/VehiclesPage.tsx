@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { CheckboxField } from '@/components/ui/CheckboxField';
 import { DataTable, DataTableBody, DataTableHead } from '@/components/ui/DataTable';
 import { DetailInfoCard } from '@/components/ui/DetailInfoCard';
+import { DismissibleAlert } from '@/components/ui/DismissibleAlert';
 import { Panel } from '@/components/ui/Panel';
 import { SelectField } from '@/components/ui/SelectField';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -36,6 +37,21 @@ export function VehiclesPage() {
   const createMutation = useCreateVehicle();
   const updateMutation = useUpdateVehicle();
   const deleteMutation = useDeleteVehicle();
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const resetForm = () => {
+    setEditingId(null);
+    setForm({
+      name: '',
+      plate_number: '',
+      vin: '',
+      make: '',
+      model: '',
+      year: '',
+      device_identifier: '',
+      is_active: true,
+    });
+  };
 
   const submit = () => {
     const payload = {
@@ -44,15 +60,26 @@ export function VehiclesPage() {
     };
 
     if (editingId) {
-      updateMutation.mutate({ vehicleId: editingId, payload });
+      updateMutation.mutate({ vehicleId: editingId, payload }, {
+        onSuccess: () => {
+          setSuccessMessage('Vehicle updated successfully.');
+          resetForm();
+        },
+      });
     } else {
-      createMutation.mutate(payload);
+      createMutation.mutate(payload, {
+        onSuccess: () => {
+          setSuccessMessage('Vehicle created successfully.');
+          resetForm();
+        },
+      });
     }
   };
 
   return (
     <div>
       <PageHeader title="Vehicles" description="Fleet catalog, live status, assignment, and current state access." />
+      {successMessage ? <DismissibleAlert className="mb-6" message={successMessage} onClose={() => setSuccessMessage(null)} /> : null}
       <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)_340px]">
         <Panel title={editingId ? 'Edit vehicle' : 'Create vehicle'} description="Manage the company fleet inventory and telematics metadata.">
           <div className="space-y-3">
@@ -68,9 +95,16 @@ export function VehiclesPage() {
             </div>
             <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="VIN" value={form.vin} onChange={(event) => setForm((state) => ({ ...state, vin: event.target.value }))} />
             <CheckboxField checked={form.is_active} onChange={(event) => setForm((state) => ({ ...state, is_active: event.target.checked }))} label="Active vehicle" />
-            <button className="w-full rounded-2xl bg-brand-600 px-4 py-3 font-semibold text-white" onClick={submit}>
-              {editingId ? 'Save vehicle' : 'Create vehicle'}
-            </button>
+            <div className="flex gap-3">
+              <button className="flex-1 rounded-2xl bg-brand-600 px-4 py-3 font-semibold text-white" onClick={submit}>
+                {editingId ? 'Save vehicle' : 'Create vehicle'}
+              </button>
+              {editingId ? (
+                <button className="rounded-2xl border border-slate-200 px-4 py-3 font-semibold text-slate-700" onClick={resetForm}>
+                  Cancel
+                </button>
+              ) : null}
+            </div>
           </div>
         </Panel>
         <Panel title="Fleet table" description="Search, inspect, edit, and deactivate vehicles." actions={<input className="rounded-2xl border border-slate-200 px-4 py-2 text-sm" placeholder="Search vehicles" value={search} onChange={(event) => setSearch(event.target.value)} />}>
@@ -94,7 +128,7 @@ export function VehiclesPage() {
                           <div className="font-semibold">{vehicle.plate_number}</div>
                           <div className="text-slate-500">{vehicle.name}</div>
                         </td>
-                        <td className="px-4 py-3"><StatusBadge value={vehicle.state?.status ?? (vehicle.is_active ? 'stopped' : 'offline')} /></td>
+                        <td className="px-4 py-3"><StatusBadge value={vehicle.state?.status ?? (vehicle.is_active ? undefined : 'offline')} /></td>
                         <td className="px-4 py-3 text-slate-600">{vehicle.assigned_driver?.name ?? 'Unassigned'}</td>
                         <td className="px-4 py-3 text-slate-600">{formatDateTime(vehicle.state?.last_event_at)}</td>
                       </tr>
@@ -116,7 +150,7 @@ export function VehiclesPage() {
                 <div className="text-sm text-slate-500">{detail.data.name}</div>
               </div>
               <div className="grid gap-3">
-                <DetailInfoCard label="Status"><StatusBadge value={detail.data.state?.status ?? (detail.data.is_active ? 'stopped' : 'offline')} /></DetailInfoCard>
+                <DetailInfoCard label="Status"><StatusBadge value={detail.data.state?.status ?? (detail.data.is_active ? undefined : 'offline')} /></DetailInfoCard>
                 <DetailInfoCard label="Telemetry">Speed: {detail.data.state?.speed_kmh ?? 0} km/h</DetailInfoCard>
                 <DetailInfoCard label="Assigned driver">{detail.data.assigned_driver?.name ?? 'None'}</DetailInfoCard>
               </div>

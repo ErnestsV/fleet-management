@@ -15,10 +15,31 @@ const dashboardSummary = {
     breakdown: [{ label: 'Utilization', score: 82 }],
   },
   driving_behaviour: {
+    has_data: true,
+    minimum_trip_samples: 3,
+    insufficient_vehicle_count: 0,
     average_score: 88,
     vehicle_scores: [{ vehicle_id: 1, label: 'NL-101', name: 'North 101', score: 88 }],
     best_vehicles: [{ vehicle_id: 1, label: 'NL-101', name: 'North 101', score: 88 }],
     worst_vehicles: [{ vehicle_id: 1, label: 'NL-101', name: 'North 101', score: 88 }],
+  },
+  fuel: {
+    trend: [
+      {
+        day: 'Mon',
+        avg_fuel_level_pct: 74,
+        distance_km: 24,
+        estimated_fuel_used_l: 10.2,
+        estimated_consumption_l_per_100km: 28.4,
+      },
+    ],
+    estimated_fuel_used_yesterday_l: 10.2,
+    estimated_fuel_used_previous_day_l: 9.8,
+    estimated_avg_consumption_yesterday_l_per_100km: 28.4,
+    estimated_avg_consumption_previous_day_l_per_100km: 27.1,
+    average_fuel_level_yesterday_pct: 74,
+    expected_consumption_l_per_100km: 28,
+    delta_used_pct: 4.1,
   },
   mileage: {
     yesterday_distance_km: 24,

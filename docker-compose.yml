@@ -20,7 +20,7 @@ services:
       APP_WAIT_FOR_DB: "${APP_WAIT_FOR_DB:-true}"
       APP_WAIT_FOR_REDIS: "${APP_WAIT_FOR_REDIS:-true}"
       APP_RUN_MIGRATIONS: "${APP_RUN_MIGRATIONS:-true}"
-      APP_SEED_DEMO: "${APP_SEED_DEMO:-true}"
+      APP_SEED_DEMO: "${APP_SEED_DEMO:-false}"
       APP_SKIP_BOOTSTRAP: "${APP_SKIP_BOOTSTRAP:-false}"
       DB_CONNECTION: pgsql
       DB_HOST: postgres

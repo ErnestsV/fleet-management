@@ -10,4 +10,5 @@ enum AlertType: string
     case GeofenceExit = 'geofence_exit';
     case OfflineVehicle = 'offline_vehicle';
     case MaintenanceDue = 'maintenance_due';
+    case DriverLicenseExpired = 'driver_license_expired';
 }

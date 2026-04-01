@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { SearchableVehicleField } from '@/components/forms/SearchableVehicleField';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { CheckboxField } from '@/components/ui/CheckboxField';
+import { DismissibleAlert } from '@/components/ui/DismissibleAlert';
 import { Panel } from '@/components/ui/Panel';
 import { SelectField } from '@/components/ui/SelectField';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { getApiErrorMessage } from '@/lib/api/errors';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/utils/format';
 import { useVehicles } from '@/features/vehicles/useVehicles';
@@ -48,6 +50,10 @@ export function MaintenancePage() {
   const createRecord = useCreateMaintenanceRecord();
   const deleteSchedule = useDeleteMaintenanceSchedule();
   const deleteRecord = useDeleteMaintenanceRecord();
+  const [scheduleSuccessMessage, setScheduleSuccessMessage] = useState<string | null>(null);
+  const [recordSuccessMessage, setRecordSuccessMessage] = useState<string | null>(null);
+  const dismissScheduleSuccessMessage = useCallback(() => setScheduleSuccessMessage(null), []);
+  const dismissRecordSuccessMessage = useCallback(() => setRecordSuccessMessage(null), []);
 
   const vehicleOptions = vehicles?.data ?? [];
 
@@ -87,8 +93,14 @@ export function MaintenancePage() {
               <input id="schedule-interval-km" name="schedule_interval_km" type="number" min="1" className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Interval km" value={scheduleForm.interval_km} onChange={(event) => setScheduleForm((state) => ({ ...state, interval_km: event.target.value }))} />
             </div>
             <div className="grid gap-3 md:grid-cols-2">
-              <input id="schedule-next-due-date" name="schedule_next_due_date" className="w-full rounded-2xl border border-slate-200 px-4 py-3" type="date" value={scheduleForm.next_due_date} onChange={(event) => setScheduleForm((state) => ({ ...state, next_due_date: event.target.value }))} />
-              <input id="schedule-next-due-odometer" name="schedule_next_due_odometer_km" type="number" min="0" className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Next due odometer km" value={scheduleForm.next_due_odometer_km} onChange={(event) => setScheduleForm((state) => ({ ...state, next_due_odometer_km: event.target.value }))} />
+              <div>
+                <label htmlFor="schedule-next-due-date" className="mb-2 block text-sm font-medium text-slate-700">Next due date</label>
+                <input id="schedule-next-due-date" name="schedule_next_due_date" className="w-full rounded-2xl border border-slate-200 px-4 py-3" type="date" value={scheduleForm.next_due_date} onChange={(event) => setScheduleForm((state) => ({ ...state, next_due_date: event.target.value }))} />
+              </div>
+              <div>
+                <label htmlFor="schedule-next-due-odometer" className="mb-2 block text-sm font-medium text-slate-700">Next due odometer km</label>
+                <input id="schedule-next-due-odometer" name="schedule_next_due_odometer_km" type="number" min="0" className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Next due odometer km" value={scheduleForm.next_due_odometer_km} onChange={(event) => setScheduleForm((state) => ({ ...state, next_due_odometer_km: event.target.value }))} />
+              </div>
             </div>
             <CheckboxField id="schedule-is-active" name="schedule_is_active" checked={scheduleForm.is_active} onChange={(event) => setScheduleForm((state) => ({ ...state, is_active: event.target.checked }))} label="Active schedule" />
             <button
@@ -106,6 +118,7 @@ export function MaintenancePage() {
                   },
                   {
                     onSuccess: () =>
+                    {
                       setScheduleForm({
                         vehicle_id: '',
                         name: '',
@@ -114,7 +127,10 @@ export function MaintenancePage() {
                         next_due_date: '',
                         next_due_odometer_km: '',
                         is_active: true,
-                      }),
+                      });
+                      setScheduleVehicleSearch('');
+                      setScheduleSuccessMessage('Schedule created successfully.');
+                    },
                   },
                 )
               }
@@ -122,7 +138,7 @@ export function MaintenancePage() {
               {createSchedule.isPending ? 'Creating...' : 'Create schedule'}
             </button>
             {createSchedule.isError ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{getApiErrorMessage(createSchedule.error)}</div> : null}
-            {createSchedule.isSuccess ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">Schedule created successfully.</div> : null}
+            {scheduleSuccessMessage ? <DismissibleAlert message={scheduleSuccessMessage} onClose={dismissScheduleSuccessMessage} /> : null}
           </div>
         </Panel>
 
@@ -167,8 +183,14 @@ export function MaintenancePage() {
             </SelectField>
             <input id="record-title" name="record_title" className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Record title" value={recordForm.title} onChange={(event) => setRecordForm((state) => ({ ...state, title: event.target.value }))} />
             <div className="grid gap-3 md:grid-cols-2">
-              <input id="record-service-date" name="record_service_date" className="w-full rounded-2xl border border-slate-200 px-4 py-3" type="date" value={recordForm.service_date} onChange={(event) => setRecordForm((state) => ({ ...state, service_date: event.target.value }))} />
-              <input id="record-odometer-km" name="record_odometer_km" type="number" min="0" className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Odometer km" value={recordForm.odometer_km} onChange={(event) => setRecordForm((state) => ({ ...state, odometer_km: event.target.value }))} />
+              <div>
+                <label htmlFor="record-service-date" className="mb-2 block text-sm font-medium text-slate-700">Service date</label>
+                <input id="record-service-date" name="record_service_date" className="w-full rounded-2xl border border-slate-200 px-4 py-3" type="date" value={recordForm.service_date} onChange={(event) => setRecordForm((state) => ({ ...state, service_date: event.target.value }))} />
+              </div>
+              <div>
+                <label htmlFor="record-odometer-km" className="mb-2 block text-sm font-medium text-slate-700">Odometer km</label>
+                <input id="record-odometer-km" name="record_odometer_km" type="number" min="0" className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Odometer km" value={recordForm.odometer_km} onChange={(event) => setRecordForm((state) => ({ ...state, odometer_km: event.target.value }))} />
+              </div>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               <input id="record-cost-amount" name="record_cost_amount" type="number" min="0" step="0.01" className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Cost amount" value={recordForm.cost_amount} onChange={(event) => setRecordForm((state) => ({ ...state, cost_amount: event.target.value }))} />
@@ -191,6 +213,7 @@ export function MaintenancePage() {
                   },
                   {
                     onSuccess: () =>
+                    {
                       setRecordForm({
                         vehicle_id: '',
                         maintenance_schedule_id: '',
@@ -200,7 +223,10 @@ export function MaintenancePage() {
                         cost_amount: '',
                         currency: 'EUR',
                         notes: '',
-                      }),
+                      });
+                      setRecordVehicleSearch('');
+                      setRecordSuccessMessage('Service record created successfully.');
+                    },
                   },
                 )
               }
@@ -208,7 +234,7 @@ export function MaintenancePage() {
               {createRecord.isPending ? 'Creating...' : 'Create record'}
             </button>
             {createRecord.isError ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{getApiErrorMessage(createRecord.error)}</div> : null}
-            {createRecord.isSuccess ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">Service record created successfully.</div> : null}
+            {recordSuccessMessage ? <DismissibleAlert message={recordSuccessMessage} onClose={dismissRecordSuccessMessage} /> : null}
           </div>
         </Panel>
       </div>
@@ -230,7 +256,7 @@ export function MaintenancePage() {
                           {item.vehicle?.name ? ` · ${item.vehicle.name}` : ''}
                         </div>
                       </div>
-                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${item.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
+                      <span className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold ${item.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
                         {item.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </div>
@@ -266,7 +292,7 @@ export function MaintenancePage() {
                         <div>Next due odometer: <span className="font-medium">{formatNumber(item.next_due_odometer_km, 'km')}</span></div>
                         <div>Interval days: <span className="font-medium">{item.interval_days ?? 'Not set'}</span></div>
                         <div>Interval km: <span className="font-medium">{formatNumber(item.interval_km, 'km')}</span></div>
-                        <div>Status: <span className="font-medium">{item.is_active ? 'Active' : 'Inactive'}</span></div>
+                        <div>Status: <StatusBadge value={item.is_active ? 'active' : 'offline'} /></div>
                       </div>
                     </div>
                     <button className="rounded-2xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white" onClick={() => deleteSchedule.mutate(item.id)}>

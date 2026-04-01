@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { CheckboxField } from '@/components/ui/CheckboxField';
 import { DataTable, DataTableBody, DataTableHead } from '@/components/ui/DataTable';
 import { DetailInfoCard } from '@/components/ui/DetailInfoCard';
+import { DismissibleAlert } from '@/components/ui/DismissibleAlert';
 import { Panel } from '@/components/ui/Panel';
 import { SelectField } from '@/components/ui/SelectField';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -33,19 +34,43 @@ export function DriversPage() {
   const createMutation = useCreateDriver();
   const updateMutation = useUpdateDriver();
   const deleteMutation = useDeleteDriver();
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const resetForm = () => {
+    setEditingId(null);
+    setForm({
+      name: '',
+      email: '',
+      phone: '',
+      license_number: '',
+      license_expires_at: '',
+      is_active: true,
+    });
+  };
 
   const submit = () => {
     const payload = { ...form, license_expires_at: form.license_expires_at || null };
     if (editingId) {
-      updateMutation.mutate({ driverId: editingId, payload });
+      updateMutation.mutate({ driverId: editingId, payload }, {
+        onSuccess: () => {
+          setSuccessMessage('Driver updated successfully.');
+          resetForm();
+        },
+      });
     } else {
-      createMutation.mutate(payload);
+      createMutation.mutate(payload, {
+        onSuccess: () => {
+          setSuccessMessage('Driver created successfully.');
+          resetForm();
+        },
+      });
     }
   };
 
   return (
     <div>
       <PageHeader title="Drivers" description="Driver records and vehicle assignment management." />
+      {successMessage ? <DismissibleAlert className="mb-6" message={successMessage} onClose={() => setSuccessMessage(null)} /> : null}
       <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)_340px]">
         <Panel title={editingId ? 'Edit driver' : 'Create driver'} description="Driver records with assignment visibility.">
           <div className="space-y-3">
@@ -53,11 +78,21 @@ export function DriversPage() {
             <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Email" value={form.email} onChange={(event) => setForm((state) => ({ ...state, email: event.target.value }))} />
             <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Phone" value={form.phone} onChange={(event) => setForm((state) => ({ ...state, phone: event.target.value }))} />
             <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="License number" value={form.license_number} onChange={(event) => setForm((state) => ({ ...state, license_number: event.target.value }))} />
-            <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="License expires at" type="date" value={form.license_expires_at} onChange={(event) => setForm((state) => ({ ...state, license_expires_at: event.target.value }))} />
+            <div>
+              <label htmlFor="driver-license-expires-at" className="mb-2 block text-sm font-medium text-slate-700">License expiry date</label>
+              <input id="driver-license-expires-at" className="w-full rounded-2xl border border-slate-200 px-4 py-3" type="date" value={form.license_expires_at} onChange={(event) => setForm((state) => ({ ...state, license_expires_at: event.target.value }))} />
+            </div>
             <CheckboxField checked={form.is_active} onChange={(event) => setForm((state) => ({ ...state, is_active: event.target.checked }))} label="Active driver" />
-            <button className="w-full rounded-2xl bg-brand-600 px-4 py-3 font-semibold text-white" onClick={submit}>
-              {editingId ? 'Save driver' : 'Create driver'}
-            </button>
+            <div className="flex gap-3">
+              <button className="flex-1 rounded-2xl bg-brand-600 px-4 py-3 font-semibold text-white" onClick={submit}>
+                {editingId ? 'Save driver' : 'Create driver'}
+              </button>
+              {editingId ? (
+                <button className="rounded-2xl border border-slate-200 px-4 py-3 font-semibold text-slate-700" onClick={resetForm}>
+                  Cancel
+                </button>
+              ) : null}
+            </div>
           </div>
         </Panel>
         <Panel title="Driver table" description="Review and manage driver records." actions={<input className="rounded-2xl border border-slate-200 px-4 py-2 text-sm" placeholder="Search drivers" value={search} onChange={(event) => setSearch(event.target.value)} />}>

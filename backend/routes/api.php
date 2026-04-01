@@ -28,7 +28,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/telemetry/events', [TelemetryIngestionController::class, 'store'])
         ->middleware('throttle:telemetry');
 
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'active.account'])->group(function () {
         Route::get('/auth/user', [ProfileController::class, 'show']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::patch('/auth/profile', [ProfileController::class, 'update']);

@@ -1,4 +1,4 @@
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { MapPlaceholder } from '@/components/maps/MapPlaceholder';
 import { DataTable, DataTableBody, DataTableHead } from '@/components/ui/DataTable';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -14,7 +14,7 @@ function RankingPanel({
   tone,
 }: {
   title: string;
-  items: { label: string; score: number }[];
+  items: { vehicle_id?: number; label: string; score: number }[];
   tone: 'good' | 'bad';
 }) {
   return (
@@ -22,8 +22,8 @@ function RankingPanel({
       <div className="text-sm font-semibold text-slate-900">{title}</div>
       <div className="mt-4 space-y-3">
         {items.length > 0 ? (
-          items.map((item) => (
-            <div key={`${title}-${item.label}`} className="flex items-center justify-between gap-4">
+          items.map((item, index) => (
+            <div key={`${title}-${item.vehicle_id ?? item.label}-${index}`} className="flex items-center justify-between gap-4">
               <div className="text-sm font-medium text-slate-700">{item.label}</div>
               <div className={`rounded-full px-3 py-1 text-xs font-semibold ${tone === 'good' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
                 {item.score.toFixed(1)}
@@ -121,20 +121,33 @@ export function DashboardPage() {
                 <div className="grid gap-6 md:grid-cols-[180px_minmax(0,1fr)]">
                   <div className="rounded-[28px] bg-slate-50 p-6 text-center">
                     <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Average score</div>
-                    <div className="mt-3 text-5xl font-semibold text-slate-950">{data.driving_behaviour.average_score.toFixed(1)}</div>
+                    <div className="mt-3 text-5xl font-semibold text-slate-950">
+                      {data.driving_behaviour.average_score != null ? data.driving_behaviour.average_score.toFixed(1) : 'N/A'}
+                    </div>
                   </div>
                   <div className="h-48">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={data.driving_behaviour.vehicle_scores.slice(0, 8)}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="label" />
-                        <YAxis domain={[0, 100]} />
-                        <Tooltip />
-                        <Bar dataKey="score" fill="#84cc16" radius={[8, 8, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                    {data.driving_behaviour.vehicle_scores.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={data.driving_behaviour.vehicle_scores}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="label" />
+                          <YAxis domain={[0, 100]} />
+                          <Tooltip />
+                          <Bar dataKey="score" fill="#84cc16" radius={[8, 8, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">
+                        Insufficient trip data yet. At least {data.driving_behaviour.minimum_trip_samples} completed trips per vehicle are needed for behaviour scoring.
+                      </div>
+                    )}
                   </div>
                 </div>
+                {data.driving_behaviour.insufficient_vehicle_count > 0 ? (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                    {data.driving_behaviour.insufficient_vehicle_count} vehicle(s) currently have insufficient trip data for behaviour scoring.
+                  </div>
+                ) : null}
                 <div className="grid gap-4 md:grid-cols-2">
                   <RankingPanel title="Most efficient" items={data.driving_behaviour.best_vehicles} tone="good" />
                   <RankingPanel title="Needs coaching" items={data.driving_behaviour.worst_vehicles} tone="bad" />
@@ -201,6 +214,63 @@ export function DashboardPage() {
                 <WorkingTimeCard title="Earliest end time" items={data.working_time.earliest_end} />
                 <WorkingTimeCard title="Latest start-up" items={data.working_time.latest_start} />
                 <WorkingTimeCard title="Latest end time" items={data.working_time.latest_end} />
+              </div>
+            </Panel>
+          </div>
+
+          <div className="mt-6">
+            <Panel title="Fuel" description="Estimated fuel usage derived from fuel-level telemetry and odometer distance. These values are estimates, not calibrated fuel-card totals.">
+              <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_220px_220px]">
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={data.fuel.trend}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="day" />
+                      <YAxis yAxisId="consumption" label={{ value: 'l/100km', angle: -90, position: 'insideLeft' }} />
+                      <YAxis yAxisId="liters" orientation="right" label={{ value: 'L', angle: 90, position: 'insideRight' }} />
+                      <Tooltip />
+                      <Legend />
+                      <Line yAxisId="consumption" type="monotone" dataKey="estimated_consumption_l_per_100km" name="Estimated consumption" stroke="#84cc16" strokeWidth={3} />
+                      <Line yAxisId="liters" type="monotone" dataKey="estimated_fuel_used_l" name="Estimated fuel used" stroke="#2563eb" strokeWidth={3} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="grid gap-4">
+                  <div className="rounded-2xl border border-slate-200 p-6">
+                    <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Average fuel consumption by distance</div>
+                    <div className="mt-3 text-4xl font-semibold text-slate-950">
+                      {data.fuel.estimated_avg_consumption_yesterday_l_per_100km != null ? data.fuel.estimated_avg_consumption_yesterday_l_per_100km.toFixed(1) : 'N/A'}
+                    </div>
+                    <div className="mt-2 text-sm text-slate-500">
+                      The day before: {data.fuel.estimated_avg_consumption_previous_day_l_per_100km != null ? `${data.fuel.estimated_avg_consumption_previous_day_l_per_100km.toFixed(1)} l/100km` : 'N/A'}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 p-6">
+                    <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Average fuel level yesterday</div>
+                    <div className="mt-3 text-4xl font-semibold text-slate-950">
+                      {data.fuel.average_fuel_level_yesterday_pct != null ? `${data.fuel.average_fuel_level_yesterday_pct.toFixed(1)}%` : 'N/A'}
+                    </div>
+                    <div className="mt-2 text-sm text-slate-500">Expected consumption baseline: {data.fuel.expected_consumption_l_per_100km.toFixed(1)} l/100km</div>
+                  </div>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-6">
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Estimated fuel consumed yesterday</div>
+                  <div className="mt-3 text-5xl font-semibold text-slate-950">
+                    {data.fuel.estimated_fuel_used_yesterday_l != null ? `${data.fuel.estimated_fuel_used_yesterday_l.toFixed(1)} l` : 'N/A'}
+                  </div>
+                  <div className={`mt-3 text-sm font-medium ${
+                    data.fuel.delta_used_pct == null
+                      ? 'text-slate-500'
+                      : data.fuel.delta_used_pct >= 0
+                        ? 'text-rose-600'
+                        : 'text-emerald-600'
+                  }`}>
+                    {data.fuel.delta_used_pct != null ? `${data.fuel.delta_used_pct > 0 ? '+' : ''}${data.fuel.delta_used_pct.toFixed(1)}% vs previous day` : 'No previous-day baseline'}
+                  </div>
+                  <div className="mt-2 text-sm text-slate-500">
+                    The day before: {data.fuel.estimated_fuel_used_previous_day_l != null ? `${data.fuel.estimated_fuel_used_previous_day_l.toFixed(1)} l` : 'N/A'}
+                  </div>
+                </div>
               </div>
             </Panel>
           </div>

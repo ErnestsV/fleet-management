@@ -58,8 +58,25 @@ frontend/src/
 Notes:
 - Containers run as your local UID/GID by default to avoid root-owned files in the workspace.
 - The backend container waits for Postgres and Redis, then runs migrations on startup.
-- Demo seed data is enabled by default in Docker via `APP_SEED_DEMO=true`.
+- Demo seed data is not automatically reseeded on backend restarts.
 - Queue and scheduler containers do not run migrations or seeders.
+
+## Demo seeding
+
+- Docker now defaults to `APP_SEED_DEMO=false` so restarting the backend container does not reseed or overwrite local demo data.
+- If you want to load the built-in demo tenant data intentionally, run:
+
+```bash
+docker compose exec backend php artisan db:seed --force
+```
+
+- Or temporarily enable it in your root `.env` for first boot only:
+
+```env
+APP_SEED_DEMO=true
+```
+
+- After the initial demo load, set it back to `false` to avoid reseeding on future backend restarts.
 
 ## Mail setup
 

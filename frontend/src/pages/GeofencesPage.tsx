@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { CheckboxField } from '@/components/ui/CheckboxField';
+import { DismissibleAlert } from '@/components/ui/DismissibleAlert';
 import { Panel } from '@/components/ui/Panel';
 import { useCreateGeofence, useDeleteGeofence, useGeofences, useUpdateGeofence } from '@/features/geofences/useGeofences';
 import { MapPlaceholder } from '@/components/maps/MapPlaceholder';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import type { Geofence } from '@/types/domain';
 
 export function GeofencesPage() {
@@ -19,6 +21,19 @@ export function GeofencesPage() {
   const createMutation = useCreateGeofence();
   const updateMutation = useUpdateGeofence();
   const deleteMutation = useDeleteGeofence();
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const dismissSuccessMessage = useCallback(() => setSuccessMessage(null), []);
+
+  const resetForm = () => {
+    setEditing(null);
+    setForm({
+      name: '',
+      center_lat: '56.9496',
+      center_lng: '24.1052',
+      radius_m: '500',
+      is_active: true,
+    });
+  };
 
   const submit = () => {
     const payload = {
@@ -35,15 +50,26 @@ export function GeofencesPage() {
     };
 
     if (editing) {
-      updateMutation.mutate({ geofenceId: editing.id, payload });
+      updateMutation.mutate({ geofenceId: editing.id, payload }, {
+        onSuccess: () => {
+          setSuccessMessage('Geofence updated successfully.');
+          resetForm();
+        },
+      });
     } else {
-      createMutation.mutate(payload);
+      createMutation.mutate(payload, {
+        onSuccess: () => {
+          setSuccessMessage('Geofence created successfully.');
+          resetForm();
+        },
+      });
     }
   };
 
   return (
     <div>
       <PageHeader title="Geofences" description="Circle geofences for the MVP UI with polygon-ready backend geometry." />
+      {successMessage ? <DismissibleAlert className="mb-6" message={successMessage} onClose={dismissSuccessMessage} /> : null}
       <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
         <Panel title={editing ? 'Edit geofence' : 'Create geofence'} description="Map drawing is placeholder-only for now; coordinates remain provider-agnostic.">
           <div className="space-y-3">
@@ -54,9 +80,16 @@ export function GeofencesPage() {
             </div>
             <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Radius (m)" value={form.radius_m} onChange={(event) => setForm((state) => ({ ...state, radius_m: event.target.value }))} />
             <CheckboxField checked={form.is_active} onChange={(event) => setForm((state) => ({ ...state, is_active: event.target.checked }))} label="Active geofence" />
-            <button className="w-full rounded-2xl bg-brand-600 px-4 py-3 font-semibold text-white" onClick={submit}>
-              {editing ? 'Save geofence' : 'Create geofence'}
-            </button>
+            <div className="flex gap-3">
+              <button className="flex-1 rounded-2xl bg-brand-600 px-4 py-3 font-semibold text-white" onClick={submit}>
+                {editing ? 'Save geofence' : 'Create geofence'}
+              </button>
+              {editing ? (
+                <button className="rounded-2xl border border-slate-200 px-4 py-3 font-semibold text-slate-700" onClick={resetForm}>
+                  Cancel
+                </button>
+              ) : null}
+            </div>
           </div>
         </Panel>
         <div className="space-y-6">
@@ -68,8 +101,9 @@ export function GeofencesPage() {
               (data?.data?.length ?? 0) > 0 ? (
                 <div className="space-y-3">
                   {(data?.data ?? []).map((geofence) => (
-                    <div key={geofence.id} className="flex items-center justify-between rounded-2xl border border-slate-200 p-4">
+                    <div key={geofence.id} className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 p-4">
                       <button
+                        type="button"
                         className="text-left"
                         onClick={() => {
                           setEditing(geofence);
@@ -85,9 +119,52 @@ export function GeofencesPage() {
                         <div className="font-semibold">{geofence.name}</div>
                         <div className="text-sm text-slate-500">{geofence.geometry.radius_m} m radius</div>
                       </button>
-                      <button className="rounded-2xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white" onClick={() => deleteMutation.mutate(geofence.id)}>
-                        Delete
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusBadge value={geofence.is_active ? 'active' : 'offline'} />
+                        <button
+                          type="button"
+                          className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold"
+                          onClick={() => {
+                            setEditing(geofence);
+                            setForm({
+                              name: geofence.name,
+                              center_lat: String(geofence.geometry.center?.lat ?? ''),
+                              center_lng: String(geofence.geometry.center?.lng ?? ''),
+                              radius_m: String(geofence.geometry.radius_m ?? ''),
+                              is_active: geofence.is_active,
+                            });
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold"
+                          onClick={() =>
+                            updateMutation.mutate({
+                              geofenceId: geofence.id,
+                              payload: {
+                                name: geofence.name,
+                                type: geofence.type,
+                                is_active: !geofence.is_active,
+                                geometry: geofence.geometry,
+                              },
+                            }, {
+                              onSuccess: () => {
+                                setSuccessMessage(`Geofence ${!geofence.is_active ? 'activated' : 'deactivated'} successfully.`);
+                                if (editing?.id === geofence.id) {
+                                  resetForm();
+                                }
+                              },
+                            })
+                          }
+                        >
+                          {geofence.is_active ? 'Disable' : 'Enable'}
+                        </button>
+                        <button type="button" className="rounded-2xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white" onClick={() => deleteMutation.mutate(geofence.id)}>
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
