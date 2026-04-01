@@ -19,9 +19,9 @@
     "paths": {
       "@/*": ["./*"]
     },
-    "types": ["vite/client"],
+    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"],
     "tsBuildInfoFile": "/tmp/fleet-management-frontend.tsbuildinfo"
   },
-  "include": ["src"],
+  "include": ["src", "tests"],
   "references": []
 }
