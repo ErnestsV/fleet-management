@@ -1,10 +1,16 @@
 import { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { CheckboxField } from '@/components/ui/CheckboxField';
+import { DataTable, DataTableBody, DataTableHead } from '@/components/ui/DataTable';
+import { DetailInfoCard } from '@/components/ui/DetailInfoCard';
 import { Panel } from '@/components/ui/Panel';
+import { SelectField } from '@/components/ui/SelectField';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { AssignmentHistoryList } from '@/components/ui/AssignmentHistoryList';
 import { useAssignments, useCreateAssignment, useEndAssignment } from '@/features/assignments/useAssignments';
 import { useDrivers } from '@/features/drivers/useDrivers';
 import { useCreateVehicle, useDeleteVehicle, useUpdateVehicle, useVehicle, useVehicles } from '@/features/vehicles/useVehicles';
+import { formatDateTime } from '@/lib/utils/format';
 
 export function VehiclesPage() {
   const [search, setSearch] = useState('');
@@ -61,10 +67,7 @@ export function VehiclesPage() {
               <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Device ID" value={form.device_identifier} onChange={(event) => setForm((state) => ({ ...state, device_identifier: event.target.value }))} />
             </div>
             <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="VIN" value={form.vin} onChange={(event) => setForm((state) => ({ ...state, vin: event.target.value }))} />
-            <label className="flex items-center gap-2 text-sm text-slate-600">
-              <input type="checkbox" checked={form.is_active} onChange={(event) => setForm((state) => ({ ...state, is_active: event.target.checked }))} />
-              Active vehicle
-            </label>
+            <CheckboxField checked={form.is_active} onChange={(event) => setForm((state) => ({ ...state, is_active: event.target.checked }))} label="Active vehicle" />
             <button className="w-full rounded-2xl bg-brand-600 px-4 py-3 font-semibold text-white" onClick={submit}>
               {editingId ? 'Save vehicle' : 'Create vehicle'}
             </button>
@@ -75,17 +78,16 @@ export function VehiclesPage() {
           {isError ? <div className="text-sm text-rose-600">Failed to load vehicles.</div> : null}
           {!isLoading && !isError ? (
             (data?.data?.length ?? 0) > 0 ? (
-              <div className="overflow-hidden rounded-2xl border border-slate-200">
-                <table className="min-w-full divide-y divide-slate-200 text-sm">
-                  <thead className="bg-slate-50 text-left text-slate-500">
+              <DataTable>
+                <DataTableHead>
                     <tr>
                       <th className="px-4 py-3">Vehicle</th>
                       <th className="px-4 py-3">Status</th>
                       <th className="px-4 py-3">Driver</th>
                       <th className="px-4 py-3">Last event</th>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 bg-white">
+                </DataTableHead>
+                <DataTableBody>
                     {(data?.data ?? []).map((vehicle) => (
                       <tr key={vehicle.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setSelectedId(vehicle.id)}>
                         <td className="px-4 py-3">
@@ -94,12 +96,11 @@ export function VehiclesPage() {
                         </td>
                         <td className="px-4 py-3"><StatusBadge value={vehicle.state?.status ?? (vehicle.is_active ? 'stopped' : 'offline')} /></td>
                         <td className="px-4 py-3 text-slate-600">{vehicle.assigned_driver?.name ?? 'Unassigned'}</td>
-                        <td className="px-4 py-3 text-slate-600">{vehicle.state?.last_event_at ? new Date(vehicle.state.last_event_at).toLocaleString() : 'No data'}</td>
+                        <td className="px-4 py-3 text-slate-600">{formatDateTime(vehicle.state?.last_event_at)}</td>
                       </tr>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                </DataTableBody>
+              </DataTable>
             ) : (
               <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-sm text-slate-500">No vehicles match the current search.</div>
             )
@@ -115,9 +116,9 @@ export function VehiclesPage() {
                 <div className="text-sm text-slate-500">{detail.data.name}</div>
               </div>
               <div className="grid gap-3">
-                <div className="rounded-2xl bg-slate-50 p-4"><div className="text-xs uppercase tracking-[0.16em] text-slate-500">Status</div><div className="mt-2"><StatusBadge value={detail.data.state?.status} /></div></div>
-                <div className="rounded-2xl bg-slate-50 p-4"><div className="text-xs uppercase tracking-[0.16em] text-slate-500">Telemetry</div><div className="mt-2 text-sm text-slate-700">Speed: {detail.data.state?.speed_kmh ?? 0} km/h</div></div>
-                <div className="rounded-2xl bg-slate-50 p-4"><div className="text-xs uppercase tracking-[0.16em] text-slate-500">Assigned driver</div><div className="mt-2 text-sm text-slate-700">{detail.data.assigned_driver?.name ?? 'None'}</div></div>
+                <DetailInfoCard label="Status"><StatusBadge value={detail.data.state?.status ?? (detail.data.is_active ? 'stopped' : 'offline')} /></DetailInfoCard>
+                <DetailInfoCard label="Telemetry">Speed: {detail.data.state?.speed_kmh ?? 0} km/h</DetailInfoCard>
+                <DetailInfoCard label="Assigned driver">{detail.data.assigned_driver?.name ?? 'None'}</DetailInfoCard>
               </div>
               <div className="flex gap-3">
                 <button
@@ -145,14 +146,14 @@ export function VehiclesPage() {
               <div className="rounded-2xl border border-slate-200 p-4">
                 <div className="mb-3 text-sm font-semibold text-slate-900">Driver assignment</div>
                 <div className="flex gap-2">
-                  <select className="flex-1 rounded-2xl border border-slate-200 px-4 py-3 text-sm" value={driverId} onChange={(event) => setDriverId(event.target.value)}>
+                  <SelectField className="flex-1" value={driverId} onValueChange={setDriverId}>
                     <option value="">Select driver</option>
                     {(drivers?.data ?? []).map((driver) => (
                       <option key={driver.id} value={driver.id}>
                         {driver.name}
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                   <button
                     className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white"
                     onClick={() =>
@@ -167,23 +168,18 @@ export function VehiclesPage() {
                     Assign
                   </button>
                 </div>
-                <div className="mt-3 space-y-2">
-                  {(assignments?.data ?? []).slice(0, 3).map((assignment) => (
-                    <div key={assignment.id} className="flex items-center justify-between rounded-2xl bg-slate-50 p-3 text-sm">
-                      <div>
-                        <div className="font-semibold">{assignment.driver?.name ?? assignment.driver_id}</div>
-                        <div className="text-slate-500">
-                          {new Date(assignment.assigned_from).toLocaleString()}
-                          {assignment.assigned_until ? ` to ${new Date(assignment.assigned_until).toLocaleString()}` : ' · Active'}
-                        </div>
-                      </div>
-                      {!assignment.assigned_until ? (
-                        <button className="rounded-2xl border border-slate-200 px-3 py-2 font-semibold" onClick={() => endAssignment.mutate({ assignmentId: assignment.id, assigned_until: new Date().toISOString() })}>
-                          End
-                        </button>
-                      ) : null}
-                    </div>
-                  ))}
+                <div className="mt-3">
+                  <AssignmentHistoryList
+                    items={(assignments?.data ?? []).slice(0, 3).map((assignment) => ({
+                      id: assignment.id,
+                      title: assignment.driver?.name ?? String(assignment.driver_id),
+                      assignedFrom: assignment.assigned_from,
+                      assignedUntil: assignment.assigned_until,
+                      onEnd: !assignment.assigned_until
+                        ? () => endAssignment.mutate({ assignmentId: assignment.id, assigned_until: new Date().toISOString() })
+                        : undefined,
+                    }))}
+                  />
                 </div>
               </div>
             </div>

@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { CheckboxField } from '@/components/ui/CheckboxField';
+import { DataTable, DataTableBody, DataTableHead } from '@/components/ui/DataTable';
+import { DetailInfoCard } from '@/components/ui/DetailInfoCard';
 import { Panel } from '@/components/ui/Panel';
+import { SelectField } from '@/components/ui/SelectField';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { AssignmentHistoryList } from '@/components/ui/AssignmentHistoryList';
 import { useAssignments, useCreateAssignment, useEndAssignment } from '@/features/assignments/useAssignments';
 import { useCreateDriver, useDeleteDriver, useDriver, useDrivers, useUpdateDriver } from '@/features/drivers/useDrivers';
 import { useVehicles } from '@/features/vehicles/useVehicles';
@@ -49,10 +54,7 @@ export function DriversPage() {
             <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Phone" value={form.phone} onChange={(event) => setForm((state) => ({ ...state, phone: event.target.value }))} />
             <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="License number" value={form.license_number} onChange={(event) => setForm((state) => ({ ...state, license_number: event.target.value }))} />
             <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="License expires at" type="date" value={form.license_expires_at} onChange={(event) => setForm((state) => ({ ...state, license_expires_at: event.target.value }))} />
-            <label className="flex items-center gap-2 text-sm text-slate-600">
-              <input type="checkbox" checked={form.is_active} onChange={(event) => setForm((state) => ({ ...state, is_active: event.target.checked }))} />
-              Active driver
-            </label>
+            <CheckboxField checked={form.is_active} onChange={(event) => setForm((state) => ({ ...state, is_active: event.target.checked }))} label="Active driver" />
             <button className="w-full rounded-2xl bg-brand-600 px-4 py-3 font-semibold text-white" onClick={submit}>
               {editingId ? 'Save driver' : 'Create driver'}
             </button>
@@ -63,16 +65,15 @@ export function DriversPage() {
           {isError ? <div className="text-sm text-rose-600">Failed to load drivers.</div> : null}
           {!isLoading && !isError ? (
             (data?.data?.length ?? 0) > 0 ? (
-              <div className="overflow-hidden rounded-2xl border border-slate-200">
-                <table className="min-w-full divide-y divide-slate-200 text-sm">
-                  <thead className="bg-slate-50 text-left text-slate-500">
+              <DataTable>
+                <DataTableHead>
                     <tr>
                       <th className="px-4 py-3">Driver</th>
                       <th className="px-4 py-3">Assigned vehicle</th>
                       <th className="px-4 py-3">Status</th>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 bg-white">
+                </DataTableHead>
+                <DataTableBody>
                     {(data?.data ?? []).map((driver) => (
                       <tr key={driver.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setSelectedId(driver.id)}>
                         <td className="px-4 py-3">
@@ -83,9 +84,8 @@ export function DriversPage() {
                         <td className="px-4 py-3"><StatusBadge value={driver.is_active ? 'active' : 'offline'} /></td>
                       </tr>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                </DataTableBody>
+              </DataTable>
             ) : (
               <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-sm text-slate-500">No drivers match the current search.</div>
             )
@@ -101,9 +101,9 @@ export function DriversPage() {
                 <div className="text-sm text-slate-500">{detail.data.email ?? 'No email set'}</div>
               </div>
               <div className="grid gap-3">
-                <div className="rounded-2xl bg-slate-50 p-4"><div className="text-xs uppercase tracking-[0.16em] text-slate-500">Assigned vehicle</div><div className="mt-2 text-sm text-slate-700">{detail.data.assigned_vehicle?.plate_number ?? 'No current assignment'}</div></div>
-                <div className="rounded-2xl bg-slate-50 p-4"><div className="text-xs uppercase tracking-[0.16em] text-slate-500">License</div><div className="mt-2 text-sm text-slate-700">{detail.data.license_number ?? 'Not set'}</div></div>
-                <div className="rounded-2xl bg-slate-50 p-4"><div className="text-xs uppercase tracking-[0.16em] text-slate-500">Status</div><div className="mt-2"><StatusBadge value={detail.data.is_active ? 'active' : 'offline'} /></div></div>
+                <DetailInfoCard label="Assigned vehicle">{detail.data.assigned_vehicle?.plate_number ?? 'No current assignment'}</DetailInfoCard>
+                <DetailInfoCard label="License">{detail.data.license_number ?? 'Not set'}</DetailInfoCard>
+                <DetailInfoCard label="Status"><StatusBadge value={detail.data.is_active ? 'active' : 'offline'} /></DetailInfoCard>
               </div>
               <div className="flex gap-3">
                 <button
@@ -129,14 +129,14 @@ export function DriversPage() {
               <div className="rounded-2xl border border-slate-200 p-4">
                 <div className="mb-3 text-sm font-semibold text-slate-900">Vehicle assignment</div>
                 <div className="flex gap-2">
-                  <select className="flex-1 rounded-2xl border border-slate-200 px-4 py-3 text-sm" value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>
+                  <SelectField className="flex-1" value={vehicleId} onValueChange={setVehicleId}>
                     <option value="">Select vehicle</option>
                     {(vehicles?.data ?? []).map((vehicle) => (
                       <option key={vehicle.id} value={vehicle.id}>
                         {vehicle.plate_number}
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                   <button
                     className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white"
                     onClick={() =>
@@ -151,23 +151,19 @@ export function DriversPage() {
                     Assign
                   </button>
                 </div>
-                <div className="mt-3 space-y-2">
-                  {(assignments?.data ?? []).slice(0, 3).map((assignment) => (
-                    <div key={assignment.id} className="flex items-center justify-between rounded-2xl bg-slate-50 p-3 text-sm">
-                      <div>
-                        <div className="font-semibold">{assignment.vehicle?.plate_number ?? assignment.vehicle_id}</div>
-                        <div className="text-slate-500">
-                          {new Date(assignment.assigned_from).toLocaleString()}
-                          {assignment.assigned_until ? ` to ${new Date(assignment.assigned_until).toLocaleString()}` : ' · Active'}
-                        </div>
-                      </div>
-                      {!assignment.assigned_until ? (
-                        <button className="rounded-2xl border border-slate-200 px-3 py-2 font-semibold" onClick={() => endAssignment.mutate({ assignmentId: assignment.id, assigned_until: new Date().toISOString() })}>
-                          End
-                        </button>
-                      ) : null}
-                    </div>
-                  ))}
+                <div className="mt-3">
+                  <AssignmentHistoryList
+                    items={(assignments?.data ?? []).slice(0, 3).map((assignment) => ({
+                      id: assignment.id,
+                      title: assignment.vehicle?.plate_number ?? String(assignment.vehicle_id),
+                      subtitle: assignment.vehicle?.name ?? null,
+                      assignedFrom: assignment.assigned_from,
+                      assignedUntil: assignment.assigned_until,
+                      onEnd: !assignment.assigned_until
+                        ? () => endAssignment.mutate({ assignmentId: assignment.id, assigned_until: new Date().toISOString() })
+                        : undefined,
+                    }))}
+                  />
                 </div>
               </div>
             </div>

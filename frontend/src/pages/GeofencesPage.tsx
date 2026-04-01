@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { CheckboxField } from '@/components/ui/CheckboxField';
 import { Panel } from '@/components/ui/Panel';
 import { useCreateGeofence, useDeleteGeofence, useGeofences, useUpdateGeofence } from '@/features/geofences/useGeofences';
 import { MapPlaceholder } from '@/components/maps/MapPlaceholder';
@@ -52,10 +53,7 @@ export function GeofencesPage() {
               <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Center longitude" value={form.center_lng} onChange={(event) => setForm((state) => ({ ...state, center_lng: event.target.value }))} />
             </div>
             <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Radius (m)" value={form.radius_m} onChange={(event) => setForm((state) => ({ ...state, radius_m: event.target.value }))} />
-            <label className="flex items-center gap-2 text-sm text-slate-600">
-              <input type="checkbox" checked={form.is_active} onChange={(event) => setForm((state) => ({ ...state, is_active: event.target.checked }))} />
-              Active geofence
-            </label>
+            <CheckboxField checked={form.is_active} onChange={(event) => setForm((state) => ({ ...state, is_active: event.target.checked }))} label="Active geofence" />
             <button className="w-full rounded-2xl bg-brand-600 px-4 py-3 font-semibold text-white" onClick={submit}>
               {editing ? 'Save geofence' : 'Create geofence'}
             </button>

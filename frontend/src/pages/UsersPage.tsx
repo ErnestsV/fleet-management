@@ -3,6 +3,9 @@ import { useMemo, useState } from 'react';
 import { useAuthStore } from '@/app/store/authStore';
 import { useCompanies } from '@/features/companies/useCompanies';
 import { useCreateUser, useUpdateUser, useUsers } from '@/features/users/useUsers';
+import { CheckboxField } from '@/components/ui/CheckboxField';
+import { Panel } from '@/components/ui/Panel';
+import { SelectField } from '@/components/ui/SelectField';
 import type { AuthUser, UserRole } from '@/types/domain';
 
 export function UsersPage() {
@@ -57,46 +60,41 @@ export function UsersPage() {
     <div>
       <PageHeader title="Users" description="Company-scoped user management with owner/admin role boundaries." />
       <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
-        <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-panel">
-          <h2 className="text-lg font-semibold">{editing ? 'Edit user' : 'Create user'}</h2>
+        <Panel title={editing ? 'Edit user' : 'Create user'}>
           <div className="mt-4 space-y-3">
             {actor?.role === 'super_admin' ? (
-              <select className="w-full rounded-2xl border border-slate-200 px-4 py-3" value={form.company_id ?? ''} onChange={(event) => setForm((state) => ({ ...state, company_id: event.target.value ? Number(event.target.value) : null }))}>
+              <SelectField value={form.company_id ?? ''} onValueChange={(value) => setForm((state) => ({ ...state, company_id: value ? Number(value) : null }))}>
                 <option value="">Platform-level user</option>
                 {(companies?.data ?? []).map((company) => (
                   <option key={company.id} value={company.id}>
                     {company.name}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             ) : null}
             <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Full name" value={form.name} onChange={(event) => setForm((state) => ({ ...state, name: event.target.value }))} />
             <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Email" value={form.email} onChange={(event) => setForm((state) => ({ ...state, email: event.target.value }))} />
             <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder={editing ? 'New password (optional)' : 'Temporary password'} value={form.password} onChange={(event) => setForm((state) => ({ ...state, password: event.target.value }))} />
             <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Timezone" value={form.timezone} onChange={(event) => setForm((state) => ({ ...state, timezone: event.target.value }))} />
-            <select className="w-full rounded-2xl border border-slate-200 px-4 py-3" value={form.role} onChange={(event) => setForm((state) => ({ ...state, role: event.target.value as UserRole }))}>
+            <SelectField value={form.role} onValueChange={(value) => setForm((state) => ({ ...state, role: value as UserRole }))}>
               {roleOptions.map((role) => (
                 <option key={role} value={role}>
                   {role}
                 </option>
               ))}
-            </select>
-            <label className="flex items-center gap-2 text-sm text-slate-600">
-              <input type="checkbox" checked={form.is_active} onChange={(event) => setForm((state) => ({ ...state, is_active: event.target.checked }))} />
-              Active
-            </label>
+            </SelectField>
+            <CheckboxField checked={form.is_active} onChange={(event) => setForm((state) => ({ ...state, is_active: event.target.checked }))} label="Active" />
             <button className="w-full rounded-2xl bg-brand-600 px-4 py-3 font-semibold text-white" onClick={submit}>
               {editing ? 'Save user' : 'Create user'}
             </button>
           </div>
-        </section>
-        <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-panel">
-          <h2 className="text-lg font-semibold">User directory</h2>
+        </Panel>
+        <Panel title="User directory">
           <div className="mt-4 space-y-3">
             {(data?.data ?? []).map((user) => (
               <button
                 key={user.id}
-                className="flex w-full items-center justify-between rounded-2xl border border-slate-200 p-4 text-left"
+                className="flex flex-wrap gap-3 w-full items-center justify-between rounded-2xl border border-slate-200 p-4 text-left"
                 onClick={() => {
                   setEditing(user);
                   setForm({
@@ -122,7 +120,7 @@ export function UsersPage() {
               </button>
             ))}
           </div>
-        </section>
+        </Panel>
       </div>
     </div>
   );

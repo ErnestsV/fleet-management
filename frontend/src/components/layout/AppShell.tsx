@@ -1,5 +1,5 @@
-import { ReactNode, useMemo, useState } from 'react';
-import { Bell, Building2, CarFront, ChevronDown, CircleUserRound, LayoutDashboard, Map, MapPinned, Route, Settings, Users, Wrench } from 'lucide-react';
+import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { Bell, Building2, CarFront, ChevronDown, ChevronsLeft, ChevronsRight, CircleUserRound, LayoutDashboard, Map, MapPinned, Menu, Route, Settings, Users, Wrench, X } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/app/store/authStore';
 import { useAlerts } from '@/features/alerts/useAlerts';
@@ -24,6 +24,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const user = useAuthStore((state) => state.user);
   const clearSession = useAuthStore((state) => state.clearSession);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [desktopNavExpanded, setDesktopNavExpanded] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const { data: activeAlerts } = useAlerts({ status: 'active' });
 
   const activeAlertCount = activeAlerts?.data?.length ?? 0;
@@ -46,35 +49,101 @@ export function AppShell({ children }: { children: ReactNode }) {
     navigate('/login');
   }
 
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent) {
+      if (!profileMenuRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown);
+
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
-      <div className="grid min-h-screen lg:grid-cols-[88px_minmax(0,1fr)]">
-        <aside className="hidden border-r border-slate-200 bg-slate-950 text-white lg:flex lg:flex-col lg:items-center lg:py-6">
-          <div className="mb-10 text-lg font-extrabold tracking-wide text-brand-100">FO</div>
-          <nav className="flex flex-1 flex-col gap-3">
+      <div className={`grid min-h-screen ${desktopNavExpanded ? 'lg:grid-cols-[240px_minmax(0,1fr)]' : 'lg:grid-cols-[88px_minmax(0,1fr)]'}`}>
+        <aside className={`hidden border-r border-slate-200 bg-slate-950 text-white transition-all duration-200 lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:self-start lg:overflow-y-auto lg:py-6 ${desktopNavExpanded ? 'lg:px-4' : 'lg:items-center'}`}>
+          <div className={`mb-10 text-lg font-extrabold tracking-wide text-brand-100 ${desktopNavExpanded ? 'px-3' : ''}`}>FO</div>
+          <nav className={`flex flex-1 flex-col gap-3 ${desktopNavExpanded ? '' : ''}`}>
             {links.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
                 to={to}
                 className={({ isActive }) =>
-                  `flex h-12 w-12 items-center justify-center rounded-2xl transition ${
+                  `flex items-center rounded-2xl transition ${
+                    desktopNavExpanded ? 'gap-3 px-4 py-3' : 'h-12 w-12 justify-center'
+                  } ${
                     isActive ? 'bg-brand-500 text-white' : 'text-slate-400 hover:bg-slate-900 hover:text-white'
                   }`
                 }
                 title={label}
               >
                 <Icon size={20} />
+                {desktopNavExpanded ? <span className="text-sm font-medium">{label}</span> : null}
               </NavLink>
             ))}
           </nav>
+          <button
+            type="button"
+            className={`mt-6 rounded-2xl text-slate-400 transition hover:bg-slate-900 hover:text-white ${desktopNavExpanded ? 'flex items-center gap-3 px-4 py-3 text-sm font-medium' : 'flex h-12 w-12 items-center justify-center self-center'}`}
+            onClick={() => setDesktopNavExpanded((value) => !value)}
+            aria-label={desktopNavExpanded ? 'Collapse desktop menu' : 'Expand desktop menu'}
+          >
+            {desktopNavExpanded ? <ChevronsLeft size={18} /> : <ChevronsRight size={18} />}
+            {desktopNavExpanded ? <span>Collapse menu</span> : null}
+          </button>
         </aside>
+        {mobileNavOpen ? (
+          <div className="fixed inset-0 z-40 lg:hidden">
+            <button type="button" className="absolute inset-0 bg-slate-950/45" onClick={() => setMobileNavOpen(false)} aria-label="Close mobile navigation" />
+            <aside className="absolute left-0 top-0 flex h-full w-72 flex-col border-r border-slate-200 bg-slate-950 px-5 py-6 text-white shadow-2xl">
+              <div className="mb-8 flex items-center justify-between">
+                <div className="text-lg font-extrabold tracking-wide text-brand-100">FO</div>
+                <button type="button" className="rounded-xl p-2 text-slate-300 hover:bg-slate-900 hover:text-white" onClick={() => setMobileNavOpen(false)} aria-label="Close mobile navigation">
+                  <X size={20} />
+                </button>
+              </div>
+              <nav className="flex-1 overflow-y-auto pr-1">
+                <div className="flex flex-col gap-2">
+                {links.map(({ to, label, icon: Icon }) => (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    onClick={() => setMobileNavOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
+                        isActive ? 'bg-brand-500 text-white' : 'text-slate-300 hover:bg-slate-900 hover:text-white'
+                      }`
+                    }
+                  >
+                    <Icon size={18} />
+                    <span>{label}</span>
+                  </NavLink>
+                ))}
+                </div>
+              </nav>
+            </aside>
+          </div>
+        ) : null}
         <div className="flex min-h-screen flex-col">
-          <header className="flex items-center justify-between border-b border-slate-200 bg-white/70 px-6 py-4 backdrop-blur">
-            <div>
-              <div className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-600">FleetOS</div>
-              <div className="text-xs text-slate-500">Fleet telemetry and SaaS operations</div>
+          <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/70 px-6 py-4 backdrop-blur lg:static">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                className="rounded-2xl border border-slate-200 bg-white p-2 text-slate-600 shadow-panel transition hover:border-slate-300 hover:text-slate-900 lg:hidden"
+                onClick={() => setMobileNavOpen(true)}
+                aria-label="Open mobile navigation"
+              >
+                <Menu size={18} />
+              </button>
+              <div>
+                <div className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-600">FleetOS</div>
+                <div className="hidden text-xs text-slate-500 lg:block">Fleet telemetry and SaaS operations</div>
+              </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap justify-end items-center gap-4">
               <button
                 type="button"
                 className="relative flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-panel transition hover:border-slate-300 hover:text-slate-900"
@@ -89,7 +158,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 ) : null}
               </button>
 
-              <div className="relative">
+              <div ref={profileMenuRef} className="relative">
                 <button
                   type="button"
                   className="flex items-center gap-2 rounded-2xl bg-transparent px-2 py-1 text-left transition hover:bg-slate-100"
@@ -130,7 +199,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             </div>
           </header>
-          <main className="flex-1 p-4 md:p-6">{children}</main>
+          <main className="flex-1 p-4 md:p-6 max-w-[100vw]">{children}</main>
         </div>
       </div>
     </div>
