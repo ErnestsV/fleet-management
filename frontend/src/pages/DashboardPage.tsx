@@ -1,10 +1,12 @@
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { MapPlaceholder } from '@/components/maps/MapPlaceholder';
+import { DataTable, DataTableBody, DataTableHead } from '@/components/ui/DataTable';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Panel } from '@/components/ui/Panel';
 import { StatCard } from '@/components/ui/StatCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useDashboardSummary } from '@/features/dashboard/useDashboardSummary';
+import { formatDateTime } from '@/lib/utils/format';
 
 function RankingPanel({
   title,
@@ -248,9 +250,8 @@ export function DashboardPage() {
           <div className="mt-6">
             <Panel title="Fleet status table" description="Current vehicle materialized state with assigned driver and location context.">
               {data.fleet.length > 0 ? (
-                <div className="overflow-hidden rounded-2xl border border-slate-200">
-                  <table className="min-w-full divide-y divide-slate-200 text-sm">
-                    <thead className="bg-slate-50 text-left text-slate-500">
+                <DataTable>
+                  <DataTableHead>
                       <tr>
                         <th className="px-4 py-3">Vehicle</th>
                         <th className="px-4 py-3">Status</th>
@@ -259,8 +260,8 @@ export function DashboardPage() {
                         <th className="px-4 py-3">Fuel</th>
                         <th className="px-4 py-3">Last event</th>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 bg-white">
+                  </DataTableHead>
+                  <DataTableBody>
                       {data.fleet.map((vehicle) => (
                         <tr key={vehicle.id}>
                           <td className="px-4 py-3">
@@ -271,12 +272,11 @@ export function DashboardPage() {
                           <td className="px-4 py-3 text-slate-600">{vehicle.driver ?? 'Unassigned'}</td>
                           <td className="px-4 py-3 text-slate-600">{vehicle.speed_kmh ?? 0} km/h</td>
                           <td className="px-4 py-3 text-slate-600">{vehicle.fuel_level != null ? `${vehicle.fuel_level}%` : 'N/A'}</td>
-                          <td className="px-4 py-3 text-slate-600">{vehicle.last_event_at ? new Date(vehicle.last_event_at).toLocaleString() : 'No data'}</td>
+                          <td className="px-4 py-3 text-slate-600">{formatDateTime(vehicle.last_event_at) ?? 'No data'}</td>
                         </tr>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
+                  </DataTableBody>
+                </DataTable>
               ) : (
                 <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">No fleet state data is available yet.</div>
               )}

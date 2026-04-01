@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { DataTable, DataTableBody, DataTableHead } from '@/components/ui/DataTable';
 import { Panel } from '@/components/ui/Panel';
+import { SelectField } from '@/components/ui/SelectField';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useAlerts } from '@/features/alerts/useAlerts';
 
@@ -19,19 +21,19 @@ export function AlertsPage() {
         title="Alert stream"
         description="Operational alert queue with basic filtering."
         actions={
-          <div className="flex gap-2">
-            <select className="rounded-2xl border border-slate-200 px-4 py-2 text-sm" value={type} onChange={(event) => setType(event.target.value)}>
+          <div className="flex gap-2 flex-wrap">
+            <SelectField className="py-2" value={type} onValueChange={setType}>
               <option value="">All types</option>
               <option value="speeding">Speeding</option>
               <option value="prolonged_idling">Prolonged idling</option>
               <option value="offline_vehicle">Offline vehicle</option>
               <option value="maintenance_due">Maintenance due</option>
-            </select>
-            <select className="rounded-2xl border border-slate-200 px-4 py-2 text-sm" value={status} onChange={(event) => setStatus(event.target.value)}>
+            </SelectField>
+            <SelectField className="py-2" value={status} onValueChange={setStatus}>
               <option value="">All statuses</option>
               <option value="active">Active</option>
               <option value="resolved">Resolved</option>
-            </select>
+            </SelectField>
           </div>
         }
       >
@@ -39,9 +41,8 @@ export function AlertsPage() {
         {isError ? <div className="text-sm text-rose-600">Failed to load alerts.</div> : null}
         {!isLoading && !isError ? (
           (data?.data?.length ?? 0) > 0 ? (
-            <div className="overflow-hidden rounded-2xl border border-slate-200">
-              <table className="min-w-full divide-y divide-slate-200 text-sm">
-                <thead className="bg-slate-50 text-left text-slate-500">
+            <DataTable>
+              <DataTableHead>
                   <tr>
                     <th className="px-4 py-3">Type</th>
                     <th className="px-4 py-3">Vehicle</th>
@@ -49,8 +50,8 @@ export function AlertsPage() {
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Triggered</th>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 bg-white">
+              </DataTableHead>
+              <DataTableBody>
                   {(data?.data ?? []).map((alert) => (
                     <tr key={alert.id}>
                       <td className="px-4 py-3">
@@ -63,9 +64,8 @@ export function AlertsPage() {
                       <td className="px-4 py-3 text-slate-600">{new Date(alert.triggered_at).toLocaleString()}</td>
                     </tr>
                   ))}
-                </tbody>
-              </table>
-            </div>
+              </DataTableBody>
+            </DataTable>
           ) : (
             <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-sm text-slate-500">No alerts match the current filters.</div>
           )

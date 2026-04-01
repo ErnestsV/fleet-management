@@ -1,7 +1,11 @@
 import { useMemo, useState } from 'react';
+import { SearchableVehicleField } from '@/components/forms/SearchableVehicleField';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { CheckboxField } from '@/components/ui/CheckboxField';
 import { Panel } from '@/components/ui/Panel';
+import { SelectField } from '@/components/ui/SelectField';
 import { getApiErrorMessage } from '@/lib/api/errors';
+import { formatCurrency, formatDate, formatNumber } from '@/lib/utils/format';
 import { useVehicles } from '@/features/vehicles/useVehicles';
 import {
   useCreateMaintenanceRecord,
@@ -12,52 +16,6 @@ import {
   useMaintenanceSchedules,
   useUpcomingMaintenance,
 } from '@/features/maintenance/useMaintenance';
-
-function formatDate(value: string | null | undefined) {
-  if (!value) {
-    return 'Not set';
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
-}
-
-function formatNumber(value: number | null | undefined, unit?: string) {
-  if (value === null || value === undefined) {
-    return 'Not set';
-  }
-
-  const formatted = new Intl.NumberFormat('en-GB', {
-    maximumFractionDigits: 0,
-  }).format(value);
-
-  return unit ? `${formatted} ${unit}` : formatted;
-}
-
-function formatCurrency(amount: number | null | undefined, currency: string | null | undefined) {
-  if (amount === null || amount === undefined) {
-    return 'Not set';
-  }
-
-  try {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: currency || 'EUR',
-      maximumFractionDigits: 2,
-    }).format(amount);
-  } catch {
-    return `${amount} ${currency ?? 'EUR'}`;
-  }
-}
 
 export function MaintenancePage() {
   const [scheduleVehicleSearch, setScheduleVehicleSearch] = useState('');
@@ -93,40 +51,6 @@ export function MaintenancePage() {
 
   const vehicleOptions = vehicles?.data ?? [];
 
-  const scheduleVehicleOptions = useMemo(() => {
-    const query = scheduleVehicleSearch.trim().toLowerCase();
-
-    if (!query) {
-      return vehicleOptions;
-    }
-
-    return vehicleOptions.filter((vehicle) =>
-      [vehicle.plate_number, vehicle.name, vehicle.make, vehicle.model]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query)),
-    );
-  }, [scheduleVehicleSearch, vehicleOptions]);
-
-  const recordVehicleOptions = useMemo(() => {
-    const query = recordVehicleSearch.trim().toLowerCase();
-
-    if (!query) {
-      return vehicleOptions;
-    }
-
-    return vehicleOptions.filter((vehicle) =>
-      [vehicle.plate_number, vehicle.name, vehicle.make, vehicle.model]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query)),
-    );
-  }, [recordVehicleSearch, vehicleOptions]);
-
-  const selectedScheduleVehicle = vehicleOptions.find((vehicle) => vehicle.id === Number(scheduleForm.vehicle_id));
-  const selectedRecordVehicle = vehicleOptions.find((vehicle) => vehicle.id === Number(recordForm.vehicle_id));
-
-  const showScheduleSuggestions = scheduleVehicleSearch.trim().length > 0 && scheduleVehicleOptions.length > 0;
-  const showRecordSuggestions = recordVehicleSearch.trim().length > 0 && recordVehicleOptions.length > 0;
-
   const availableSchedulesForRecord = useMemo(
     () => (schedules?.data ?? []).filter((schedule) => Number(schedule.vehicle_id) === Number(recordForm.vehicle_id)),
     [recordForm.vehicle_id, schedules?.data],
@@ -138,60 +62,25 @@ export function MaintenancePage() {
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel title="Create schedule" description="Define recurring preventive maintenance intervals for a selected fleet vehicle.">
           <div className="space-y-3">
-            <div className="relative">
-              <input
-                id="schedule-vehicle-search"
-                name="schedule_vehicle_search"
-                autoComplete="off"
-                className="w-full rounded-2xl border border-slate-200 px-4 py-3"
-                placeholder="Search vehicle by plate, name, make, or model"
-                value={scheduleVehicleSearch}
-                onChange={(event) => setScheduleVehicleSearch(event.target.value)}
-              />
-              {showScheduleSuggestions ? (
-                <div className="absolute z-10 mt-2 max-h-56 w-full overflow-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
-                  {scheduleVehicleOptions.map((vehicle) => (
-                    <button
-                      key={`schedule-suggestion-${vehicle.id}`}
-                      type="button"
-                      className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-slate-50"
-                      onClick={() => {
-                        setScheduleForm((state) => ({ ...state, vehicle_id: String(vehicle.id) }));
-                        setScheduleVehicleSearch(`${vehicle.plate_number} · ${vehicle.name}`);
-                      }}
-                    >
-                      <div className="font-semibold text-slate-900">{vehicle.plate_number}</div>
-                      <div className="text-slate-500">{vehicle.name}{vehicle.make || vehicle.model ? ` · ${vehicle.make ?? ''} ${vehicle.model ?? ''}` : ''}</div>
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-            <select
-              id="schedule-vehicle-id"
-              name="schedule_vehicle_id"
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3"
-              value={scheduleForm.vehicle_id}
-              onChange={(event) => {
-                const nextVehicle = vehicleOptions.find((vehicle) => vehicle.id === Number(event.target.value));
-                setScheduleForm((state) => ({ ...state, vehicle_id: event.target.value }));
+            <SearchableVehicleField
+              searchId="schedule-vehicle-search"
+              searchName="schedule_vehicle_search"
+              selectId="schedule-vehicle-id"
+              selectName="schedule_vehicle_id"
+              searchValue={scheduleVehicleSearch}
+              selectedVehicleId={scheduleForm.vehicle_id}
+              vehicles={vehicleOptions}
+              onSearchChange={setScheduleVehicleSearch}
+              onVehicleSelect={(vehicleId) => {
+                const nextVehicle = vehicleOptions.find((vehicle) => vehicle.id === Number(vehicleId));
+                setScheduleForm((state) => ({ ...state, vehicle_id: vehicleId }));
                 if (nextVehicle) {
                   setScheduleVehicleSearch(`${nextVehicle.plate_number} · ${nextVehicle.name}`);
+                } else {
+                  setScheduleVehicleSearch('');
                 }
               }}
-            >
-              <option value="">Select vehicle</option>
-              {scheduleVehicleOptions.map((vehicle) => (
-                <option key={vehicle.id} value={vehicle.id}>
-                  {vehicle.plate_number} · {vehicle.name}
-                </option>
-              ))}
-            </select>
-            {selectedScheduleVehicle ? (
-              <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                Selected vehicle: <span className="font-semibold text-slate-900">{selectedScheduleVehicle.plate_number}</span> · {selectedScheduleVehicle.name}
-              </div>
-            ) : null}
+            />
             <input id="schedule-name" name="schedule_name" className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Schedule name" value={scheduleForm.name} onChange={(event) => setScheduleForm((state) => ({ ...state, name: event.target.value }))} />
             <div className="grid gap-3 md:grid-cols-2">
               <input id="schedule-interval-days" name="schedule_interval_days" type="number" min="1" className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Interval days" value={scheduleForm.interval_days} onChange={(event) => setScheduleForm((state) => ({ ...state, interval_days: event.target.value }))} />
@@ -201,10 +90,7 @@ export function MaintenancePage() {
               <input id="schedule-next-due-date" name="schedule_next_due_date" className="w-full rounded-2xl border border-slate-200 px-4 py-3" type="date" value={scheduleForm.next_due_date} onChange={(event) => setScheduleForm((state) => ({ ...state, next_due_date: event.target.value }))} />
               <input id="schedule-next-due-odometer" name="schedule_next_due_odometer_km" type="number" min="0" className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Next due odometer km" value={scheduleForm.next_due_odometer_km} onChange={(event) => setScheduleForm((state) => ({ ...state, next_due_odometer_km: event.target.value }))} />
             </div>
-            <label className="flex items-center gap-2 text-sm text-slate-600">
-              <input id="schedule-is-active" name="schedule_is_active" type="checkbox" checked={scheduleForm.is_active} onChange={(event) => setScheduleForm((state) => ({ ...state, is_active: event.target.checked }))} />
-              Active schedule
-            </label>
+            <CheckboxField id="schedule-is-active" name="schedule_is_active" checked={scheduleForm.is_active} onChange={(event) => setScheduleForm((state) => ({ ...state, is_active: event.target.checked }))} label="Active schedule" />
             <button
               className="w-full rounded-2xl bg-brand-600 px-4 py-3 font-semibold text-white"
               onClick={() =>
@@ -242,72 +128,34 @@ export function MaintenancePage() {
 
         <Panel title="Create record" description="Log completed service work against a selected vehicle and optional maintenance schedule.">
           <div className="space-y-3">
-            <div className="relative">
-              <input
-                id="record-vehicle-search"
-                name="record_vehicle_search"
-                autoComplete="off"
-                className="w-full rounded-2xl border border-slate-200 px-4 py-3"
-                placeholder="Search vehicle by plate, name, make, or model"
-                value={recordVehicleSearch}
-                onChange={(event) => setRecordVehicleSearch(event.target.value)}
-              />
-              {showRecordSuggestions ? (
-                <div className="absolute z-10 mt-2 max-h-56 w-full overflow-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
-                  {recordVehicleOptions.map((vehicle) => (
-                    <button
-                      key={`record-suggestion-${vehicle.id}`}
-                      type="button"
-                      className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-slate-50"
-                      onClick={() => {
-                        setRecordForm((state) => ({ ...state, vehicle_id: String(vehicle.id), maintenance_schedule_id: '' }));
-                        setRecordVehicleSearch(`${vehicle.plate_number} · ${vehicle.name}`);
-                      }}
-                    >
-                      <div className="font-semibold text-slate-900">{vehicle.plate_number}</div>
-                      <div className="text-slate-500">{vehicle.name}{vehicle.make || vehicle.model ? ` · ${vehicle.make ?? ''} ${vehicle.model ?? ''}` : ''}</div>
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-            <select
-              id="record-vehicle-id"
-              name="record_vehicle_id"
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3"
-              value={recordForm.vehicle_id}
-              onChange={(event) =>
-                {
-                  const nextVehicle = vehicleOptions.find((vehicle) => vehicle.id === Number(event.target.value));
-                  setRecordForm((state) => ({
-                    ...state,
-                    vehicle_id: event.target.value,
-                    maintenance_schedule_id: '',
-                  }));
-                  if (nextVehicle) {
-                    setRecordVehicleSearch(`${nextVehicle.plate_number} · ${nextVehicle.name}`);
-                  }
+            <SearchableVehicleField
+              searchId="record-vehicle-search"
+              searchName="record_vehicle_search"
+              selectId="record-vehicle-id"
+              selectName="record_vehicle_id"
+              searchValue={recordVehicleSearch}
+              selectedVehicleId={recordForm.vehicle_id}
+              vehicles={vehicleOptions}
+              onSearchChange={setRecordVehicleSearch}
+              onVehicleSelect={(vehicleId) => {
+                const nextVehicle = vehicleOptions.find((vehicle) => vehicle.id === Number(vehicleId));
+                setRecordForm((state) => ({
+                  ...state,
+                  vehicle_id: vehicleId,
+                  maintenance_schedule_id: '',
+                }));
+                if (nextVehicle) {
+                  setRecordVehicleSearch(`${nextVehicle.plate_number} · ${nextVehicle.name}`);
+                } else {
+                  setRecordVehicleSearch('');
                 }
-              }
-            >
-              <option value="">Select vehicle</option>
-              {recordVehicleOptions.map((vehicle) => (
-                <option key={vehicle.id} value={vehicle.id}>
-                  {vehicle.plate_number} · {vehicle.name}
-                </option>
-              ))}
-            </select>
-            {selectedRecordVehicle ? (
-              <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                Selected vehicle: <span className="font-semibold text-slate-900">{selectedRecordVehicle.plate_number}</span> · {selectedRecordVehicle.name}
-              </div>
-            ) : null}
-            <select
+              }}
+            />
+            <SelectField
               id="record-maintenance-schedule-id"
               name="record_maintenance_schedule_id"
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3"
               value={recordForm.maintenance_schedule_id}
-              onChange={(event) => setRecordForm((state) => ({ ...state, maintenance_schedule_id: event.target.value }))}
+              onValueChange={(value) => setRecordForm((state) => ({ ...state, maintenance_schedule_id: value }))}
               disabled={!recordForm.vehicle_id}
             >
               <option value="">Schedule (optional)</option>
@@ -316,7 +164,7 @@ export function MaintenancePage() {
                   {schedule.name}
                 </option>
               ))}
-            </select>
+            </SelectField>
             <input id="record-title" name="record_title" className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Record title" value={recordForm.title} onChange={(event) => setRecordForm((state) => ({ ...state, title: event.target.value }))} />
             <div className="grid gap-3 md:grid-cols-2">
               <input id="record-service-date" name="record_service_date" className="w-full rounded-2xl border border-slate-200 px-4 py-3" type="date" value={recordForm.service_date} onChange={(event) => setRecordForm((state) => ({ ...state, service_date: event.target.value }))} />
