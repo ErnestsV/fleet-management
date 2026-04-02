@@ -39,7 +39,10 @@ export type DashboardSummary = {
     breakdown: { label: string; score: number }[];
   };
   driving_behaviour: {
-    average_score: number;
+    has_data: boolean;
+    minimum_trip_samples: number;
+    insufficient_vehicle_count: number;
+    average_score: number | null;
     vehicle_scores: { vehicle_id: number; label: string; name: string; score: number }[];
     best_vehicles: { vehicle_id: number; label: string; name: string; score: number }[];
     worst_vehicles: { vehicle_id: number; label: string; name: string; score: number }[];
@@ -48,6 +51,22 @@ export type DashboardSummary = {
     yesterday_distance_km: number;
     previous_distance_km: number;
     delta_pct: number | null;
+  };
+  fuel: {
+    trend: {
+      day: string;
+      avg_fuel_level_pct: number | null;
+      distance_km: number | null;
+      estimated_fuel_used_l: number | null;
+      estimated_consumption_l_per_100km: number | null;
+    }[];
+    estimated_fuel_used_yesterday_l: number | null;
+    estimated_fuel_used_previous_day_l: number | null;
+    estimated_avg_consumption_yesterday_l_per_100km: number | null;
+    estimated_avg_consumption_previous_day_l_per_100km: number | null;
+    average_fuel_level_yesterday_pct: number | null;
+    expected_consumption_l_per_100km: number;
+    delta_used_pct: number | null;
   };
   working_time: {
     earliest_start: { label: string; time: string | null }[];

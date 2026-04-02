@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { DataTable, DataTableBody, DataTableHead } from '@/components/ui/DataTable';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Panel } from '@/components/ui/Panel';
+import { SelectField } from '@/components/ui/SelectField';
 import { useTrips, useTrip } from '@/features/trips/useTrips';
+import { useVehicles } from '@/features/vehicles/useVehicles';
 import { formatDateTime } from '@/lib/utils/format';
 
 export function TripsPage() {
@@ -10,6 +12,7 @@ export function TripsPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const { data: vehicles } = useVehicles({ is_active: true });
   const { data, isLoading, isError } = useTrips({
     vehicle_id: vehicleId || undefined,
     date_from: dateFrom || undefined,
@@ -26,7 +29,14 @@ export function TripsPage() {
           description="MVP assumptions: trip starts on first moving event and closes on first non-moving event after movement."
           actions={
             <div className="flex flex-wrap gap-2">
-              <input className="rounded-2xl border border-slate-200 px-4 py-2 text-sm" placeholder="Vehicle ID" value={vehicleId} onChange={(event) => setVehicleId(event.target.value)} />
+              <SelectField className="py-2 text-sm" value={vehicleId} onValueChange={setVehicleId}>
+                <option value="">All vehicles</option>
+                {(vehicles?.data ?? []).map((vehicle) => (
+                  <option key={vehicle.id} value={vehicle.id}>
+                    {vehicle.plate_number} · {vehicle.name}
+                  </option>
+                ))}
+              </SelectField>
               <input className="rounded-2xl border border-slate-200 px-4 py-2 text-sm" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
               <input className="rounded-2xl border border-slate-200 px-4 py-2 text-sm" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
             </div>

@@ -15,7 +15,7 @@ class AlertIndexRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'type' => ['nullable', Rule::in(['speeding', 'prolonged_idling', 'geofence_entry', 'geofence_exit', 'offline_vehicle', 'maintenance_due'])],
+            'type' => ['nullable', Rule::in(['speeding', 'prolonged_idling', 'geofence_entry', 'geofence_exit', 'offline_vehicle', 'maintenance_due', 'driver_license_expired'])],
             'status' => ['nullable', Rule::in(['active', 'resolved'])],
             'vehicle_id' => ['nullable', 'integer', 'exists:vehicles,id'],
             'sort' => ['nullable', Rule::in(['triggered_at', '-triggered_at', 'severity', '-severity'])],

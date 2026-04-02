@@ -25,6 +25,13 @@ class AuthService
             throw new AuthenticationException('Account inactive.');
         }
 
+        if (! $user->isSuperAdmin() && ! $user->company?->is_active) {
+            Auth::logout();
+            throw ValidationException::withMessages([
+                'email' => ['Your company account is inactive. Contact your platform administrator.'],
+            ]);
+        }
+
         $token = $user->createToken('web')->plainTextToken;
 
         return [$user, $token];

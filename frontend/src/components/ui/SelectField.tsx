@@ -104,7 +104,7 @@ export function SelectField({
           role="listbox"
           aria-labelledby={id}
           tabIndex={-1}
-          className="absolute z-20 mt-2 max-h-56 w-full overflow-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-xl"
+          className="absolute z-20 mt-2 max-h-56 w-full overflow-y-auto overflow-x-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl"
           onKeyDown={(event) => {
             if (event.key === 'Escape') {
               event.preventDefault();
@@ -167,7 +167,7 @@ export function SelectField({
                   setOpen(false);
                 }}
               >
-                {label}
+                <span className="block break-words whitespace-normal">{label}</span>
               </button>
             );
           })}

@@ -1,11 +1,13 @@
 import { PageHeader } from '@/components/ui/PageHeader';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useAuthStore } from '@/app/store/authStore';
 import { useCompanies } from '@/features/companies/useCompanies';
 import { useCreateUser, useUpdateUser, useUsers } from '@/features/users/useUsers';
 import { CheckboxField } from '@/components/ui/CheckboxField';
+import { DismissibleAlert } from '@/components/ui/DismissibleAlert';
 import { Panel } from '@/components/ui/Panel';
 import { SelectField } from '@/components/ui/SelectField';
+import { getApiErrorMessage } from '@/lib/api/errors';
 import type { AuthUser, UserRole } from '@/types/domain';
 
 export function UsersPage() {
@@ -28,6 +30,23 @@ export function UsersPage() {
     is_active: true,
     role: (actor?.role === 'super_admin' ? 'owner' : 'viewer') as UserRole,
   });
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const dismissSuccessMessage = useCallback(() => setSuccessMessage(null), []);
+  const dismissCreateError = useCallback(() => createMutation.reset(), [createMutation]);
+  const dismissUpdateError = useCallback(() => updateMutation.reset(), [updateMutation]);
+
+  const resetForm = () => {
+    setEditing(null);
+    setForm({
+      company_id: actor?.company_id ?? null,
+      name: '',
+      email: '',
+      password: '',
+      timezone: actor?.timezone ?? 'Europe/Riga',
+      is_active: true,
+      role: (actor?.role === 'super_admin' ? 'owner' : 'viewer') as UserRole,
+    });
+  };
 
   const submit = () => {
     if (editing) {
@@ -41,6 +60,11 @@ export function UsersPage() {
           is_active: form.is_active,
           role: form.role,
         },
+      }, {
+        onSuccess: () => {
+          setSuccessMessage('User updated successfully.');
+          resetForm();
+        },
       });
       return;
     }
@@ -48,17 +72,38 @@ export function UsersPage() {
       createMutation.mutate({
         name: form.name,
         email: form.email,
-        password: form.password || undefined,
         timezone: form.timezone,
         is_active: form.is_active,
         role: form.role,
         company_id: form.role === 'super_admin' ? null : form.company_id,
+      }, {
+        onSuccess: () => {
+          setSuccessMessage('User created successfully. The new user will receive an invitation email.');
+          resetForm();
+        },
       });
   };
 
   return (
     <div>
       <PageHeader title="Users" description="Company-scoped user management with owner/admin role boundaries." />
+      {successMessage ? <DismissibleAlert className="mb-6" message={successMessage} onClose={dismissSuccessMessage} /> : null}
+      {createMutation.isError ? (
+        <DismissibleAlert
+          className="mb-6"
+          tone="error"
+          message={getApiErrorMessage(createMutation.error)}
+          onClose={dismissCreateError}
+        />
+      ) : null}
+      {updateMutation.isError ? (
+        <DismissibleAlert
+          className="mb-6"
+          tone="error"
+          message={getApiErrorMessage(updateMutation.error)}
+          onClose={dismissUpdateError}
+        />
+      ) : null}
       <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
         <Panel title={editing ? 'Edit user' : 'Create user'}>
           <div className="mt-4 space-y-3">
@@ -74,7 +119,13 @@ export function UsersPage() {
             ) : null}
             <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Full name" value={form.name} onChange={(event) => setForm((state) => ({ ...state, name: event.target.value }))} />
             <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Email" value={form.email} onChange={(event) => setForm((state) => ({ ...state, email: event.target.value }))} />
-            <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder={editing ? 'New password (optional)' : 'Temporary password'} value={form.password} onChange={(event) => setForm((state) => ({ ...state, password: event.target.value }))} />
+            {editing ? (
+              <input type="password" autoComplete="new-password" className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="New password (optional)" value={form.password} onChange={(event) => setForm((state) => ({ ...state, password: event.target.value }))} />
+            ) : (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                The new user will receive a password setup email after creation.
+              </div>
+            )}
             <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Timezone" value={form.timezone} onChange={(event) => setForm((state) => ({ ...state, timezone: event.target.value }))} />
             <SelectField value={form.role} onValueChange={(value) => setForm((state) => ({ ...state, role: value as UserRole }))}>
               {roleOptions.map((role) => (
@@ -84,9 +135,16 @@ export function UsersPage() {
               ))}
             </SelectField>
             <CheckboxField checked={form.is_active} onChange={(event) => setForm((state) => ({ ...state, is_active: event.target.checked }))} label="Active" />
-            <button className="w-full rounded-2xl bg-brand-600 px-4 py-3 font-semibold text-white" onClick={submit}>
-              {editing ? 'Save user' : 'Create user'}
-            </button>
+            <div className="flex gap-3">
+              <button className="flex-1 rounded-2xl bg-brand-600 px-4 py-3 font-semibold text-white" onClick={submit}>
+                {editing ? 'Save user' : 'Create user'}
+              </button>
+              {editing ? (
+                <button className="rounded-2xl border border-slate-200 px-4 py-3 font-semibold text-slate-700" onClick={resetForm}>
+                  Cancel
+                </button>
+              ) : null}
+            </div>
           </div>
         </Panel>
         <Panel title="User directory">

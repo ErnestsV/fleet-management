@@ -4,6 +4,7 @@ namespace App\Domain\Alerts\Services;
 
 use App\Domain\Alerts\Enums\AlertType;
 use App\Domain\Alerts\Models\Alert;
+use App\Domain\Fleet\Models\Driver;
 use App\Domain\Maintenance\Models\MaintenanceSchedule;
 use App\Domain\Telemetry\Enums\VehicleStatus;
 use App\Domain\Telemetry\Models\TelemetryEvent;
@@ -109,16 +110,68 @@ class AlertEvaluationService
             });
     }
 
-    private function createAlert(AlertType $type, int $vehicleId, int $companyId, string $message, array $context): void
+    public function evaluateDriverLicense(Driver $driver): void
+    {
+        if (! $driver->is_active || $driver->trashed()) {
+            $this->resolveDriverLicenseAlerts($driver);
+
+            return;
+        }
+
+        $expiresAt = $driver->license_expires_at?->startOfDay();
+
+        if (! $expiresAt) {
+            $this->resolveDriverLicenseAlerts($driver);
+
+            return;
+        }
+
+        if ($expiresAt->isFuture()) {
+            $this->resolveDriverLicenseAlerts($driver);
+
+            return;
+        }
+
+        $this->createAlert(
+            type: AlertType::DriverLicenseExpired,
+            vehicleId: null,
+            companyId: $driver->company_id,
+            message: sprintf('Driver "%s" has an expired license.', $driver->name),
+            context: [
+                'driver_id' => $driver->id,
+                'driver_name' => $driver->name,
+                'license_expires_at' => $driver->license_expires_at?->toDateString(),
+            ]
+        );
+    }
+
+    public function resolveDriverLicenseAlerts(Driver $driver): void
+    {
+        Alert::query()
+            ->where('company_id', $driver->company_id)
+            ->where('type', AlertType::DriverLicenseExpired)
+            ->whereNull('resolved_at')
+            ->where('context->driver_id', $driver->id)
+            ->update(['resolved_at' => now()]);
+    }
+
+    private function createAlert(AlertType $type, ?int $vehicleId, int $companyId, string $message, array $context): void
     {
         $query = Alert::query()
             ->where('company_id', $companyId)
-            ->where('vehicle_id', $vehicleId)
             ->where('type', $type)
             ->whereNull('resolved_at');
 
+        if ($vehicleId === null) {
+            $query->whereNull('vehicle_id');
+        } else {
+            $query->where('vehicle_id', $vehicleId);
+        }
+
         if ($type === AlertType::MaintenanceDue && isset($context['maintenance_schedule_id'])) {
             $query->where('context->maintenance_schedule_id', $context['maintenance_schedule_id']);
+        } elseif ($type === AlertType::DriverLicenseExpired && isset($context['driver_id'])) {
+            $query->where('context->driver_id', $context['driver_id']);
         } else {
             $query->where('created_at', '>=', now()->subMinutes(15));
         }

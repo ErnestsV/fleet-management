@@ -12,6 +12,7 @@ use App\Domain\Telemetry\Models\TelemetryEvent;
 use App\Domain\Telemetry\Models\VehicleState;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class DashboardService
 {
@@ -21,6 +22,9 @@ class DashboardService
         $today = Carbon::today();
         $yesterday = $today->copy()->subDay();
         $windowStart = $today->copy()->subDays(6);
+        $minimumBehaviourTripSamples = (int) env('FLEET_BEHAVIOUR_MIN_TRIPS', 3);
+        $estimatedTankCapacityLiters = (float) env('FLEET_ESTIMATED_TANK_CAPACITY_LITERS', 100);
+        $expectedFuelConsumptionPer100Km = (float) env('FLEET_EXPECTED_FUEL_CONSUMPTION_L_PER_100KM', 28);
 
         $vehicles = Vehicle::query()
             ->when(! $user->isSuperAdmin(), fn ($query) => $query->where('company_id', $companyId));
@@ -186,10 +190,24 @@ class DashboardService
                     'vehicle_id' => $vehicle->id,
                     'label' => $vehicle->plate_number,
                     'name' => $vehicle->name,
+                    'trip_count' => $recentTrips->count(),
                     'score' => round($score, 1),
                 ];
             })
+            ->map(fn (array $item) => [
+                ...$item,
+                'insufficient_data' => $item['trip_count'] < $minimumBehaviourTripSamples,
+            ])
+            ->values();
+
+        $behaviourScoredVehicles = $vehicleBehaviourScores
+            ->filter(fn (array $item) => ! $item['insufficient_data'])
             ->sortByDesc('score')
+            ->values();
+
+        $behaviourNeedsCoaching = $behaviourScoredVehicles
+            ->sortBy('score')
+            ->filter(fn (array $item) => $item['score'] < 60)
             ->values();
 
         $todayTrips = Trip::query()
@@ -218,6 +236,70 @@ class DashboardService
             ]),
         ];
 
+        $windowEnd = $today->copy()->endOfDay();
+
+        $fuelRows = DB::query()
+            ->fromSub(
+                TelemetryEvent::query()
+                    ->selectRaw("DATE(occurred_at) as day")
+                    ->selectRaw('vehicle_id')
+                    ->selectRaw('odometer_km')
+                    ->selectRaw('fuel_level')
+                    ->selectRaw('LAG(fuel_level) OVER (PARTITION BY DATE(occurred_at), vehicle_id ORDER BY occurred_at) as previous_fuel_level')
+                    ->when(! $user->isSuperAdmin(), fn ($query) => $query->where('company_id', $companyId))
+                    ->whereBetween('occurred_at', [$windowStart->copy()->startOfDay(), $windowEnd])
+                    ->whereNotNull('odometer_km')
+                    ->whereNotNull('fuel_level'),
+                'daily_telemetry'
+            )
+            ->selectRaw('day')
+            ->selectRaw('vehicle_id')
+            ->selectRaw('COUNT(*) as sample_count')
+            ->selectRaw('AVG(fuel_level) as avg_fuel_level_pct')
+            ->selectRaw('MAX(odometer_km) - MIN(odometer_km) as distance_km')
+            ->selectRaw('SUM(CASE WHEN previous_fuel_level IS NOT NULL AND fuel_level < previous_fuel_level THEN previous_fuel_level - fuel_level ELSE 0 END) as fuel_drop_pct')
+            ->groupBy('day', 'vehicle_id')
+            ->get()
+            ->groupBy('day');
+
+        $fuelTrend = collect(range(0, 6))
+            ->map(fn (int $offset) => $windowStart->copy()->addDays($offset))
+            ->map(function (Carbon $day) use ($fuelRows, $estimatedTankCapacityLiters) {
+                $dayRows = collect($fuelRows->get($day->toDateString(), []))
+                    ->filter(fn ($row) => (int) $row->sample_count >= 2)
+                    ->values();
+
+                if ($dayRows->isEmpty()) {
+                    return [
+                        'day' => $day->toDateString(),
+                        'avg_fuel_level_pct' => null,
+                        'distance_km' => null,
+                        'estimated_fuel_used_l' => null,
+                        'estimated_consumption_l_per_100km' => null,
+                    ];
+                }
+
+                $avgFuelLevelPct = (float) ($dayRows->avg('avg_fuel_level_pct') ?? 0);
+                $totalDistanceKm = (float) $dayRows->sum(fn ($row) => max(0, (float) $row->distance_km));
+                $totalFuelUsedLiters = (float) $dayRows->sum(
+                    fn ($row) => (((float) $row->fuel_drop_pct) / 100) * $estimatedTankCapacityLiters
+                );
+
+                return [
+                    'day' => $day->toDateString(),
+                    'avg_fuel_level_pct' => round($avgFuelLevelPct, 1),
+                    'distance_km' => round($totalDistanceKm, 1),
+                    'estimated_fuel_used_l' => round($totalFuelUsedLiters, 1),
+                    'estimated_consumption_l_per_100km' => $totalDistanceKm > 0
+                        ? round(($totalFuelUsedLiters / $totalDistanceKm) * 100, 1)
+                        : null,
+                ];
+            })
+            ->values();
+
+        $fuelYesterday = $fuelTrend->firstWhere('day', $yesterday->toDateString());
+        $fuelPreviousDay = $fuelTrend->firstWhere('day', $yesterday->copy()->subDay()->toDateString());
+
         return [
             'total_vehicles' => $vehicles->count(),
             'moving_vehicles' => (clone $states)->where('status', VehicleStatus::Moving)->count(),
@@ -237,16 +319,33 @@ class DashboardService
                 'breakdown' => $fleetEfficiencyBreakdown,
             ],
             'driving_behaviour' => [
-                'average_score' => round($vehicleBehaviourScores->avg('score') ?? 0, 1),
-                'vehicle_scores' => $vehicleBehaviourScores->values(),
-                'best_vehicles' => $vehicleBehaviourScores->take(5)->values(),
-                'worst_vehicles' => $vehicleBehaviourScores->sortBy('score')->take(5)->values(),
+                'has_data' => $behaviourScoredVehicles->isNotEmpty(),
+                'minimum_trip_samples' => $minimumBehaviourTripSamples,
+                'insufficient_vehicle_count' => $vehicleBehaviourScores->filter(fn (array $item) => $item['insufficient_data'])->count(),
+                'average_score' => $behaviourScoredVehicles->isNotEmpty()
+                    ? round($behaviourScoredVehicles->avg('score') ?? 0, 1)
+                    : null,
+                'vehicle_scores' => $behaviourScoredVehicles->take(8)->values(),
+                'best_vehicles' => $behaviourScoredVehicles->take(5)->values(),
+                'worst_vehicles' => $behaviourNeedsCoaching->take(5)->values(),
             ],
             'mileage' => [
                 'yesterday_distance_km' => round($distanceYesterday, 1),
                 'previous_distance_km' => round($distancePreviousDay, 1),
                 'delta_pct' => $distancePreviousDay > 0
                     ? round((($distanceYesterday - $distancePreviousDay) / $distancePreviousDay) * 100, 1)
+                    : null,
+            ],
+            'fuel' => [
+                'trend' => $fuelTrend,
+                'estimated_fuel_used_yesterday_l' => $fuelYesterday['estimated_fuel_used_l'] ?? null,
+                'estimated_fuel_used_previous_day_l' => $fuelPreviousDay['estimated_fuel_used_l'] ?? null,
+                'estimated_avg_consumption_yesterday_l_per_100km' => $fuelYesterday['estimated_consumption_l_per_100km'] ?? null,
+                'estimated_avg_consumption_previous_day_l_per_100km' => $fuelPreviousDay['estimated_consumption_l_per_100km'] ?? null,
+                'average_fuel_level_yesterday_pct' => $fuelYesterday['avg_fuel_level_pct'] ?? null,
+                'expected_consumption_l_per_100km' => $expectedFuelConsumptionPer100Km,
+                'delta_used_pct' => ($fuelPreviousDay['estimated_fuel_used_l'] ?? 0) > 0 && ($fuelYesterday['estimated_fuel_used_l'] ?? null) !== null
+                    ? round((((float) $fuelYesterday['estimated_fuel_used_l'] - (float) $fuelPreviousDay['estimated_fuel_used_l']) / (float) $fuelPreviousDay['estimated_fuel_used_l']) * 100, 1)
                     : null,
             ],
             'working_time' => $workingTime,

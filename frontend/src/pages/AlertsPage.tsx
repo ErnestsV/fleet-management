@@ -28,6 +28,7 @@ export function AlertsPage() {
               <option value="prolonged_idling">Prolonged idling</option>
               <option value="offline_vehicle">Offline vehicle</option>
               <option value="maintenance_due">Maintenance due</option>
+              <option value="driver_license_expired">Driver license expired</option>
             </SelectField>
             <SelectField className="py-2" value={status} onValueChange={setStatus}>
               <option value="">All statuses</option>

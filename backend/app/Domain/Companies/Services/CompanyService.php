@@ -2,6 +2,7 @@
 
 namespace App\Domain\Companies\Services;
 
+use App\Domain\Auth\Services\AccountInvitationService;
 use App\Domain\Companies\Models\Company;
 use App\Domain\Shared\Enums\UserRole;
 use App\Models\User;
@@ -11,16 +12,23 @@ use Illuminate\Support\Str;
 
 class CompanyService
 {
+    public function __construct(
+        private readonly AccountInvitationService $accountInvitationService,
+    ) {
+    }
+
     public function createCompanyWithOwner(array $companyData, ?array $ownerData = null): Company
     {
-        return DB::transaction(function () use ($companyData, $ownerData) {
+        [$company, $owner] = DB::transaction(function () use ($companyData, $ownerData) {
             $company = Company::create([
                 ...$companyData,
                 'slug' => $companyData['slug'] ?? Str::slug($companyData['name']).'-'.Str::lower(Str::random(5)),
             ]);
 
+            $owner = null;
+
             if ($ownerData) {
-                User::create([
+                $owner = User::create([
                     'company_id' => $company->id,
                     'name' => $ownerData['name'],
                     'email' => $ownerData['email'],
@@ -31,8 +39,14 @@ class CompanyService
                 ]);
             }
 
-            return $company;
+            return [$company, $owner];
         });
+
+        if ($owner) {
+            $this->accountInvitationService->sendPasswordSetupLink($owner);
+        }
+
+        return $company;
     }
 
     public function updateCompany(Company $company, array $data): Company

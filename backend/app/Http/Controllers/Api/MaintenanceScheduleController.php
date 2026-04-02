@@ -67,9 +67,14 @@ class MaintenanceScheduleController extends Controller
         $query = MaintenanceSchedule::query()
             ->with('vehicle')
             ->when(! $request->user()->isSuperAdmin(), fn ($builder) => $builder->where('company_id', $request->user()->company_id))
+            ->where('is_active', true)
             ->where(function ($builder) {
                 $builder->whereDate('next_due_date', '<=', now()->addDays(30))
-                    ->orWhereNotNull('next_due_odometer_km');
+                    ->orWhereHas('vehicle.state', function ($stateBuilder) {
+                        $stateBuilder
+                            ->whereNotNull('odometer_km')
+                            ->whereColumn('vehicle_states.odometer_km', '>=', 'maintenance_schedules.next_due_odometer_km');
+                    });
             })
             ->orderBy('next_due_date');
 
