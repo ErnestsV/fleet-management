@@ -5,7 +5,7 @@ type DismissibleAlertProps = {
   message: string;
   tone?: 'success' | 'error' | 'info';
   onClose: () => void;
-  autoDismissMs?: number;
+  autoDismissMs?: number | null;
   className?: string;
 };
 
@@ -29,6 +29,10 @@ export function DismissibleAlert({
   }, [onClose]);
 
   useEffect(() => {
+    if (autoDismissMs == null) {
+      return;
+    }
+
     const timeoutId = window.setTimeout(() => onCloseRef.current(), autoDismissMs);
 
     return () => window.clearTimeout(timeoutId);

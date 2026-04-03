@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { CheckboxField } from '@/components/ui/CheckboxField';
 import { DataTable, DataTableBody, DataTableHead } from '@/components/ui/DataTable';
@@ -10,7 +10,8 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { AssignmentHistoryList } from '@/components/ui/AssignmentHistoryList';
 import { useAssignments, useCreateAssignment, useEndAssignment } from '@/features/assignments/useAssignments';
 import { useDrivers } from '@/features/drivers/useDrivers';
-import { useCreateVehicle, useDeleteVehicle, useUpdateVehicle, useVehicle, useVehicles } from '@/features/vehicles/useVehicles';
+import { useCreateVehicle, useDeleteVehicle, useRotateVehicleDeviceToken, useUpdateVehicle, useVehicle, useVehicles } from '@/features/vehicles/useVehicles';
+import { getApiErrorMessage } from '@/lib/api/errors';
 import { formatDateTime } from '@/lib/utils/format';
 
 export function VehiclesPage() {
@@ -37,7 +38,15 @@ export function VehiclesPage() {
   const createMutation = useCreateVehicle();
   const updateMutation = useUpdateVehicle();
   const deleteMutation = useDeleteVehicle();
+  const rotateDeviceTokenMutation = useRotateVehicleDeviceToken();
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [provisioningToken, setProvisioningToken] = useState<string | null>(null);
+  const dismissSuccessMessage = useCallback(() => setSuccessMessage(null), []);
+  const dismissProvisioningToken = useCallback(() => setProvisioningToken(null), []);
+  const dismissCreateError = useCallback(() => createMutation.reset(), [createMutation]);
+  const dismissUpdateError = useCallback(() => updateMutation.reset(), [updateMutation]);
+  const dismissDeleteError = useCallback(() => deleteMutation.reset(), [deleteMutation]);
+  const dismissRotateTokenError = useCallback(() => rotateDeviceTokenMutation.reset(), [rotateDeviceTokenMutation]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -68,8 +77,9 @@ export function VehiclesPage() {
       });
     } else {
       createMutation.mutate(payload, {
-        onSuccess: () => {
+        onSuccess: ({ provisioning_token }) => {
           setSuccessMessage('Vehicle created successfully.');
+          setProvisioningToken(provisioning_token);
           resetForm();
         },
       });
@@ -79,7 +89,19 @@ export function VehiclesPage() {
   return (
     <div>
       <PageHeader title="Vehicles" description="Fleet catalog, live status, assignment, and current state access." />
-      {successMessage ? <DismissibleAlert className="mb-6" message={successMessage} onClose={() => setSuccessMessage(null)} /> : null}
+      {successMessage ? <DismissibleAlert className="mb-6" message={successMessage} onClose={dismissSuccessMessage} /> : null}
+      {provisioningToken ? (
+        <DismissibleAlert
+          className="mb-6"
+          message={`Device token (shown once): ${provisioningToken}`}
+          onClose={dismissProvisioningToken}
+          autoDismissMs={null}
+        />
+      ) : null}
+      {createMutation.isError ? <DismissibleAlert className="mb-6" tone="error" message={getApiErrorMessage(createMutation.error)} onClose={dismissCreateError} /> : null}
+      {updateMutation.isError ? <DismissibleAlert className="mb-6" tone="error" message={getApiErrorMessage(updateMutation.error)} onClose={dismissUpdateError} /> : null}
+      {deleteMutation.isError ? <DismissibleAlert className="mb-6" tone="error" message={getApiErrorMessage(deleteMutation.error)} onClose={dismissDeleteError} /> : null}
+      {rotateDeviceTokenMutation.isError ? <DismissibleAlert className="mb-6" tone="error" message={getApiErrorMessage(rotateDeviceTokenMutation.error)} onClose={dismissRotateTokenError} /> : null}
       <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)_340px]">
         <Panel title={editingId ? 'Edit vehicle' : 'Create vehicle'} description="Manage the company fleet inventory and telematics metadata.">
           <div className="space-y-3">
@@ -107,7 +129,30 @@ export function VehiclesPage() {
             </div>
           </div>
         </Panel>
-        <Panel title="Fleet table" description="Search, inspect, edit, and deactivate vehicles." actions={<input className="rounded-2xl border border-slate-200 px-4 py-2 text-sm" placeholder="Search vehicles" value={search} onChange={(event) => setSearch(event.target.value)} />}>
+        <Panel
+          title="Fleet table"
+          description="Search, inspect, edit, and deactivate vehicles."
+          actions={
+            <div className="relative">
+              <input
+                className="rounded-2xl border border-slate-200 px-4 py-2 pr-10 text-sm"
+                placeholder="Search vehicles"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+              {search ? (
+                <button
+                  type="button"
+                  aria-label="Clear vehicle search"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
+                  onClick={() => setSearch('')}
+                >
+                  ×
+                </button>
+              ) : null}
+            </div>
+          }
+        >
           {isLoading ? <div className="text-sm text-slate-500">Loading vehicles...</div> : null}
           {isError ? <div className="text-sm text-rose-600">Failed to load vehicles.</div> : null}
           {!isLoading && !isError ? (
@@ -152,7 +197,19 @@ export function VehiclesPage() {
               <div className="grid gap-3">
                 <DetailInfoCard label="Status"><StatusBadge value={detail.data.state?.status ?? (detail.data.is_active ? undefined : 'offline')} /></DetailInfoCard>
                 <DetailInfoCard label="Telemetry">Speed: {detail.data.state?.speed_kmh ?? 0} km/h</DetailInfoCard>
+                <DetailInfoCard label="Device ID">{detail.data.device_identifier ?? 'Not assigned'}</DetailInfoCard>
                 <DetailInfoCard label="Assigned driver">{detail.data.assigned_driver?.name ?? 'None'}</DetailInfoCard>
+                <DetailInfoCard label="Device token">
+                  <div className="space-y-2">
+                    <div>{detail.data.device_token?.is_active ? 'Active token configured' : 'No active token'}</div>
+                    {detail.data.device_token?.is_active ? <div className="text-xs text-slate-500">Token label: {detail.data.device_token.name}</div> : null}
+                    <div className="text-xs text-slate-500">
+                      {detail.data.device_token?.last_used_at
+                        ? `Last used ${formatDateTime(detail.data.device_token.last_used_at)}`
+                        : 'The plain token cannot be re-shown. Rotate it to provision a device again.'}
+                    </div>
+                  </div>
+                </DetailInfoCard>
               </div>
               <div className="flex gap-3">
                 <button
@@ -173,10 +230,61 @@ export function VehiclesPage() {
                 >
                   Edit
                 </button>
-                <button className="flex-1 rounded-2xl bg-rose-600 px-4 py-3 font-semibold text-white" onClick={() => deleteMutation.mutate(detail.data.id)}>
+                <button
+                  className="flex-1 rounded-2xl bg-rose-600 px-4 py-3 font-semibold text-white"
+                  onClick={() => {
+                    if (!window.confirm(`Deactivate vehicle ${detail.data.plate_number}? This will archive it and remove it from the active fleet list.`)) {
+                      return;
+                    }
+
+                    deleteMutation.mutate(detail.data.id, {
+                      onSuccess: () => {
+                        setSelectedId((current) => (current === detail.data.id ? null : current));
+                        setEditingId((current) => {
+                          if (current === detail.data.id) {
+                            setForm({
+                              name: '',
+                              plate_number: '',
+                              vin: '',
+                              make: '',
+                              model: '',
+                              year: '',
+                              device_identifier: '',
+                              is_active: true,
+                            });
+
+                            return null;
+                          }
+
+                          return current;
+                        });
+
+                        setSuccessMessage('Vehicle deactivated successfully.');
+                      },
+                    });
+                  }}
+                >
                   Deactivate
                 </button>
               </div>
+              <button
+                className="w-full rounded-2xl border border-slate-200 px-4 py-3 font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={rotateDeviceTokenMutation.isPending}
+                onClick={() => {
+                  if (rotateDeviceTokenMutation.isPending) {
+                    return;
+                  }
+
+                  rotateDeviceTokenMutation.mutate(detail.data.id, {
+                    onSuccess: ({ provisioning_token }) => {
+                      setProvisioningToken(provisioning_token);
+                      setSuccessMessage('Device token rotated successfully.');
+                    },
+                  });
+                }}
+              >
+                {rotateDeviceTokenMutation.isPending ? 'Rotating device token...' : 'Rotate device token'}
+              </button>
               <div className="rounded-2xl border border-slate-200 p-4">
                 <div className="mb-3 text-sm font-semibold text-slate-900">Driver assignment</div>
                 <div className="flex gap-2">

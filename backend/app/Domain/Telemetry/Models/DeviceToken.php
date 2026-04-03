@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class DeviceToken extends Model
 {
+    public const DEFAULT_NAME = 'Primary device token';
+
     protected $fillable = [
         'company_id',
         'vehicle_id',

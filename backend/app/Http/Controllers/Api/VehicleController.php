@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreVehicleRequest;
 use App\Http\Requests\UpdateVehicleRequest;
 use App\Http\Resources\VehicleResource;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
@@ -36,20 +37,23 @@ class VehicleController extends Controller
         return VehicleResource::collection($query->paginate());
     }
 
-    public function store(StoreVehicleRequest $request, VehicleService $service): VehicleResource
+    public function store(StoreVehicleRequest $request, VehicleService $service): JsonResponse
     {
         $this->authorize('create', Vehicle::class);
 
-        $vehicle = $service->create($request->user(), $request->validated());
+        [$vehicle, $plainToken] = $service->create($request->user(), $request->validated());
 
-        return new VehicleResource($vehicle);
+        return response()->json([
+            'data' => (new VehicleResource($vehicle))->resolve(),
+            'provisioning_token' => $plainToken,
+        ], Response::HTTP_CREATED);
     }
 
     public function show(Request $request, Vehicle $vehicle): VehicleResource
     {
         $this->authorize('view', $vehicle);
 
-        return new VehicleResource($vehicle->load(['state', 'assignments.driver']));
+        return new VehicleResource($vehicle->load(['state', 'assignments.driver', 'activeDeviceToken']));
     }
 
     public function update(UpdateVehicleRequest $request, Vehicle $vehicle, VehicleService $service): VehicleResource
@@ -63,5 +67,17 @@ class VehicleController extends Controller
         $service->deactivate($vehicle);
 
         return response()->noContent();
+    }
+
+    public function rotateDeviceToken(Request $request, Vehicle $vehicle, VehicleService $service): JsonResponse
+    {
+        $this->authorize('update', $vehicle);
+
+        [$refreshedVehicle, $plainToken] = $service->rotateDeviceToken($vehicle);
+
+        return response()->json([
+            'data' => (new VehicleResource($refreshedVehicle))->resolve(),
+            'provisioning_token' => $plainToken,
+        ]);
     }
 }

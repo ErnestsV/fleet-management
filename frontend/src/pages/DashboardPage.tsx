@@ -65,7 +65,7 @@ function WorkingTimeCard({
 }
 
 export function DashboardPage() {
-  const { data, isLoading, isError } = useDashboardSummary();
+  const { data, isLoading, isError } = useDashboardSummary({ refetchInterval: 10000 });
 
   const stats = [
     { label: 'Total vehicles', value: String(data?.total_vehicles ?? 0), hint: 'Across selected scope' },
@@ -73,6 +73,12 @@ export function DashboardPage() {
     { label: 'Idling', value: String(data?.idling_vehicles ?? 0), hint: 'Threshold-aware' },
     { label: 'Active alerts', value: String(data?.active_alerts ?? 0), hint: 'Requires operator action' },
   ];
+
+  const fuelTrendSamples = data?.fuel.trend.filter((entry) => (
+    entry.estimated_consumption_l_per_100km != null || entry.estimated_fuel_used_l != null
+  )) ?? [];
+  const fuelTrendData = data?.fuel.trend ?? [];
+  const fuelChartMode = fuelTrendSamples.length >= 2 ? 'chart' : fuelTrendSamples.length === 1 ? 'single-day' : 'empty';
 
   return (
     <div>
@@ -222,18 +228,88 @@ export function DashboardPage() {
             <Panel title="Fuel" description="Estimated fuel usage derived from fuel-level telemetry and odometer distance. These values are estimates, not calibrated fuel-card totals.">
               <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_220px_220px]">
                 <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={data.fuel.trend}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="day" />
-                      <YAxis yAxisId="consumption" label={{ value: 'l/100km', angle: -90, position: 'insideLeft' }} />
-                      <YAxis yAxisId="liters" orientation="right" label={{ value: 'L', angle: 90, position: 'insideRight' }} />
-                      <Tooltip />
-                      <Legend />
-                      <Line yAxisId="consumption" type="monotone" dataKey="estimated_consumption_l_per_100km" name="Estimated consumption" stroke="#84cc16" strokeWidth={3} />
-                      <Line yAxisId="liters" type="monotone" dataKey="estimated_fuel_used_l" name="Estimated fuel used" stroke="#2563eb" strokeWidth={3} />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  {fuelChartMode === 'chart' ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={fuelTrendData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="day" />
+                        <YAxis yAxisId="consumption" label={{ value: 'l/100km', angle: -90, position: 'insideLeft' }} />
+                        <YAxis yAxisId="liters" orientation="right" label={{ value: 'L', angle: 90, position: 'insideRight' }} />
+                        <Tooltip
+                          formatter={(value, name: string) => {
+                            const numericValue = typeof value === 'number'
+                              ? value
+                              : typeof value === 'string'
+                                ? Number(value)
+                                : null;
+
+                            if (numericValue == null || Number.isNaN(numericValue)) {
+                              return ['N/A', name];
+                            }
+
+                            if (name === 'Estimated consumption') {
+                              return [`${numericValue.toFixed(1)} l/100km`, name];
+                            }
+
+                            return [`${numericValue.toFixed(1)} l`, name];
+                          }}
+                        />
+                        <Legend />
+                        <Line
+                          yAxisId="consumption"
+                          type="monotone"
+                          dataKey="estimated_consumption_l_per_100km"
+                          name="Estimated consumption"
+                          stroke="#84cc16"
+                          strokeWidth={3}
+                          dot={{ r: 3, strokeWidth: 0, fill: '#84cc16' }}
+                          activeDot={{ r: 5 }}
+                        />
+                        <Line
+                          yAxisId="liters"
+                          type="monotone"
+                          dataKey="estimated_fuel_used_l"
+                          name="Estimated fuel used"
+                          stroke="#2563eb"
+                          strokeWidth={3}
+                          dot={{ r: 3, strokeWidth: 0, fill: '#2563eb' }}
+                          activeDot={{ r: 5 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-6">
+                      {fuelChartMode === 'single-day' ? (
+                        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                          <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Fuel trend warming up</div>
+                          <div className="mt-2 text-lg font-semibold text-slate-950">{fuelTrendSamples[0]?.day}</div>
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                            <div className="rounded-2xl bg-slate-50 p-4">
+                              <div className="text-xs uppercase tracking-[0.12em] text-slate-500">Consumption</div>
+                              <div className="mt-2 text-2xl font-semibold text-slate-950">
+                                {fuelTrendSamples[0]?.estimated_consumption_l_per_100km != null ? fuelTrendSamples[0].estimated_consumption_l_per_100km.toFixed(1) : 'N/A'}
+                              </div>
+                              <div className="text-sm text-slate-500">l/100km</div>
+                            </div>
+                            <div className="rounded-2xl bg-slate-50 p-4">
+                              <div className="text-xs uppercase tracking-[0.12em] text-slate-500">Fuel used</div>
+                              <div className="mt-2 text-2xl font-semibold text-slate-950">
+                                {fuelTrendSamples[0]?.estimated_fuel_used_l != null ? fuelTrendSamples[0].estimated_fuel_used_l.toFixed(1) : 'N/A'}
+                              </div>
+                              <div className="text-sm text-slate-500">liters</div>
+                            </div>
+                          </div>
+                          <div className="mt-4 text-sm text-slate-500">
+                            One usable telemetry day is available. The full line chart appears automatically once multiple days are available.
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center text-sm text-slate-500">
+                          Fuel trend needs telemetry from multiple days. Current data is still too sparse for a meaningful chart, so use the KPI cards on the right for the latest estimates.
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="grid gap-4">
                   <div className="rounded-2xl border border-slate-200 p-6">

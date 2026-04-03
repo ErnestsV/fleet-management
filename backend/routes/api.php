@@ -38,6 +38,7 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('companies', CompanyController::class)->only(['index', 'store', 'update']);
         Route::apiResource('users', CompanyUserController::class)->only(['index', 'store', 'update']);
         Route::apiResource('vehicles', VehicleController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+        Route::post('/vehicles/{vehicle}/device-token/rotate', [VehicleController::class, 'rotateDeviceToken']);
         Route::apiResource('drivers', DriverController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
         Route::apiResource('trips', TripController::class)->only(['index', 'show']);
         Route::get('/vehicles/{vehicle}/trips', [TripController::class, 'vehicleHistory']);

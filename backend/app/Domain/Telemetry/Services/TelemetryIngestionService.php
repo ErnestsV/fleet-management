@@ -38,6 +38,19 @@ class TelemetryIngestionService
                 'payload' => $payload,
             ]);
 
+            $currentState = VehicleState::query()
+                ->where('vehicle_id', $vehicle->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (
+                $currentState !== null
+                && $currentState->last_event_at !== null
+                && $event->occurred_at->lt($currentState->last_event_at)
+            ) {
+                return [$event, $currentState];
+            }
+
             $state = $this->stateResolver->apply($event);
             $this->tripDerivationService->handle($event, $state);
             $this->geofenceService->syncEvent($event, $state);

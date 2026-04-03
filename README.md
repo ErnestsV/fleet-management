@@ -220,6 +220,20 @@ At a high level:
 
 ## Telemetry ingest
 
+Device authentication flow:
+
+- When a vehicle is created, the system automatically generates a random device token for it.
+- The plain token is shown once in the vehicle-creation response/UI so an installer or hardware integrator can provision the physical device.
+- The database stores only the hashed token, not the plain secret.
+- If the token is lost, the admin cannot reveal it again; they must rotate the token from the vehicle details screen and reprovision the device.
+- Seeded demo vehicles still include deterministic local-development tokens like `demo-token-<vehicle_id>`, but production-style provisioning should use the generated vehicle token flow above.
+
+Important:
+
+- A real device does not invent its own token. The token must come from FleetOS provisioning.
+- In local development, the preferred flow is still to create a vehicle in the UI, copy the generated token, and use that exact token in Postman.
+- The seeded `demo-token-<vehicle_id>` values are only a local shortcut for existing demo vehicles.
+
 Single event endpoint:
 
 ```http
@@ -232,7 +246,6 @@ Example payload:
 
 ```json
 {
-  "vehicle_id": 1,
   "timestamp": "2026-03-31T08:30:00Z",
   "latitude": 56.9496,
   "longitude": 24.1052,
@@ -247,17 +260,231 @@ Example payload:
 cURL example:
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/telemetry/events \
+curl -X POST http://localhost:18000/api/v1/telemetry/events \
   -H "Authorization: Bearer demo-token-1" \
   -H "Content-Type: application/json" \
   -d '{
-    "vehicle_id": 1,
     "timestamp": "2026-03-31T08:30:00Z",
     "latitude": 56.9496,
     "longitude": 24.1052,
     "speed_kmh": 64,
     "engine_on": true
   }'
+```
+
+### Simulating a real device in Postman
+
+Recommended local flow:
+
+1. Create a vehicle in the UI.
+2. Copy the one-time provisioning token shown after vehicle creation.
+3. In Postman, use:
+   - Method: `POST`
+   - URL: `http://localhost:18000/api/v1/telemetry/events`
+   - Header: `Authorization: Bearer <copied-device-token>`
+   - Header: `Content-Type: application/json`
+4. Send telemetry in chronological order.
+
+Notes:
+
+- The telemetry endpoint authenticates the device by hashing the bearer token and matching it against `device_tokens.token`.
+- The request body does not use `device_identifier`. The token identifies the device/vehicle pair.
+- Keep timestamps increasing. Delayed historical backfill events are stored, but out-of-order payloads make manual QA harder to reason about.
+- Alerts and dashboard summaries poll in the frontend approximately every 10 seconds, so external Postman events should appear shortly without a hard refresh.
+
+Accepted payload fields:
+
+- `timestamp` required
+- `latitude` required
+- `longitude` required
+- `speed_kmh` required
+- `engine_on` required
+- `odometer_km` optional
+- `fuel_level` optional
+- `heading` optional
+- `vehicle_id` optional, but typically unnecessary when the bearer token already belongs to the intended vehicle
+
+Example moving event:
+
+```json
+{
+  "timestamp": "2026-04-03T08:00:00Z",
+  "latitude": 56.9496,
+  "longitude": 24.1052,
+  "speed_kmh": 48,
+  "engine_on": true,
+  "odometer_km": 50000,
+  "fuel_level": 80,
+  "heading": 90
+}
+```
+
+Additional example payloads:
+
+Stop / close trip:
+
+```json
+{
+  "timestamp": "2026-04-03T08:25:00Z",
+  "latitude": 56.9600,
+  "longitude": 24.1300,
+  "speed_kmh": 0,
+  "engine_on": false,
+  "odometer_km": 50010,
+  "fuel_level": 79,
+  "heading": 100
+}
+```
+
+Speeding:
+
+```json
+{
+  "timestamp": "2026-04-03T08:40:00Z",
+  "latitude": 56.9610,
+  "longitude": 24.1310,
+  "speed_kmh": 128,
+  "engine_on": true,
+  "odometer_km": 50020,
+  "fuel_level": 78,
+  "heading": 105
+}
+```
+
+Maintenance due by odometer:
+
+```json
+{
+  "timestamp": "2026-04-03T08:50:00Z",
+  "latitude": 56.9620,
+  "longitude": 24.1320,
+  "speed_kmh": 42,
+  "engine_on": true,
+  "odometer_km": 50025,
+  "fuel_level": 77,
+  "heading": 110
+}
+```
+
+Outside geofence:
+
+```json
+{
+  "timestamp": "2026-04-03T09:00:00Z",
+  "latitude": 56.9400,
+  "longitude": 24.0900,
+  "speed_kmh": 30,
+  "engine_on": true,
+  "odometer_km": 50035,
+  "fuel_level": 76,
+  "heading": 120
+}
+```
+
+Inside geofence:
+
+```json
+{
+  "timestamp": "2026-04-03T09:05:00Z",
+  "latitude": 56.9496,
+  "longitude": 24.1052,
+  "speed_kmh": 20,
+  "engine_on": true,
+  "odometer_km": 50040,
+  "fuel_level": 76,
+  "heading": 130
+}
+```
+
+Fuel trend / mileage baseline example for a different day:
+
+```json
+{
+  "timestamp": "2026-04-01T18:00:00Z",
+  "latitude": 56.9700,
+  "longitude": 24.1800,
+  "speed_kmh": 0,
+  "engine_on": false,
+  "odometer_km": 49980,
+  "fuel_level": 78,
+  "heading": 120
+}
+```
+
+### Manual telemetry QA flow
+
+The sequence below is the safest way to validate the operational flow end to end. Use a fresh vehicle token and keep timestamps increasing.
+
+1. Send a moving event.
+   Expected:
+   - vehicle state changes to `moving`
+   - live map/fleet table update
+   - a trip opens
+2. Send another moving event later.
+   Expected:
+   - trip remains open
+   - distance and average speed start to populate
+3. Send a stop event.
+   Expected:
+   - vehicle state becomes `stopped`
+   - trip closes with an end time
+4. Send a speeding event.
+   Expected:
+   - a `speeding` alert is created
+   - notifications count increases
+5. Create a maintenance schedule for that vehicle with a near `next_due_odometer_km`, then send an event at or above that threshold.
+   Expected:
+   - a `maintenance_due` alert is created
+   - the schedule stays in `Upcoming` until a maintenance record resolves it
+6. Send an inside-geofence event followed by an outside-geofence event to validate exit, or an outside-geofence event followed by an inside-geofence event to validate entry.
+   Expected:
+   - the matching `geofence_entry` or `geofence_exit` alert appears in alert history for the transition you just triggered
+   - these geofence alerts are informational and do not inflate the notifications badge
+7. Create a maintenance record linked to the due schedule.
+   Expected:
+   - the `maintenance_due` alert resolves
+   - the schedule advances to the next date / odometer target
+8. Send telemetry on at least two different calendar days if you want the dashboard mileage and fuel trend widgets to show a meaningful baseline and delta.
+
+### Offline alert testing
+
+An offline alert means the platform has not received telemetry for a vehicle within the configured freshness window.
+
+Current default:
+
+- `fleet.offline_threshold_minutes=10`
+
+Ways to test it:
+
+- Wait until a vehicle becomes stale naturally, then run:
+
+```bash
+docker compose exec backend php artisan app:check-offline-vehicles
+```
+
+- Or let the scheduler do it:
+
+```bash
+docker compose exec backend php artisan schedule:run
+```
+
+Expected:
+
+- vehicle state becomes `offline`
+- a new `offline_vehicle` alert is created
+
+### Queue and scheduler requirements for manual QA
+
+- Telemetry ingest itself runs through the `backend` API container.
+- Alert evaluation for telemetry is queued, so the `queue` container must be running.
+- Scheduled checks such as offline-vehicle detection and date-based maintenance checks require the `scheduler` container.
+
+Useful checks:
+
+```bash
+docker compose ps
+docker compose logs --tail=50 queue
+docker compose logs --tail=50 scheduler
 ```
 
 Simulator command:

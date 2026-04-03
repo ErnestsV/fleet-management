@@ -19,6 +19,10 @@ class TripDerivationService
      */
     public function handle(TelemetryEvent $event, VehicleState $state): ?Trip
     {
+        if ($this->isOutOfOrderForTripDerivation($event)) {
+            return null;
+        }
+
         $openTrip = Trip::query()
             ->where('vehicle_id', $event->vehicle_id)
             ->whereNull('end_time')
@@ -91,5 +95,30 @@ class TripDerivationService
             'speed_kmh' => $event->speed_kmh,
             'odometer_km' => $event->odometer_km,
         ];
+    }
+
+    private function isOutOfOrderForTripDerivation(TelemetryEvent $event): bool
+    {
+        $latestTrip = Trip::query()
+            ->where('vehicle_id', $event->vehicle_id)
+            ->latest('start_time')
+            ->first();
+
+        if (! $latestTrip) {
+            return false;
+        }
+
+        $latestDerivedAt = collect([
+            $latestTrip->end_time,
+            data_get($latestTrip->end_snapshot, 'timestamp'),
+            data_get($latestTrip->start_snapshot, 'timestamp'),
+            $latestTrip->start_time,
+        ])
+            ->filter()
+            ->map(fn ($timestamp) => $timestamp instanceof Carbon ? $timestamp : Carbon::parse($timestamp))
+            ->sort()
+            ->last();
+
+        return $latestDerivedAt !== null && $event->occurred_at->lt($latestDerivedAt);
     }
 }

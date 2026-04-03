@@ -4,6 +4,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/app/store/authStore';
 import { useAlerts } from '@/features/alerts/useAlerts';
 import { logout } from '@/lib/api/auth';
+import type { AlertItem } from '@/types/domain';
 
 const links = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -19,6 +20,8 @@ const links = [
   { to: '/profile', label: 'Settings', icon: Settings },
 ];
 
+const informationalAlertTypes = new Set<AlertItem['type']>(['geofence_entry', 'geofence_exit']);
+
 export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
@@ -27,9 +30,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [desktopNavExpanded, setDesktopNavExpanded] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
-  const { data: activeAlerts } = useAlerts({ status: 'active' });
+  const { data: activeAlerts } = useAlerts({ status: 'active' }, { refetchInterval: 10000 });
 
-  const activeAlertCount = activeAlerts?.data?.length ?? 0;
+  const activeAlertCount = activeAlerts?.data?.filter((alert) => !informationalAlertTypes.has(alert.type)).length ?? 0;
   const companyLabel = useMemo(() => {
     if (user?.company?.name) {
       return user.company.name;

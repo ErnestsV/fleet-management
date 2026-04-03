@@ -16,6 +16,19 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardService
 {
+    private const INFORMATIONAL_ALERT_TYPES = [
+        AlertType::GeofenceEntry,
+        AlertType::GeofenceExit,
+    ];
+
+    private function activeActionableAlertsQuery(?int $companyId, User $user)
+    {
+        return Alert::query()
+            ->whereNull('resolved_at')
+            ->whereNotIn('type', self::INFORMATIONAL_ALERT_TYPES)
+            ->when(! $user->isSuperAdmin(), fn ($query) => $query->where('company_id', $companyId));
+    }
+
     public function summary(User $user): array
     {
         $companyId = $user->company_id;
@@ -32,25 +45,11 @@ class DashboardService
         $states = VehicleState::query()
             ->when(! $user->isSuperAdmin(), fn ($query) => $query->where('company_id', $companyId));
 
-        $alerts = Alert::query()
-            ->whereNull('resolved_at')
-            ->when(! $user->isSuperAdmin(), fn ($query) => $query->where('company_id', $companyId));
+        $alerts = $this->activeActionableAlertsQuery($companyId, $user);
 
         $telemetryBase = TelemetryEvent::query()
             ->when(! $user->isSuperAdmin(), fn ($query) => $query->where('company_id', $companyId))
             ->whereDate('occurred_at', '>=', $windowStart);
-
-        $distanceToday = (clone $telemetryBase)
-            ->whereDate('occurred_at', $today)
-            ->sum('speed_kmh') / 10;
-
-        $distanceYesterday = (clone $telemetryBase)
-            ->whereDate('occurred_at', $yesterday)
-            ->sum('speed_kmh') / 10;
-
-        $distancePreviousDay = (clone $telemetryBase)
-            ->whereDate('occurred_at', $yesterday->copy()->subDay())
-            ->sum('speed_kmh') / 10;
 
         $fleetVehicles = Vehicle::query()
             ->with(['state', 'assignments.driver'])
@@ -79,24 +78,40 @@ class DashboardService
 
         $alertsByType = collect(AlertType::cases())->map(fn (AlertType $type) => [
             'type' => $type->value,
-            'count' => Alert::query()
-                ->whereNull('resolved_at')
-                ->where('type', $type)
-                ->when(! $user->isSuperAdmin(), fn ($query) => $query->where('company_id', $companyId))
-                ->count(),
+            'count' => in_array($type, self::INFORMATIONAL_ALERT_TYPES, true)
+                ? 0
+                : (clone $alerts)->where('type', $type)->count(),
         ])->values();
 
-        $distanceByVehicle = TelemetryEvent::query()
-            ->selectRaw('vehicle_id, ROUND(COALESCE(SUM(speed_kmh) / 10, 0), 1) as distance_km')
-            ->when(! $user->isSuperAdmin(), fn ($query) => $query->where('company_id', $companyId))
-            ->whereDate('occurred_at', '>=', $windowStart)
+        $distanceByVehicleRows = DB::query()
+            ->fromSub(
+                TelemetryEvent::query()
+                    ->selectRaw('vehicle_id')
+                    ->selectRaw('COUNT(*) as sample_count')
+                    ->selectRaw('MAX(odometer_km) - MIN(odometer_km) as distance_km')
+                    ->when(! $user->isSuperAdmin(), fn ($query) => $query->where('company_id', $companyId))
+                    ->whereDate('occurred_at', '>=', $windowStart)
+                    ->whereNotNull('odometer_km')
+                    ->groupBy('vehicle_id'),
+                'vehicle_distance_rollups'
+            )
+            ->selectRaw('vehicle_id')
+            ->selectRaw('ROUND(COALESCE(SUM(CASE WHEN sample_count >= 2 AND distance_km > 0 THEN distance_km ELSE 0 END), 0), 1) as distance_km')
             ->groupBy('vehicle_id')
-            ->with('vehicle:id,name,plate_number')
+            ->orderByDesc('distance_km')
+            ->orderBy('vehicle_id')
             ->limit(8)
-            ->get()
+            ->get();
+
+        $distanceVehicleLabels = Vehicle::query()
+            ->whereIn('id', $distanceByVehicleRows->pluck('vehicle_id'))
+            ->get(['id', 'plate_number'])
+            ->keyBy('id');
+
+        $distanceByVehicle = $distanceByVehicleRows
             ->map(fn ($row) => [
                 'vehicle_id' => $row->vehicle_id,
-                'label' => $row->vehicle?->plate_number ?? 'Vehicle '.$row->vehicle_id,
+                'label' => $distanceVehicleLabels->get($row->vehicle_id)?->plate_number ?? 'Vehicle '.$row->vehicle_id,
                 'distance_km' => (float) $row->distance_km,
             ])
             ->values();
@@ -130,10 +145,8 @@ class DashboardService
             ->pluck('vehicle_id');
 
         $vehiclesWithoutAlerts = $fleetVehicles->filter(function (Vehicle $vehicle) use ($companyId, $user) {
-            return Alert::query()
-                ->whereNull('resolved_at')
+            return $this->activeActionableAlertsQuery($companyId, $user)
                 ->where('vehicle_id', $vehicle->id)
-                ->when(! $user->isSuperAdmin(), fn ($query) => $query->where('company_id', $companyId))
                 ->doesntExist();
         })->count();
 
@@ -238,7 +251,7 @@ class DashboardService
 
         $windowEnd = $today->copy()->endOfDay();
 
-        $fuelRows = DB::query()
+        $dailyTelemetryRows = DB::query()
             ->fromSub(
                 TelemetryEvent::query()
                     ->selectRaw("DATE(occurred_at) as day")
@@ -262,10 +275,22 @@ class DashboardService
             ->get()
             ->groupBy('day');
 
+        $distanceToday = collect($dailyTelemetryRows->get($today->toDateString(), []))
+            ->filter(fn ($row) => (int) $row->sample_count >= 2)
+            ->sum(fn ($row) => max(0, (float) $row->distance_km));
+
+        $distanceYesterday = collect($dailyTelemetryRows->get($yesterday->toDateString(), []))
+            ->filter(fn ($row) => (int) $row->sample_count >= 2)
+            ->sum(fn ($row) => max(0, (float) $row->distance_km));
+
+        $distancePreviousDay = collect($dailyTelemetryRows->get($yesterday->copy()->subDay()->toDateString(), []))
+            ->filter(fn ($row) => (int) $row->sample_count >= 2)
+            ->sum(fn ($row) => max(0, (float) $row->distance_km));
+
         $fuelTrend = collect(range(0, 6))
             ->map(fn (int $offset) => $windowStart->copy()->addDays($offset))
-            ->map(function (Carbon $day) use ($fuelRows, $estimatedTankCapacityLiters) {
-                $dayRows = collect($fuelRows->get($day->toDateString(), []))
+            ->map(function (Carbon $day) use ($dailyTelemetryRows, $estimatedTankCapacityLiters) {
+                $dayRows = collect($dailyTelemetryRows->get($day->toDateString(), []))
                     ->filter(fn ($row) => (int) $row->sample_count >= 2)
                     ->values();
 
