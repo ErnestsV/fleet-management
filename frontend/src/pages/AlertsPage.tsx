@@ -12,7 +12,7 @@ export function AlertsPage() {
   const { data, isLoading, isError } = useAlerts({
     type: type || undefined,
     status: status || undefined,
-  });
+  }, { refetchInterval: 10000 });
 
   return (
     <div>

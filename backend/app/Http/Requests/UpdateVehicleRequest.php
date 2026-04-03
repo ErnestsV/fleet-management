@@ -27,7 +27,9 @@ class UpdateVehicleRequest extends FormRequest
                 'required',
                 'string',
                 'max:50',
-                Rule::unique('vehicles', 'plate_number')->where(fn ($query) => $query->where('company_id', $vehicle->company_id))->ignore($vehicle->id),
+                Rule::unique('vehicles', 'plate_number')
+                    ->where(fn ($query) => $query->where('company_id', $vehicle->company_id)->whereNull('deleted_at'))
+                    ->ignore($vehicle->id),
             ],
             'vin' => ['nullable', 'string', 'max:255'],
             'make' => ['nullable', 'string', 'max:255'],

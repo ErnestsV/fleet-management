@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { CheckboxField } from '@/components/ui/CheckboxField';
 import { DataTable, DataTableBody, DataTableHead } from '@/components/ui/DataTable';
@@ -11,6 +11,7 @@ import { AssignmentHistoryList } from '@/components/ui/AssignmentHistoryList';
 import { useAssignments, useCreateAssignment, useEndAssignment } from '@/features/assignments/useAssignments';
 import { useCreateDriver, useDeleteDriver, useDriver, useDrivers, useUpdateDriver } from '@/features/drivers/useDrivers';
 import { useVehicles } from '@/features/vehicles/useVehicles';
+import { getApiErrorMessage } from '@/lib/api/errors';
 
 export function DriversPage() {
   const [search, setSearch] = useState('');
@@ -35,6 +36,10 @@ export function DriversPage() {
   const updateMutation = useUpdateDriver();
   const deleteMutation = useDeleteDriver();
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const dismissSuccessMessage = useCallback(() => setSuccessMessage(null), []);
+  const dismissCreateError = useCallback(() => createMutation.reset(), [createMutation]);
+  const dismissUpdateError = useCallback(() => updateMutation.reset(), [updateMutation]);
+  const dismissDeleteError = useCallback(() => deleteMutation.reset(), [deleteMutation]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -70,7 +75,10 @@ export function DriversPage() {
   return (
     <div>
       <PageHeader title="Drivers" description="Driver records and vehicle assignment management." />
-      {successMessage ? <DismissibleAlert className="mb-6" message={successMessage} onClose={() => setSuccessMessage(null)} /> : null}
+      {successMessage ? <DismissibleAlert className="mb-6" message={successMessage} onClose={dismissSuccessMessage} /> : null}
+      {createMutation.isError ? <DismissibleAlert className="mb-6" tone="error" message={getApiErrorMessage(createMutation.error)} onClose={dismissCreateError} /> : null}
+      {updateMutation.isError ? <DismissibleAlert className="mb-6" tone="error" message={getApiErrorMessage(updateMutation.error)} onClose={dismissUpdateError} /> : null}
+      {deleteMutation.isError ? <DismissibleAlert className="mb-6" tone="error" message={getApiErrorMessage(deleteMutation.error)} onClose={dismissDeleteError} /> : null}
       <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)_340px]">
         <Panel title={editingId ? 'Edit driver' : 'Create driver'} description="Driver records with assignment visibility.">
           <div className="space-y-3">
@@ -157,7 +165,38 @@ export function DriversPage() {
                 >
                   Edit
                 </button>
-                <button className="flex-1 rounded-2xl bg-rose-600 px-4 py-3 font-semibold text-white" onClick={() => deleteMutation.mutate(detail.data.id)}>
+                <button
+                  className="flex-1 rounded-2xl bg-rose-600 px-4 py-3 font-semibold text-white"
+                  onClick={() => {
+                    if (!window.confirm(`Deactivate driver ${detail.data.name}? This will archive the record and remove it from the active driver list.`)) {
+                      return;
+                    }
+
+                    deleteMutation.mutate(detail.data.id, {
+                      onSuccess: () => {
+                        setSelectedId((current) => (current === detail.data.id ? null : current));
+                        setEditingId((current) => {
+                          if (current === detail.data.id) {
+                            setForm({
+                              name: '',
+                              email: '',
+                              phone: '',
+                              license_number: '',
+                              license_expires_at: '',
+                              is_active: true,
+                            });
+
+                            return null;
+                          }
+
+                          return current;
+                        });
+
+                        setSuccessMessage('Driver deactivated successfully.');
+                      },
+                    });
+                  }}
+                >
                   Deactivate
                 </button>
               </div>

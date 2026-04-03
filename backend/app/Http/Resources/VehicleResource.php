@@ -21,6 +21,12 @@ class VehicleResource extends JsonResource
             'device_identifier' => $this->device_identifier,
             'is_active' => $this->is_active,
             'deleted_at' => $this->deleted_at,
+            'device_token' => $this->whenLoaded('activeDeviceToken', fn () => $this->activeDeviceToken ? [
+                'id' => $this->activeDeviceToken->id,
+                'name' => $this->activeDeviceToken->name,
+                'is_active' => $this->activeDeviceToken->is_active,
+                'last_used_at' => $this->activeDeviceToken->last_used_at,
+            ] : null),
             'state' => $this->whenLoaded('state', fn () => [
                 'status' => $this->state?->status?->value,
                 'latitude' => $this->state?->latitude,

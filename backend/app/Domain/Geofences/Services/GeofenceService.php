@@ -26,10 +26,12 @@ class GeofenceService
         $exited = $previous->diff($current);
 
         foreach ($entered as $geofenceId) {
+            $this->resolveAlerts($event, AlertType::GeofenceExit, (int) $geofenceId);
             $this->createAlert($event, AlertType::GeofenceEntry, (int) $geofenceId);
         }
 
         foreach ($exited as $geofenceId) {
+            $this->resolveAlerts($event, AlertType::GeofenceEntry, (int) $geofenceId);
             $this->createAlert($event, AlertType::GeofenceExit, (int) $geofenceId);
         }
 
@@ -90,5 +92,16 @@ class GeofenceService
             'triggered_at' => now(),
             'context' => ['geofence_id' => $geofenceId],
         ]);
+    }
+
+    private function resolveAlerts(TelemetryEvent $event, AlertType $type, int $geofenceId): void
+    {
+        Alert::query()
+            ->where('company_id', $event->company_id)
+            ->where('vehicle_id', $event->vehicle_id)
+            ->where('type', $type)
+            ->whereNull('resolved_at')
+            ->where('context->geofence_id', $geofenceId)
+            ->update(['resolved_at' => now()]);
     }
 }

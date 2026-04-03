@@ -65,4 +65,69 @@ class DashboardSummaryTest extends TestCase
             ->assertJsonPath('fuel.estimated_avg_consumption_yesterday_l_per_100km', null)
             ->assertJsonPath('fuel.average_fuel_level_yesterday_pct', null);
     }
+
+    public function test_dashboard_summary_uses_odometer_deltas_for_mileage_cards(): void
+    {
+        $user = User::factory()->create();
+        $vehicle = Vehicle::factory()->create(['company_id' => $user->company_id]);
+
+        TelemetryEvent::query()->create([
+            'company_id' => $user->company_id,
+            'vehicle_id' => $vehicle->id,
+            'occurred_at' => now()->subDay()->setTime(9, 0),
+            'latitude' => 56.9496,
+            'longitude' => 24.1052,
+            'odometer_km' => 15000,
+            'fuel_level' => 76,
+            'speed_kmh' => 12,
+            'engine_on' => true,
+        ]);
+
+        TelemetryEvent::query()->create([
+            'company_id' => $user->company_id,
+            'vehicle_id' => $vehicle->id,
+            'occurred_at' => now()->subDay()->setTime(18, 0),
+            'latitude' => 56.9696,
+            'longitude' => 24.1252,
+            'odometer_km' => 15090,
+            'fuel_level' => 72,
+            'speed_kmh' => 0,
+            'engine_on' => false,
+        ]);
+
+        TelemetryEvent::query()->create([
+            'company_id' => $user->company_id,
+            'vehicle_id' => $vehicle->id,
+            'occurred_at' => now()->subDays(2)->setTime(9, 0),
+            'latitude' => 56.9496,
+            'longitude' => 24.1052,
+            'odometer_km' => 14900,
+            'fuel_level' => 78,
+            'speed_kmh' => 5,
+            'engine_on' => true,
+        ]);
+
+        TelemetryEvent::query()->create([
+            'company_id' => $user->company_id,
+            'vehicle_id' => $vehicle->id,
+            'occurred_at' => now()->subDays(2)->setTime(18, 0),
+            'latitude' => 56.9596,
+            'longitude' => 24.1152,
+            'odometer_km' => 14940,
+            'fuel_level' => 75,
+            'speed_kmh' => 0,
+            'engine_on' => false,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->getJson('/api/v1/dashboard/summary')
+            ->assertOk();
+
+        $mileage = $response->json('mileage');
+
+        $this->assertSame(90.0, (float) $mileage['yesterday_distance_km']);
+        $this->assertSame(40.0, (float) $mileage['previous_distance_km']);
+        $this->assertSame(125.0, (float) $mileage['delta_pct']);
+    }
 }

@@ -3,6 +3,7 @@
 namespace App\Domain\Fleet\Models;
 
 use App\Domain\Companies\Models\Company;
+use App\Domain\Telemetry\Models\DeviceToken;
 use App\Domain\Telemetry\Models\TelemetryEvent;
 use App\Domain\Telemetry\Models\VehicleState;
 use Database\Factories\VehicleFactory;
@@ -62,5 +63,15 @@ class Vehicle extends Model
     public function assignments(): HasMany
     {
         return $this->hasMany(VehicleDriverAssignment::class);
+    }
+
+    public function deviceTokens(): HasMany
+    {
+        return $this->hasMany(DeviceToken::class);
+    }
+
+    public function activeDeviceToken(): HasOne
+    {
+        return $this->hasOne(DeviceToken::class)->where('is_active', true);
     }
 }

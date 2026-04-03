@@ -22,7 +22,9 @@ class StoreVehicleRequest extends FormRequest
                 'string',
                 'max:50',
                 Rule::unique('vehicles', 'plate_number')->where(
-                    fn ($query) => $query->where('company_id', $this->user()?->isSuperAdmin() ? $this->input('company_id') : $this->user()?->company_id)
+                    fn ($query) => $query
+                        ->where('company_id', $this->user()?->isSuperAdmin() ? $this->input('company_id') : $this->user()?->company_id)
+                        ->whereNull('deleted_at')
                 ),
             ],
             'vin' => ['nullable', 'string', 'max:255'],

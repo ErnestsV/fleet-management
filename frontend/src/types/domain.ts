@@ -108,6 +108,12 @@ export type Vehicle = {
   year: number | null;
   vin?: string | null;
   device_identifier: string | null;
+  device_token?: {
+    id: number;
+    name: string;
+    is_active: boolean;
+    last_used_at: string | null;
+  } | null;
   is_active: boolean;
   deleted_at?: string | null;
   state?: {

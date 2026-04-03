@@ -2,10 +2,12 @@
 
 namespace Tests\Feature\Telemetry;
 
+use App\Domain\Alerts\Enums\AlertType;
+use App\Domain\Alerts\Models\Alert;
 use App\Domain\Companies\Models\Company;
 use App\Domain\Fleet\Models\Vehicle;
+use App\Domain\Geofences\Models\Geofence;
 use App\Domain\Telemetry\Models\DeviceToken;
-use App\Domain\Telemetry\Models\TelemetryEvent;
 use App\Domain\Telemetry\Models\VehicleState;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -58,5 +60,70 @@ class TelemetryIngestionTest extends TestCase
             ]);
 
         $response->assertStatus(422);
+    }
+
+    public function test_stale_telemetry_event_is_stored_without_mutating_state_or_geofence_alerts(): void
+    {
+        $company = Company::factory()->create();
+        $vehicle = Vehicle::factory()->create(['company_id' => $company->id]);
+        $plainToken = 'demo-token';
+
+        DeviceToken::create([
+            'company_id' => $company->id,
+            'vehicle_id' => $vehicle->id,
+            'name' => 'Test',
+            'token' => hash('sha256', $plainToken),
+            'is_active' => true,
+        ]);
+
+        $geofence = Geofence::query()->create([
+            'company_id' => $company->id,
+            'name' => 'Riga Depot',
+            'type' => 'circle',
+            'geometry' => [
+                'center' => ['lat' => 56.9496, 'lng' => 24.1052],
+                'radius_m' => 500,
+            ],
+            'is_active' => true,
+        ]);
+
+        VehicleState::query()->create([
+            'company_id' => $company->id,
+            'vehicle_id' => $vehicle->id,
+            'status' => 'moving',
+            'last_event_at' => '2026-04-03T12:00:00Z',
+            'latitude' => 56.9496,
+            'longitude' => 24.1052,
+            'speed_kmh' => 45,
+            'engine_on' => true,
+            'last_geofence_ids' => [$geofence->id],
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer '.$plainToken)
+            ->postJson('/api/v1/telemetry/events', [
+                'vehicle_id' => $vehicle->id,
+                'timestamp' => '2026-04-03T11:00:00Z',
+                'latitude' => 56.9300,
+                'longitude' => 24.0700,
+                'speed_kmh' => 20,
+                'engine_on' => true,
+            ])
+            ->assertStatus(202);
+
+        $this->assertDatabaseCount('telemetry_events', 1);
+
+        $state = VehicleState::query()->where('vehicle_id', $vehicle->id)->firstOrFail();
+
+        $this->assertSame('2026-04-03 12:00:00', $state->last_event_at?->clone()->utc()->format('Y-m-d H:i:s'));
+        $this->assertSame([$geofence->id], $state->last_geofence_ids);
+
+        $this->assertDatabaseMissing('alerts', [
+            'vehicle_id' => $vehicle->id,
+            'type' => AlertType::GeofenceEntry->value,
+        ]);
+        $this->assertDatabaseMissing('alerts', [
+            'vehicle_id' => $vehicle->id,
+            'type' => AlertType::GeofenceExit->value,
+        ]);
     }
 }

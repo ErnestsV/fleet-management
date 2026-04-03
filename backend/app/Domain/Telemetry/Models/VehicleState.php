@@ -26,6 +26,7 @@ class VehicleState extends Model
         'idling_started_at',
         'stopped_started_at',
         'offline_marked_at',
+        'last_geofence_ids',
     ];
 
     protected function casts(): array
