@@ -2,63 +2,25 @@
 
 namespace App\Domain\Companies\Services;
 
-use App\Domain\Auth\Services\AccountInvitationService;
 use App\Domain\Companies\Models\Company;
-use App\Domain\Shared\Enums\UserRole;
-use App\Models\User;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
+use App\Domain\Companies\Services\Provisioning\CreateCompanyService;
+use App\Domain\Companies\Services\Provisioning\UpdateCompanyService;
 
 class CompanyService
 {
     public function __construct(
-        private readonly AccountInvitationService $accountInvitationService,
+        private readonly CreateCompanyService $createCompanyService,
+        private readonly UpdateCompanyService $updateCompanyService,
     ) {
     }
 
     public function createCompanyWithOwner(array $companyData, ?array $ownerData = null): Company
     {
-        [$company, $owner] = DB::transaction(function () use ($companyData, $ownerData) {
-            $company = Company::create([
-                ...$companyData,
-                'slug' => $companyData['slug'] ?? Str::slug($companyData['name']).'-'.Str::lower(Str::random(5)),
-            ]);
-
-            $owner = null;
-
-            if ($ownerData) {
-                $owner = User::create([
-                    'company_id' => $company->id,
-                    'name' => $ownerData['name'],
-                    'email' => $ownerData['email'],
-                    'role' => $ownerData['role'] ?? UserRole::Owner,
-                    'timezone' => $ownerData['timezone'] ?? $company->timezone,
-                    'is_active' => true,
-                    'password' => Hash::make($ownerData['password'] ?? Str::password(16)),
-                ]);
-            }
-
-            return [$company, $owner];
-        });
-
-        if ($owner) {
-            $this->accountInvitationService->sendPasswordSetupLink($owner);
-        }
-
-        return $company;
+        return $this->createCompanyService->handle($companyData, $ownerData);
     }
 
     public function updateCompany(Company $company, array $data): Company
     {
-        $company->update([
-            'name' => $data['name'],
-            'slug' => $data['slug'] ?? $company->slug,
-            'timezone' => $data['timezone'] ?? $company->timezone,
-            'settings' => $data['settings'] ?? $company->settings,
-            'is_active' => $data['is_active'] ?? $company->is_active,
-        ]);
-
-        return $company->refresh();
+        return $this->updateCompanyService->handle($company, $data);
     }
 }

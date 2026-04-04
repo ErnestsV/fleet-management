@@ -2,6 +2,7 @@
 
 namespace App\Domain\Fleet\Services;
 
+use App\Domain\Fleet\Data\ProvisionedVehicleResult;
 use App\Domain\Fleet\Models\Vehicle;
 use App\Domain\Telemetry\Services\DeviceTokenProvisioningService;
 use App\Models\User;
@@ -14,9 +15,9 @@ class VehicleService
     ) {
     }
 
-    public function create(User $actor, array $data): array
+    public function create(User $actor, array $data): ProvisionedVehicleResult
     {
-        return DB::transaction(function () use ($actor, $data): array {
+        return DB::transaction(function () use ($actor, $data): ProvisionedVehicleResult {
             $companyId = $actor->isSuperAdmin()
                 ? $data['company_id']
                 : $actor->company_id;
@@ -33,7 +34,7 @@ class VehicleService
 
             $plainToken = $this->deviceTokenProvisioningService->issueForVehicle($vehicle);
 
-            return [$vehicle->fresh('activeDeviceToken'), $plainToken];
+            return new ProvisionedVehicleResult($vehicle->fresh('activeDeviceToken'), $plainToken);
         });
     }
 
@@ -72,11 +73,11 @@ class VehicleService
         });
     }
 
-    public function rotateDeviceToken(Vehicle $vehicle): array
+    public function rotateDeviceToken(Vehicle $vehicle): ProvisionedVehicleResult
     {
         $plainToken = $this->deviceTokenProvisioningService->issueForVehicle($vehicle);
 
-        return [$vehicle->fresh('activeDeviceToken'), $plainToken];
+        return new ProvisionedVehicleResult($vehicle->fresh('activeDeviceToken'), $plainToken);
     }
 
     private function releaseArchivedPlateNumber(int $companyId, string $plateNumber): void

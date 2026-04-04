@@ -41,11 +41,11 @@ class VehicleController extends Controller
     {
         $this->authorize('create', Vehicle::class);
 
-        [$vehicle, $plainToken] = $service->create($request->user(), $request->validated());
+        $result = $service->create($request->user(), $request->validated());
 
         return response()->json([
-            'data' => (new VehicleResource($vehicle))->resolve(),
-            'provisioning_token' => $plainToken,
+            'data' => (new VehicleResource($result->vehicle))->resolve(),
+            'provisioning_token' => $result->plainToken,
         ], Response::HTTP_CREATED);
     }
 
@@ -73,11 +73,11 @@ class VehicleController extends Controller
     {
         $this->authorize('update', $vehicle);
 
-        [$refreshedVehicle, $plainToken] = $service->rotateDeviceToken($vehicle);
+        $result = $service->rotateDeviceToken($vehicle);
 
         return response()->json([
-            'data' => (new VehicleResource($refreshedVehicle))->resolve(),
-            'provisioning_token' => $plainToken,
+            'data' => (new VehicleResource($result->vehicle))->resolve(),
+            'provisioning_token' => $result->plainToken,
         ]);
     }
 }

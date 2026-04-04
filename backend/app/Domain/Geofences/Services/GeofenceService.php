@@ -38,7 +38,7 @@ class GeofenceService
         $state->update(['last_geofence_ids' => $current->values()->all()]);
     }
 
-    public function createOrUpdate(?Geofence $geofence, array $data): Geofence
+    public function create(array $data): Geofence
     {
         $payload = [
             'company_id' => $data['company_id'],
@@ -48,12 +48,20 @@ class GeofenceService
             'is_active' => $data['is_active'] ?? true,
         ];
 
-        if ($geofence) {
-            $geofence->update($payload);
-            return $geofence->refresh();
-        }
-
         return Geofence::create($payload);
+    }
+
+    public function update(Geofence $geofence, array $data): Geofence
+    {
+        $geofence->update([
+            'company_id' => $data['company_id'],
+            'name' => $data['name'],
+            'type' => $data['type'],
+            'geometry' => $data['geometry'],
+            'is_active' => $data['is_active'] ?? true,
+        ]);
+
+        return $geofence->refresh();
     }
 
     private function contains(Geofence $geofence, float $latitude, float $longitude): bool

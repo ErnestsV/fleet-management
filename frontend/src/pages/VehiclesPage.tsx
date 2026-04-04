@@ -1,33 +1,20 @@
 import { useCallback, useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { CheckboxField } from '@/components/ui/CheckboxField';
-import { DataTable, DataTableBody, DataTableHead } from '@/components/ui/DataTable';
-import { DetailInfoCard } from '@/components/ui/DetailInfoCard';
 import { DismissibleAlert } from '@/components/ui/DismissibleAlert';
-import { Panel } from '@/components/ui/Panel';
-import { SelectField } from '@/components/ui/SelectField';
-import { StatusBadge } from '@/components/ui/StatusBadge';
-import { AssignmentHistoryList } from '@/components/ui/AssignmentHistoryList';
 import { useAssignments, useCreateAssignment, useEndAssignment } from '@/features/assignments/useAssignments';
 import { useDrivers } from '@/features/drivers/useDrivers';
+import { VehicleDetailsPanel } from '@/features/vehicles/components/VehicleDetailsPanel';
+import { VehicleFormPanel } from '@/features/vehicles/components/VehicleFormPanel';
+import { VehiclesTablePanel } from '@/features/vehicles/components/VehiclesTablePanel';
+import { createEmptyVehicleFormValues } from '@/features/vehicles/form';
 import { useCreateVehicle, useDeleteVehicle, useRotateVehicleDeviceToken, useUpdateVehicle, useVehicle, useVehicles } from '@/features/vehicles/useVehicles';
 import { getApiErrorMessage } from '@/lib/api/errors';
-import { formatDateTime } from '@/lib/utils/format';
 
 export function VehiclesPage() {
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [form, setForm] = useState({
-    name: '',
-    plate_number: '',
-    vin: '',
-    make: '',
-    model: '',
-    year: '',
-    device_identifier: '',
-    is_active: true,
-  });
+  const [form, setForm] = useState(createEmptyVehicleFormValues);
   const { data, isLoading, isError } = useVehicles({ search });
   const { data: detail, isLoading: detailLoading, isError: detailError } = useVehicle(selectedId);
   const { data: drivers } = useDrivers();
@@ -50,16 +37,7 @@ export function VehiclesPage() {
 
   const resetForm = () => {
     setEditingId(null);
-    setForm({
-      name: '',
-      plate_number: '',
-      vin: '',
-      make: '',
-      model: '',
-      year: '',
-      device_identifier: '',
-      is_active: true,
-    });
+    setForm(createEmptyVehicleFormValues());
   };
 
   const submit = () => {
@@ -103,232 +81,71 @@ export function VehiclesPage() {
       {deleteMutation.isError ? <DismissibleAlert className="mb-6" tone="error" message={getApiErrorMessage(deleteMutation.error)} onClose={dismissDeleteError} /> : null}
       {rotateDeviceTokenMutation.isError ? <DismissibleAlert className="mb-6" tone="error" message={getApiErrorMessage(rotateDeviceTokenMutation.error)} onClose={dismissRotateTokenError} /> : null}
       <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)_340px]">
-        <Panel title={editingId ? 'Edit vehicle' : 'Create vehicle'} description="Manage the company fleet inventory and telematics metadata.">
-          <div className="space-y-3">
-            <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Vehicle name" value={form.name} onChange={(event) => setForm((state) => ({ ...state, name: event.target.value }))} />
-            <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Plate number" value={form.plate_number} onChange={(event) => setForm((state) => ({ ...state, plate_number: event.target.value }))} />
-            <div className="grid gap-3 md:grid-cols-2">
-              <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Make" value={form.make} onChange={(event) => setForm((state) => ({ ...state, make: event.target.value }))} />
-              <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Model" value={form.model} onChange={(event) => setForm((state) => ({ ...state, model: event.target.value }))} />
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Year" value={form.year} onChange={(event) => setForm((state) => ({ ...state, year: event.target.value }))} />
-              <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Device ID" value={form.device_identifier} onChange={(event) => setForm((state) => ({ ...state, device_identifier: event.target.value }))} />
-            </div>
-            <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="VIN" value={form.vin} onChange={(event) => setForm((state) => ({ ...state, vin: event.target.value }))} />
-            <CheckboxField checked={form.is_active} onChange={(event) => setForm((state) => ({ ...state, is_active: event.target.checked }))} label="Active vehicle" />
-            <div className="flex gap-3">
-              <button className="flex-1 rounded-2xl bg-brand-600 px-4 py-3 font-semibold text-white" onClick={submit}>
-                {editingId ? 'Save vehicle' : 'Create vehicle'}
-              </button>
-              {editingId ? (
-                <button className="rounded-2xl border border-slate-200 px-4 py-3 font-semibold text-slate-700" onClick={resetForm}>
-                  Cancel
-                </button>
-              ) : null}
-            </div>
-          </div>
-        </Panel>
-        <Panel
-          title="Fleet table"
-          description="Search, inspect, edit, and deactivate vehicles."
-          actions={
-            <div className="relative">
-              <input
-                className="rounded-2xl border border-slate-200 px-4 py-2 pr-10 text-sm"
-                placeholder="Search vehicles"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-              {search ? (
-                <button
-                  type="button"
-                  aria-label="Clear vehicle search"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
-                  onClick={() => setSearch('')}
-                >
-                  ×
-                </button>
-              ) : null}
-            </div>
-          }
-        >
-          {isLoading ? <div className="text-sm text-slate-500">Loading vehicles...</div> : null}
-          {isError ? <div className="text-sm text-rose-600">Failed to load vehicles.</div> : null}
-          {!isLoading && !isError ? (
-            (data?.data?.length ?? 0) > 0 ? (
-              <DataTable>
-                <DataTableHead>
-                    <tr>
-                      <th className="px-4 py-3">Vehicle</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">Driver</th>
-                      <th className="px-4 py-3">Last event</th>
-                    </tr>
-                </DataTableHead>
-                <DataTableBody>
-                    {(data?.data ?? []).map((vehicle) => (
-                      <tr key={vehicle.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setSelectedId(vehicle.id)}>
-                        <td className="px-4 py-3">
-                          <div className="font-semibold">{vehicle.plate_number}</div>
-                          <div className="text-slate-500">{vehicle.name}</div>
-                        </td>
-                        <td className="px-4 py-3"><StatusBadge value={vehicle.state?.status ?? (vehicle.is_active ? undefined : 'offline')} /></td>
-                        <td className="px-4 py-3 text-slate-600">{vehicle.assigned_driver?.name ?? 'Unassigned'}</td>
-                        <td className="px-4 py-3 text-slate-600">{formatDateTime(vehicle.state?.last_event_at)}</td>
-                      </tr>
-                    ))}
-                </DataTableBody>
-              </DataTable>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-sm text-slate-500">No vehicles match the current search.</div>
-            )
-          ) : null}
-        </Panel>
-        <Panel title="Vehicle details" description="Selected vehicle summary and quick actions.">
-          {detailLoading ? <div className="text-sm text-slate-500">Loading vehicle details...</div> : null}
-          {detailError ? <div className="text-sm text-rose-600">Failed to load vehicle details.</div> : null}
-          {!detailLoading && !detailError && detail?.data ? (
-            <div className="space-y-4">
-              <div>
-                <div className="text-xl font-semibold">{detail.data.plate_number}</div>
-                <div className="text-sm text-slate-500">{detail.data.name}</div>
-              </div>
-              <div className="grid gap-3">
-                <DetailInfoCard label="Status"><StatusBadge value={detail.data.state?.status ?? (detail.data.is_active ? undefined : 'offline')} /></DetailInfoCard>
-                <DetailInfoCard label="Telemetry">Speed: {detail.data.state?.speed_kmh ?? 0} km/h</DetailInfoCard>
-                <DetailInfoCard label="Device ID">{detail.data.device_identifier ?? 'Not assigned'}</DetailInfoCard>
-                <DetailInfoCard label="Assigned driver">{detail.data.assigned_driver?.name ?? 'None'}</DetailInfoCard>
-                <DetailInfoCard label="Device token">
-                  <div className="space-y-2">
-                    <div>{detail.data.device_token?.is_active ? 'Active token configured' : 'No active token'}</div>
-                    {detail.data.device_token?.is_active ? <div className="text-xs text-slate-500">Token label: {detail.data.device_token.name}</div> : null}
-                    <div className="text-xs text-slate-500">
-                      {detail.data.device_token?.last_used_at
-                        ? `Last used ${formatDateTime(detail.data.device_token.last_used_at)}`
-                        : 'The plain token cannot be re-shown. Rotate it to provision a device again.'}
-                    </div>
-                  </div>
-                </DetailInfoCard>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  className="flex-1 rounded-2xl border border-slate-200 px-4 py-3 font-semibold"
-                  onClick={() => {
-                    setEditingId(detail.data.id);
-                    setForm({
-                      name: detail.data.name,
-                      plate_number: detail.data.plate_number,
-                      vin: detail.data.vin ?? '',
-                      make: detail.data.make ?? '',
-                      model: detail.data.model ?? '',
-                      year: detail.data.year ? String(detail.data.year) : '',
-                      device_identifier: detail.data.device_identifier ?? '',
-                      is_active: detail.data.is_active,
-                    });
-                  }}
-                >
-                  Edit
-                </button>
-                <button
-                  className="flex-1 rounded-2xl bg-rose-600 px-4 py-3 font-semibold text-white"
-                  onClick={() => {
-                    if (!window.confirm(`Deactivate vehicle ${detail.data.plate_number}? This will archive it and remove it from the active fleet list.`)) {
-                      return;
-                    }
+        <VehicleFormPanel editingId={editingId} form={form} onChange={setForm} onSubmit={submit} onCancel={resetForm} />
+        <VehiclesTablePanel search={search} onSearchChange={setSearch} data={data} isLoading={isLoading} isError={isError} onSelect={setSelectedId} />
+        <VehicleDetailsPanel
+          detail={detail}
+          detailLoading={detailLoading}
+          detailError={detailError}
+          drivers={drivers}
+          assignments={assignments}
+          driverId={driverId}
+          onDriverIdChange={setDriverId}
+          onStartEdit={(vehicle) => {
+            setEditingId(vehicle.id);
+            setForm({
+              name: vehicle.name,
+              plate_number: vehicle.plate_number,
+              vin: vehicle.vin ?? '',
+              make: vehicle.make ?? '',
+              model: vehicle.model ?? '',
+              year: vehicle.year ? String(vehicle.year) : '',
+              device_identifier: vehicle.device_identifier ?? '',
+              is_active: vehicle.is_active,
+            });
+          }}
+          onDeactivate={(vehicle) => {
+            if (!window.confirm(`Deactivate vehicle ${vehicle.plate_number}? This will archive it and remove it from the active fleet list.`)) {
+              return;
+            }
 
-                    deleteMutation.mutate(detail.data.id, {
-                      onSuccess: () => {
-                        setSelectedId((current) => (current === detail.data.id ? null : current));
-                        setEditingId((current) => {
-                          if (current === detail.data.id) {
-                            setForm({
-                              name: '',
-                              plate_number: '',
-                              vin: '',
-                              make: '',
-                              model: '',
-                              year: '',
-                              device_identifier: '',
-                              is_active: true,
-                            });
+            deleteMutation.mutate(vehicle.id, {
+              onSuccess: () => {
+                setSelectedId((current) => (current === vehicle.id ? null : current));
+                setEditingId((current) => {
+                  if (current === vehicle.id) {
+                    setForm(createEmptyVehicleFormValues());
 
-                            return null;
-                          }
-
-                          return current;
-                        });
-
-                        setSuccessMessage('Vehicle deactivated successfully.');
-                      },
-                    });
-                  }}
-                >
-                  Deactivate
-                </button>
-              </div>
-              <button
-                className="w-full rounded-2xl border border-slate-200 px-4 py-3 font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={rotateDeviceTokenMutation.isPending}
-                onClick={() => {
-                  if (rotateDeviceTokenMutation.isPending) {
-                    return;
+                    return null;
                   }
 
-                  rotateDeviceTokenMutation.mutate(detail.data.id, {
-                    onSuccess: ({ provisioning_token }) => {
-                      setProvisioningToken(provisioning_token);
-                      setSuccessMessage('Device token rotated successfully.');
-                    },
-                  });
-                }}
-              >
-                {rotateDeviceTokenMutation.isPending ? 'Rotating device token...' : 'Rotate device token'}
-              </button>
-              <div className="rounded-2xl border border-slate-200 p-4">
-                <div className="mb-3 text-sm font-semibold text-slate-900">Driver assignment</div>
-                <div className="flex gap-2">
-                  <SelectField className="flex-1" value={driverId} onValueChange={setDriverId}>
-                    <option value="">Select driver</option>
-                    {(drivers?.data ?? []).map((driver) => (
-                      <option key={driver.id} value={driver.id}>
-                        {driver.name}
-                      </option>
-                    ))}
-                  </SelectField>
-                  <button
-                    className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white"
-                    onClick={() =>
-                      driverId &&
-                      createAssignment.mutate({
-                        vehicle_id: detail.data.id,
-                        driver_id: Number(driverId),
-                        assigned_from: new Date().toISOString(),
-                      })
-                    }
-                  >
-                    Assign
-                  </button>
-                </div>
-                <div className="mt-3">
-                  <AssignmentHistoryList
-                    items={(assignments?.data ?? []).slice(0, 3).map((assignment) => ({
-                      id: assignment.id,
-                      title: assignment.driver?.name ?? String(assignment.driver_id),
-                      assignedFrom: assignment.assigned_from,
-                      assignedUntil: assignment.assigned_until,
-                      onEnd: !assignment.assigned_until
-                        ? () => endAssignment.mutate({ assignmentId: assignment.id, assigned_until: new Date().toISOString() })
-                        : undefined,
-                    }))}
-                  />
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="text-sm text-slate-500">Select a vehicle to view details.</div>
-          )}
-        </Panel>
+                  return current;
+                });
+
+                setSuccessMessage('Vehicle deactivated successfully.');
+              },
+            });
+          }}
+          onRotateToken={(vehicle) => {
+            if (rotateDeviceTokenMutation.isPending) {
+              return;
+            }
+
+            rotateDeviceTokenMutation.mutate(vehicle.id, {
+              onSuccess: ({ provisioning_token }) => {
+                setProvisioningToken(provisioning_token);
+                setSuccessMessage('Device token rotated successfully.');
+              },
+            });
+          }}
+          rotatePending={rotateDeviceTokenMutation.isPending}
+          onAssign={(vehicle, nextDriverId) => createAssignment.mutate({
+            vehicle_id: vehicle.id,
+            driver_id: nextDriverId,
+            assigned_from: new Date().toISOString(),
+          })}
+          onEndAssignment={(assignmentId) => endAssignment.mutate({ assignmentId, assigned_until: new Date().toISOString() })}
+        />
       </div>
     </div>
   );

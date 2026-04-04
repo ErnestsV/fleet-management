@@ -13,11 +13,11 @@ class AuthController extends Controller
 {
     public function login(LoginRequest $request, AuthService $service): JsonResponse
     {
-        [$user, $token] = $service->login($request->validated());
+        $result = $service->login($request->validated());
 
         return response()->json([
-            'token' => $token,
-            'user' => new UserResource($user),
+            'token' => $result->token,
+            'user' => new UserResource($result->user),
         ]);
     }
 

@@ -17,8 +17,9 @@ class StoreCompanyRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'timezone' => ['nullable', 'string', 'max:64'],
             'is_active' => ['boolean'],
-            'owner.name' => ['nullable', 'string', 'max:255'],
-            'owner.email' => ['nullable', 'email'],
+            'owner' => ['nullable', 'array'],
+            'owner.name' => ['required_with:owner', 'string', 'max:255'],
+            'owner.email' => ['required_with:owner', 'email'],
             'owner.password' => ['nullable', 'string', 'min:8'],
             'owner.role' => ['nullable', 'in:owner,admin'],
         ];

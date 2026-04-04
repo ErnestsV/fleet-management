@@ -2,6 +2,7 @@
 
 namespace App\Domain\Auth\Services;
 
+use App\Domain\Auth\Data\LoginResult;
 use App\Models\User;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Auth;
@@ -9,7 +10,7 @@ use Illuminate\Validation\ValidationException;
 
 class AuthService
 {
-    public function login(array $credentials): array
+    public function login(array $credentials): LoginResult
     {
         if (! Auth::guard('web')->attempt($credentials)) {
             throw ValidationException::withMessages([
@@ -34,7 +35,7 @@ class AuthService
 
         $token = $user->createToken('web')->plainTextToken;
 
-        return [$user, $token];
+        return new LoginResult($user, $token);
     }
 
     public function logout(User $user): void
