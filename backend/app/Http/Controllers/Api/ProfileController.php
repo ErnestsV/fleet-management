@@ -36,6 +36,7 @@ class ProfileController extends Controller
         $request->user()->update([
             'password' => Hash::make($request->string('password')->toString()),
         ]);
+        $request->user()->tokens()->delete();
 
         return response()->json(['message' => 'Password updated.']);
     }

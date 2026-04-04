@@ -20,26 +20,45 @@ class PasswordResetTest extends TestCase
 
         $this->postJson('/api/v1/auth/forgot-password', [
             'email' => $user->email,
-        ])->assertOk();
+        ])->assertOk()
+            ->assertJson([
+                'message' => 'If the account exists, a reset link has been sent.',
+                'status' => 'accepted',
+            ]);
 
         Notification::assertSentTo($user, ResetPassword::class);
     }
 
-    public function test_forgot_password_returns_throttled_status_when_requested_too_frequently(): void
+    public function test_forgot_password_returns_same_response_for_unknown_email(): void
     {
         Notification::fake();
-        $user = User::factory()->create();
 
         $this->postJson('/api/v1/auth/forgot-password', [
+            'email' => 'missing@example.test',
+        ])->assertOk()
+            ->assertJson([
+                'message' => 'If the account exists, a reset link has been sent.',
+                'status' => 'accepted',
+            ]);
+
+        Notification::assertNothingSent();
+    }
+
+    public function test_reset_password_revokes_existing_api_tokens(): void
+    {
+        $user = User::factory()->create(['password' => 'password']);
+        $user->createToken('web');
+        $user->createToken('web');
+
+        $token = Password::broker()->createToken($user);
+
+        $this->postJson('/api/v1/auth/reset-password', [
             'email' => $user->email,
+            'token' => $token,
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
         ])->assertOk();
 
-        $this->postJson('/api/v1/auth/forgot-password', [
-            'email' => $user->email,
-        ])->assertStatus(429)
-            ->assertJson([
-                'message' => __(Password::RESET_THROTTLED),
-                'status' => 'throttled',
-            ]);
+        $this->assertDatabaseCount('personal_access_tokens', 0);
     }
 }

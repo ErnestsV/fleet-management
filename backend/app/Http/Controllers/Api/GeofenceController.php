@@ -34,7 +34,7 @@ class GeofenceController extends Controller
             'company_id' => $request->user()->isSuperAdmin() ? $request->integer('company_id') : $request->user()->company_id,
         ];
 
-        return new GeofenceResource($service->createOrUpdate(null, $payload));
+        return new GeofenceResource($service->create($payload));
     }
 
     public function show(Request $request, Geofence $geofence): GeofenceResource
@@ -48,7 +48,7 @@ class GeofenceController extends Controller
     {
         $this->authorize('update', $geofence);
 
-        return new GeofenceResource($service->createOrUpdate($geofence, [
+        return new GeofenceResource($service->update($geofence, [
             ...$request->validated(),
             'company_id' => $geofence->company_id,
         ]));

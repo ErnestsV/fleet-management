@@ -1,23 +1,26 @@
+import { Suspense, lazy } from 'react';
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { useAuthStore } from '@/app/store/authStore';
 import { AppShell } from '@/components/layout/AppShell';
 import { AccessDenied } from '@/components/ui/AccessDenied';
-import { DashboardPage } from '@/pages/DashboardPage';
-import { LoginPage } from '@/pages/LoginPage';
-import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
-import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
-import { CompaniesPage } from '@/pages/CompaniesPage';
-import { UsersPage } from '@/pages/UsersPage';
-import { VehiclesPage } from '@/pages/VehiclesPage';
-import { DriversPage } from '@/pages/DriversPage';
-import { AlertsPage } from '@/pages/AlertsPage';
-import { ProfilePage } from '@/pages/ProfilePage';
-import { TripsPage } from '@/pages/TripsPage';
-import { GeofencesPage } from '@/pages/GeofencesPage';
-import { MaintenancePage } from '@/pages/MaintenancePage';
-import { LiveMapPage } from '@/pages/LiveMapPage';
+import { RouteContentFallback } from '@/components/ui/RouteContentFallback';
 import type { UserRole } from '@/types/domain';
 import { COMPANY_MANAGEMENT_ROLES, USER_MANAGEMENT_ROLES } from '@/lib/constants/roles';
+
+const DashboardPage = lazy(() => import('@/pages/DashboardPage').then((module) => ({ default: module.DashboardPage })));
+const LoginPage = lazy(() => import('@/pages/LoginPage').then((module) => ({ default: module.LoginPage })));
+const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage').then((module) => ({ default: module.ForgotPasswordPage })));
+const ResetPasswordPage = lazy(() => import('@/pages/ResetPasswordPage').then((module) => ({ default: module.ResetPasswordPage })));
+const CompaniesPage = lazy(() => import('@/pages/CompaniesPage').then((module) => ({ default: module.CompaniesPage })));
+const UsersPage = lazy(() => import('@/pages/UsersPage').then((module) => ({ default: module.UsersPage })));
+const VehiclesPage = lazy(() => import('@/pages/VehiclesPage').then((module) => ({ default: module.VehiclesPage })));
+const DriversPage = lazy(() => import('@/pages/DriversPage').then((module) => ({ default: module.DriversPage })));
+const AlertsPage = lazy(() => import('@/pages/AlertsPage').then((module) => ({ default: module.AlertsPage })));
+const ProfilePage = lazy(() => import('@/pages/ProfilePage').then((module) => ({ default: module.ProfilePage })));
+const TripsPage = lazy(() => import('@/pages/TripsPage').then((module) => ({ default: module.TripsPage })));
+const GeofencesPage = lazy(() => import('@/pages/GeofencesPage').then((module) => ({ default: module.GeofencesPage })));
+const MaintenancePage = lazy(() => import('@/pages/MaintenancePage').then((module) => ({ default: module.MaintenancePage })));
+const LiveMapPage = lazy(() => import('@/pages/LiveMapPage').then((module) => ({ default: module.LiveMapPage })));
 
 function ProtectedLayout() {
   const token = useAuthStore((state) => state.token);
@@ -28,7 +31,9 @@ function ProtectedLayout() {
 
   return (
     <AppShell>
-      <Outlet />
+      <Suspense fallback={<RouteContentFallback />}>
+        <Outlet />
+      </Suspense>
     </AppShell>
   );
 }
@@ -46,9 +51,9 @@ function RoleRoute({ roles }: { roles: UserRole[] }) {
 export function AppRouter() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/login" element={<Suspense fallback={<RouteContentFallback />}><LoginPage /></Suspense>} />
+      <Route path="/forgot-password" element={<Suspense fallback={<RouteContentFallback />}><ForgotPasswordPage /></Suspense>} />
+      <Route path="/reset-password" element={<Suspense fallback={<RouteContentFallback />}><ResetPasswordPage /></Suspense>} />
       <Route element={<ProtectedLayout />}>
         <Route index element={<DashboardPage />} />
         <Route element={<RoleRoute roles={COMPANY_MANAGEMENT_ROLES} />}>

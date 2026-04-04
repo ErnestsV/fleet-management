@@ -15,22 +15,12 @@ class PasswordResetController extends Controller
 {
     public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
     {
-        $status = Password::sendResetLink($request->validated());
+        Password::sendResetLink($request->validated());
 
-        return match ($status) {
-            Password::RESET_LINK_SENT => response()->json([
-                'message' => __($status),
-                'status' => 'sent',
-            ]),
-            Password::RESET_THROTTLED => response()->json([
-                'message' => __($status),
-                'status' => 'throttled',
-            ], 429),
-            default => response()->json([
-                'message' => 'If the account exists, a reset link has been sent.',
-                'status' => 'accepted',
-            ]),
-        };
+        return response()->json([
+            'message' => 'If the account exists, a reset link has been sent.',
+            'status' => 'accepted',
+        ]);
     }
 
     public function resetPassword(ResetPasswordRequest $request): JsonResponse
@@ -42,6 +32,7 @@ class PasswordResetController extends Controller
                     'password' => Hash::make($request->string('password')->toString()),
                     'remember_token' => Str::random(60),
                 ])->save();
+                $user->tokens()->delete();
 
                 event(new PasswordReset($user));
             }
