@@ -40,7 +40,11 @@ export function loadLeaflet() {
 
     if (existingScript) {
       existingScript.addEventListener('load', () => resolve(window.L));
-      existingScript.addEventListener('error', () => reject(new Error('Failed to load Leaflet script.')));
+      existingScript.addEventListener('error', () => {
+        existingScript.remove();
+        window.__leafletLoadPromise = undefined;
+        reject(new Error('Failed to load Leaflet script.'));
+      });
       return;
     }
 
@@ -50,7 +54,11 @@ export function loadLeaflet() {
     script.defer = true;
     script.setAttribute('data-leaflet-script', 'true');
     script.onload = () => resolve(window.L);
-    script.onerror = () => reject(new Error('Failed to load Leaflet script.'));
+    script.onerror = () => {
+      script.remove();
+      window.__leafletLoadPromise = undefined;
+      reject(new Error('Failed to load Leaflet script.'));
+    };
     document.head.appendChild(script);
   });
 

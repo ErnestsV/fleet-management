@@ -100,7 +100,7 @@ export function DashboardPage() {
       ...vehiclesWithoutDriver,
       ...vehiclesWithUnknownStatus,
     ].map((vehicle) => [vehicle.id, vehicle]),
-  ).values()).slice(0, 6);
+  ).values());
 
   return (
     <div>

@@ -30,7 +30,8 @@ export function SearchablePagedList<T>({
   stickySearch = false,
   scrollable = false,
 }: SearchablePagedListProps<T>) {
-  const [visibleCount, setVisibleCount] = useState(pageSize);
+  const safePageSize = Math.max(1, pageSize);
+  const [visibleCount, setVisibleCount] = useState(safePageSize);
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -44,7 +45,7 @@ export function SearchablePagedList<T>({
 
   useEffect(() => {
     setVisibleCount(pageSize);
-  }, [query, filteredItems.length, pageSize]);
+  }, [query, filteredItems.length, safePageSize]);
 
   const visibleItems = filteredItems.slice(0, visibleCount);
   const hasMore = filteredItems.length > visibleCount;
@@ -86,7 +87,7 @@ export function SearchablePagedList<T>({
             <button
               type="button"
               className="mt-4 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-              onClick={() => setVisibleCount((current) => current + pageSize)}
+              onClick={() => setVisibleCount((current) => current + safePageSize)}
             >
               {showMoreLabel}
             </button>

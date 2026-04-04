@@ -30,6 +30,9 @@ export function GeofenceListPanel({
   scrollable = false,
 }: GeofenceListPanelProps) {
   const [search, setSearch] = useState('');
+  const emptyMessage = search.trim()
+    ? 'No geofences match the current search.'
+    : 'No geofences have been created yet.';
 
   const content = (
     <>
@@ -63,7 +66,7 @@ export function GeofenceListPanel({
           )}
           getKey={(geofence) => geofence.id}
           searchPlaceholder="Search geofences"
-          emptyMessage="No geofences match the current search."
+          emptyMessage={emptyMessage}
           pageSize={GEOFENCE_PAGE_SIZE}
           showMoreLabel="Show 5 more geofences"
           stickySearch={stickySearch}

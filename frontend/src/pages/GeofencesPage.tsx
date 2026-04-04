@@ -28,6 +28,15 @@ export function GeofencesPage() {
   const dismissCreateError = useCallback(() => createMutation.reset(), [createMutation]);
   const dismissUpdateError = useCallback(() => updateMutation.reset(), [updateMutation]);
   const dismissDeleteError = useCallback(() => deleteMutation.reset(), [deleteMutation]);
+  const deleteGeofence = useCallback((geofenceId: number) => {
+    deleteMutation.mutate(geofenceId, {
+      onSuccess: () => {
+        if (editing?.id === geofenceId) {
+          resetForm();
+        }
+      },
+    });
+  }, [deleteMutation, editing?.id]);
 
   useEffect(() => {
     radiusRef.current = form.radius_m;
@@ -161,7 +170,7 @@ export function GeofencesPage() {
                 scrollable
                 onEdit={startEditingGeofence}
                 onToggleActive={toggleGeofenceActive}
-                onDelete={(geofenceId) => deleteMutation.mutate(geofenceId)}
+                onDelete={deleteGeofence}
               />
             }
             heightClassName="min-h-[420px]"
@@ -174,7 +183,7 @@ export function GeofencesPage() {
             isError={isError}
             onEdit={startEditingGeofence}
             onToggleActive={toggleGeofenceActive}
-            onDelete={(geofenceId) => deleteMutation.mutate(geofenceId)}
+            onDelete={deleteGeofence}
           />
         </div>
       </div>

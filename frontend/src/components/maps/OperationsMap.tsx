@@ -85,6 +85,7 @@ function getGeofenceStyle(circle: MapGeofenceCircle, selectedGeofenceId: number 
 
 function buildVehicleMarkerHtml(marker: MapVehicleMarker, isSelected: boolean) {
   const tone = markerTone[marker.status ?? ''] ?? '#334155';
+  const safeLabel = escapeLeafletHtml(marker.label);
 
   return `
     <div style="display:flex;align-items:center;gap:8px;transform:translate(-16px, -46px);">
@@ -96,7 +97,7 @@ function buildVehicleMarkerHtml(marker: MapVehicleMarker, isSelected: boolean) {
         <div style="position:absolute;right:-2px;bottom:5px;width:8px;height:8px;border-radius:9999px;background:${tone};border:2px solid white;"></div>
       </div>
       <div style="padding:6px 10px;border-radius:9999px;background:${isSelected ? '#0f172a' : 'rgba(255,255,255,0.96)'};color:${isSelected ? 'white' : '#0f172a'};font-size:12px;font-weight:700;box-shadow:0 10px 24px rgba(15,23,42,0.12);white-space:nowrap;">
-        ${marker.label}
+        ${safeLabel}
       </div>
     </div>
   `;
@@ -104,6 +105,15 @@ function buildVehicleMarkerHtml(marker: MapVehicleMarker, isSelected: boolean) {
 
 function isFiniteCoordinate(value: number | null | undefined): value is number {
   return typeof value === 'number' && Number.isFinite(value);
+}
+
+function escapeLeafletHtml(value: string | null | undefined): string {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function MapCanvas({
@@ -307,10 +317,13 @@ function MapCanvas({
 
         const leafletCircle = L.circle([circle.latitude, circle.longitude], getGeofenceStyle(circle, selectedGeofenceId));
 
-        leafletCircle.bindTooltip(circle.label, { sticky: true });
+        leafletCircle.bindTooltip(escapeLeafletHtml(circle.label), { sticky: true });
 
         if (onGeofenceSelect) {
-          leafletCircle.on('click', () => onGeofenceSelect(circle.id));
+          leafletCircle.on('click', (event: any) => {
+            event.originalEvent?.stopPropagation?.();
+            onGeofenceSelect(circle.id);
+          });
         }
 
         leafletCircle.addTo(geofenceLayerRef.current);
@@ -330,8 +343,8 @@ function MapCanvas({
 
         leafletMarker.bindPopup(`
           <div style="min-width:160px">
-            <div style="font-weight:700;margin-bottom:4px">${marker.label}</div>
-            <div style="font-size:12px;color:#475569">${marker.details ?? marker.status ?? 'Vehicle location'}</div>
+            <div style="font-weight:700;margin-bottom:4px">${escapeLeafletHtml(marker.label)}</div>
+            <div style="font-size:12px;color:#475569">${escapeLeafletHtml(marker.details ?? marker.status ?? 'Vehicle location')}</div>
           </div>
         `);
 
