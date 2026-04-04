@@ -15,7 +15,7 @@ class CompanyOwnerPayloadBuilder
             'company_id' => $company->id,
             'name' => $ownerData['name'],
             'email' => $ownerData['email'],
-            'role' => $ownerData['role'] ?? UserRole::Owner,
+            'role' => UserRole::Owner,
             'timezone' => $ownerData['timezone'] ?? $company->timezone,
             'is_active' => true,
             'password' => Hash::make($ownerData['password'] ?? Str::password(16)),

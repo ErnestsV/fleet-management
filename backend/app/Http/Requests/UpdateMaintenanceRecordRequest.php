@@ -11,22 +11,34 @@ class UpdateMaintenanceRecordRequest extends FormRequest
     public function authorize(): bool
     {
         /** @var MaintenanceRecord $record */
-        $record = $this->route('maintenanceRecord');
+        $record = $this->route('maintenanceRecord') ?? $this->route('maintenance_record');
 
         return $this->user()?->can('update', $record) ?? false;
     }
 
     public function rules(): array
     {
-        $companyId = $this->user()?->company_id;
+        /** @var MaintenanceRecord $record */
+        $record = $this->route('maintenanceRecord') ?? $this->route('maintenance_record');
+        $companyId = $this->user()?->isSuperAdmin()
+            ? ($this->integer('company_id') ?: $record->company_id)
+            : $this->user()?->company_id;
+        $vehicleId = (int) $this->input('vehicle_id');
 
         return [
-            'company_id' => ['nullable', 'integer', 'exists:companies,id'],
+            'company_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('companies', 'id')->when(
+                    ! $this->user()?->isSuperAdmin(),
+                    fn ($rule) => $rule->where('id', $companyId)
+                ),
+            ],
             'vehicle_id' => [
                 'required',
                 'integer',
                 Rule::exists('vehicles', 'id')->when(
-                    ! $this->user()?->isSuperAdmin(),
+                    $companyId !== null,
                     fn ($rule) => $rule->where('company_id', $companyId)
                 ),
             ],
@@ -34,8 +46,11 @@ class UpdateMaintenanceRecordRequest extends FormRequest
                 'nullable',
                 'integer',
                 Rule::exists('maintenance_schedules', 'id')->when(
-                    ! $this->user()?->isSuperAdmin(),
+                    $companyId !== null,
                     fn ($rule) => $rule->where('company_id', $companyId)
+                )->when(
+                    $vehicleId > 0,
+                    fn ($rule) => $rule->where('vehicle_id', $vehicleId)
                 ),
             ],
             'title' => ['required', 'string', 'max:255'],

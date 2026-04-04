@@ -32,7 +32,11 @@ class DashboardOperationsReadService
                 'fuel_level' => $vehicle->state?->fuel_level,
                 'engine_on' => $vehicle->state?->engine_on,
                 'last_event_at' => $vehicle->state?->last_event_at,
-                'driver' => optional($vehicle->assignments->sortByDesc('assigned_from')->first()?->driver)->name,
+                'driver' => optional(
+                    $vehicle->assignments
+                        ->first(fn ($assignment) => $assignment->assigned_until === null)
+                        ?->driver
+                )->name,
             ])
             ->values();
     }
@@ -58,7 +62,7 @@ class DashboardOperationsReadService
             ->limit(8)
             ->get();
 
-        $distanceVehicleLabels = Vehicle::query()
+        $distanceVehicleLabels = $this->queryFactory->vehicleQuery($companyId, $user)
             ->whereIn('id', $distanceByVehicleRows->pluck('vehicle_id'))
             ->get(['id', 'plate_number'])
             ->keyBy('id');

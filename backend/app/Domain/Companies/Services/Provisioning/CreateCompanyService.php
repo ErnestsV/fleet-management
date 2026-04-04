@@ -5,6 +5,7 @@ namespace App\Domain\Companies\Services\Provisioning;
 use App\Domain\Auth\Services\AccountInvitationService;
 use App\Domain\Companies\Models\Company;
 use App\Models\User;
+use Throwable;
 use Illuminate\Support\Facades\DB;
 
 class CreateCompanyService
@@ -31,7 +32,11 @@ class CreateCompanyService
         });
 
         if ($owner) {
-            $this->accountInvitationService->sendPasswordSetupLink($owner);
+            try {
+                $this->accountInvitationService->sendPasswordSetupLink($owner);
+            } catch (Throwable $exception) {
+                report($exception);
+            }
         }
 
         return $company;

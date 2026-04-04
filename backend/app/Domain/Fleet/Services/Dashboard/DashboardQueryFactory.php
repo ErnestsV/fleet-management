@@ -9,6 +9,7 @@ use App\Domain\Telemetry\Models\TelemetryEvent;
 use App\Domain\Telemetry\Models\VehicleState;
 use App\Domain\Trips\Models\Trip;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 
 class DashboardQueryFactory
 {
@@ -24,40 +25,47 @@ class DashboardQueryFactory
 
     public function activeActionableAlertsQuery(?int $companyId, User $user)
     {
-        return Alert::query()
+        return $this->scopeToCompany(Alert::query(), $companyId, $user)
             ->whereNull('resolved_at')
-            ->whereNotIn('type', self::INFORMATIONAL_ALERT_TYPES)
-            ->when(! $user->isSuperAdmin(), fn ($query) => $query->where('company_id', $companyId));
+            ->whereNotIn('type', self::INFORMATIONAL_ALERT_TYPES);
     }
 
     public function fleetVehiclesQuery(?int $companyId, User $user)
     {
-        return Vehicle::query()
-            ->with(['state', 'assignments.driver'])
-            ->when(! $user->isSuperAdmin(), fn ($query) => $query->where('company_id', $companyId));
+        return $this->scopeToCompany(Vehicle::query(), $companyId, $user)
+            ->with(['state', 'assignments.driver']);
     }
 
     public function tripQuery(?int $companyId, User $user)
     {
-        return Trip::query()
-            ->when(! $user->isSuperAdmin(), fn ($query) => $query->where('company_id', $companyId));
+        return $this->scopeToCompany(Trip::query(), $companyId, $user);
     }
 
     public function telemetryQuery(?int $companyId, User $user)
     {
-        return TelemetryEvent::query()
-            ->when(! $user->isSuperAdmin(), fn ($query) => $query->where('company_id', $companyId));
+        return $this->scopeToCompany(TelemetryEvent::query(), $companyId, $user);
     }
 
     public function stateQuery(?int $companyId, User $user)
     {
-        return VehicleState::query()
-            ->when(! $user->isSuperAdmin(), fn ($query) => $query->where('company_id', $companyId));
+        return $this->scopeToCompany(VehicleState::query(), $companyId, $user);
     }
 
     public function vehicleQuery(?int $companyId, User $user)
     {
-        return Vehicle::query()
-            ->when(! $user->isSuperAdmin(), fn ($query) => $query->where('company_id', $companyId));
+        return $this->scopeToCompany(Vehicle::query(), $companyId, $user);
+    }
+
+    private function scopeToCompany(Builder $query, ?int $companyId, User $user): Builder
+    {
+        if ($user->isSuperAdmin()) {
+            return $query;
+        }
+
+        if ($companyId === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where('company_id', $companyId);
     }
 }

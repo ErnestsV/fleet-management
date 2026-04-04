@@ -51,35 +51,44 @@ export function MaintenanceScheduleFormPanel({
             onVehicleSearchChange(nextVehicle ? `${nextVehicle.plate_number} · ${nextVehicle.name}` : '');
           }}
         />
-        <input
-          id="schedule-name"
-          name="schedule_name"
-          className="w-full rounded-2xl border border-slate-200 px-4 py-3"
-          placeholder="Schedule name"
-          value={form.name}
-          onChange={(event) => onChange((state) => ({ ...state, name: event.target.value }))}
-        />
+        <div>
+          <label htmlFor="schedule-name" className="mb-2 block text-sm font-medium text-slate-700">Schedule name</label>
+          <input
+            id="schedule-name"
+            name="schedule_name"
+            className="w-full rounded-2xl border border-slate-200 px-4 py-3"
+            placeholder="Schedule name"
+            value={form.name}
+            onChange={(event) => onChange((state) => ({ ...state, name: event.target.value }))}
+          />
+        </div>
         <div className="grid gap-3 md:grid-cols-2">
-          <input
-            id="schedule-interval-days"
-            name="schedule_interval_days"
-            type="number"
-            min="1"
-            className="w-full rounded-2xl border border-slate-200 px-4 py-3"
-            placeholder="Interval days"
-            value={form.interval_days}
-            onChange={(event) => onChange((state) => ({ ...state, interval_days: event.target.value }))}
-          />
-          <input
-            id="schedule-interval-km"
-            name="schedule_interval_km"
-            type="number"
-            min="1"
-            className="w-full rounded-2xl border border-slate-200 px-4 py-3"
-            placeholder="Interval km"
-            value={form.interval_km}
-            onChange={(event) => onChange((state) => ({ ...state, interval_km: event.target.value }))}
-          />
+          <div>
+            <label htmlFor="schedule-interval-days" className="mb-2 block text-sm font-medium text-slate-700">Interval days</label>
+            <input
+              id="schedule-interval-days"
+              name="schedule_interval_days"
+              type="number"
+              min="1"
+              className="w-full rounded-2xl border border-slate-200 px-4 py-3"
+              placeholder="Interval days"
+              value={form.interval_days}
+              onChange={(event) => onChange((state) => ({ ...state, interval_days: event.target.value }))}
+            />
+          </div>
+          <div>
+            <label htmlFor="schedule-interval-km" className="mb-2 block text-sm font-medium text-slate-700">Interval km</label>
+            <input
+              id="schedule-interval-km"
+              name="schedule_interval_km"
+              type="number"
+              min="1"
+              className="w-full rounded-2xl border border-slate-200 px-4 py-3"
+              placeholder="Interval km"
+              value={form.interval_km}
+              onChange={(event) => onChange((state) => ({ ...state, interval_km: event.target.value }))}
+            />
+          </div>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
           <div>
@@ -114,7 +123,7 @@ export function MaintenanceScheduleFormPanel({
           onChange={(event) => onChange((state) => ({ ...state, is_active: event.target.checked }))}
           label="Active schedule"
         />
-        <button className="w-full rounded-2xl bg-brand-600 px-4 py-3 font-semibold text-white" onClick={onSubmit}>
+        <button className="w-full rounded-2xl bg-brand-600 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" onClick={onSubmit} disabled={isSubmitting}>
           {isSubmitting ? 'Creating...' : 'Create schedule'}
         </button>
         {errorMessage ? <DismissibleAlert tone="error" message={errorMessage} onClose={onDismissError} /> : null}

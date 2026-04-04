@@ -11,22 +11,33 @@ class UpdateMaintenanceScheduleRequest extends FormRequest
     public function authorize(): bool
     {
         /** @var MaintenanceSchedule $schedule */
-        $schedule = $this->route('maintenanceSchedule');
+        $schedule = $this->route('maintenanceSchedule') ?? $this->route('maintenance_schedule');
 
         return $this->user()?->can('update', $schedule) ?? false;
     }
 
     public function rules(): array
     {
-        $companyId = $this->user()?->company_id;
+        /** @var MaintenanceSchedule $schedule */
+        $schedule = $this->route('maintenanceSchedule') ?? $this->route('maintenance_schedule');
+        $companyId = $this->user()?->isSuperAdmin()
+            ? ($this->integer('company_id') ?: $schedule->company_id)
+            : $this->user()?->company_id;
 
         return [
-            'company_id' => ['nullable', 'integer', 'exists:companies,id'],
+            'company_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('companies', 'id')->when(
+                    ! $this->user()?->isSuperAdmin(),
+                    fn ($rule) => $rule->where('id', $companyId)
+                ),
+            ],
             'vehicle_id' => [
                 'required',
                 'integer',
                 Rule::exists('vehicles', 'id')->when(
-                    ! $this->user()?->isSuperAdmin(),
+                    $companyId !== null,
                     fn ($rule) => $rule->where('company_id', $companyId)
                 ),
             ],

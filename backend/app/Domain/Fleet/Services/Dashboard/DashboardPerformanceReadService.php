@@ -31,25 +31,36 @@ class DashboardPerformanceReadService
 
     public function buildFleetEfficiencyBreakdown($fleetVehicles, $states, ?int $companyId, User $user, Carbon $windowStart)
     {
-        $activeAssignmentCount = VehicleDriverAssignment::query()
-            ->when(! $user->isSuperAdmin(), fn ($query) => $query->where('company_id', $companyId))
-            ->whereNull('assigned_until')
-            ->count();
+        $fleetVehicleIds = $fleetVehicles->pluck('id');
 
-        $freshTelemetryCount = (clone $states)
+        $activeAssignmentCount = $this->scopedAssignmentsQuery($companyId, $user)
+            ->whereIn('vehicle_id', $fleetVehicleIds)
+            ->whereNull('assigned_until')
+            ->distinct('vehicle_id')
+            ->count('vehicle_id');
+
+        $freshTelemetryVehicleIds = (clone $states)
+            ->whereIn('vehicle_id', $fleetVehicleIds)
             ->where('last_event_at', '>=', now()->subMinutes((int) env('FLEET_OFFLINE_THRESHOLD_MINUTES', 10)))
-            ->count();
+            ->pluck('vehicle_id')
+            ->unique();
 
         $tripVehicleIds = $this->queryFactory->tripQuery($companyId, $user)
+            ->whereIn('vehicle_id', $fleetVehicleIds)
             ->whereDate('start_time', '>=', $windowStart)
             ->distinct()
             ->pluck('vehicle_id');
 
-        $vehiclesWithoutAlerts = $fleetVehicles->filter(function (Vehicle $vehicle) use ($companyId, $user) {
-            return $this->queryFactory->activeActionableAlertsQuery($companyId, $user)
-                ->where('vehicle_id', $vehicle->id)
-                ->doesntExist();
-        })->count();
+        $alertedVehicleIds = $this->queryFactory->activeActionableAlertsQuery($companyId, $user)
+            ->whereIn('vehicle_id', $fleetVehicleIds)
+            ->whereNotNull('vehicle_id')
+            ->distinct()
+            ->pluck('vehicle_id')
+            ->all();
+
+        $vehiclesWithoutAlerts = $fleetVehicles
+            ->reject(fn (Vehicle $vehicle) => in_array($vehicle->id, $alertedVehicleIds, true))
+            ->count();
 
         return collect([
             [
@@ -58,7 +69,7 @@ class DashboardPerformanceReadService
             ],
             [
                 'label' => 'Telemetry freshness',
-                'score' => $this->percent($freshTelemetryCount, max($fleetVehicles->count(), 1)),
+                'score' => $this->percent($freshTelemetryVehicleIds->count(), max($fleetVehicles->count(), 1)),
             ],
             [
                 'label' => 'Driver coverage',
@@ -76,28 +87,37 @@ class DashboardPerformanceReadService
 
     public function buildDrivingBehaviour($fleetVehicles, ?int $companyId, User $user, Carbon $windowStart, int $minimumBehaviourTripSamples): array
     {
+        $vehicleIds = $fleetVehicles->pluck('id');
+
+        $tripStatsByVehicle = $this->queryFactory->tripQuery($companyId, $user)
+            ->whereIn('vehicle_id', $vehicleIds)
+            ->whereDate('start_time', '>=', $windowStart)
+            ->selectRaw('vehicle_id')
+            ->selectRaw('COUNT(*) as trip_count')
+            ->selectRaw('AVG(average_speed_kmh) as average_speed_kmh')
+            ->groupBy('vehicle_id')
+            ->get()
+            ->keyBy('vehicle_id');
+
+        $alertCountsByVehicle = $this->scopedAlertsQuery($companyId, $user)
+            ->whereIn('vehicle_id', $vehicleIds)
+            ->whereIn('type', [AlertType::Speeding, AlertType::ProlongedIdling])
+            ->whereDate('triggered_at', '>=', $windowStart)
+            ->selectRaw('vehicle_id')
+            ->selectRaw('SUM(CASE WHEN type = ? THEN 1 ELSE 0 END) as speeding_alerts', [AlertType::Speeding->value])
+            ->selectRaw('SUM(CASE WHEN type = ? THEN 1 ELSE 0 END) as idling_alerts', [AlertType::ProlongedIdling->value])
+            ->groupBy('vehicle_id')
+            ->get()
+            ->keyBy('vehicle_id');
+
         $vehicleBehaviourScores = $fleetVehicles
-            ->map(function (Vehicle $vehicle) use ($companyId, $user, $windowStart) {
-                $recentTrips = $this->queryFactory->tripQuery($companyId, $user)
-                    ->where('vehicle_id', $vehicle->id)
-                    ->whereDate('start_time', '>=', $windowStart)
-                    ->get(['average_speed_kmh']);
-
-                $speedingAlerts = Alert::query()
-                    ->when(! $user->isSuperAdmin(), fn ($query) => $query->where('company_id', $companyId))
-                    ->where('vehicle_id', $vehicle->id)
-                    ->where('type', AlertType::Speeding)
-                    ->whereDate('triggered_at', '>=', $windowStart)
-                    ->count();
-
-                $idlingAlerts = Alert::query()
-                    ->when(! $user->isSuperAdmin(), fn ($query) => $query->where('company_id', $companyId))
-                    ->where('vehicle_id', $vehicle->id)
-                    ->where('type', AlertType::ProlongedIdling)
-                    ->whereDate('triggered_at', '>=', $windowStart)
-                    ->count();
-
-                $averageSpeed = (float) ($recentTrips->avg('average_speed_kmh') ?? 0);
+            ->map(function (Vehicle $vehicle) use ($tripStatsByVehicle, $alertCountsByVehicle) {
+                $tripStats = $tripStatsByVehicle->get($vehicle->id);
+                $alertCounts = $alertCountsByVehicle->get($vehicle->id);
+                $tripCount = (int) ($tripStats?->trip_count ?? 0);
+                $averageSpeed = (float) ($tripStats?->average_speed_kmh ?? 0);
+                $speedingAlerts = (int) ($alertCounts?->speeding_alerts ?? 0);
+                $idlingAlerts = (int) ($alertCounts?->idling_alerts ?? 0);
                 $baseScore = $averageSpeed > 0 ? min(100, 72 + max(0, 18 - abs(55 - $averageSpeed))) : 70;
                 $penalty = ($speedingAlerts * 8) + ($idlingAlerts * 4);
                 $score = max(0, min(100, $baseScore - $penalty));
@@ -106,7 +126,7 @@ class DashboardPerformanceReadService
                     'vehicle_id' => $vehicle->id,
                     'label' => $vehicle->plate_number,
                     'name' => $vehicle->name,
-                    'trip_count' => $recentTrips->count(),
+                    'trip_count' => $tripCount,
                     'score' => round($score, 1),
                 ];
             })
@@ -146,5 +166,29 @@ class DashboardPerformanceReadService
         }
 
         return ($value / $total) * 100;
+    }
+
+    private function scopedAssignmentsQuery(?int $companyId, User $user)
+    {
+        return VehicleDriverAssignment::query()
+            ->when(
+                $user->isSuperAdmin(),
+                fn ($query) => $query,
+                fn ($query) => $companyId === null
+                    ? $query->whereRaw('1 = 0')
+                    : $query->where('company_id', $companyId)
+            );
+    }
+
+    private function scopedAlertsQuery(?int $companyId, User $user)
+    {
+        return Alert::query()
+            ->when(
+                $user->isSuperAdmin(),
+                fn ($query) => $query,
+                fn ($query) => $companyId === null
+                    ? $query->whereRaw('1 = 0')
+                    : $query->where('company_id', $companyId)
+            );
     }
 }

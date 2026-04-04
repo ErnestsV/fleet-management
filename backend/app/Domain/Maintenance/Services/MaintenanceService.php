@@ -5,6 +5,7 @@ namespace App\Domain\Maintenance\Services;
 use App\Domain\Alerts\Services\AlertEvaluationService;
 use App\Domain\Maintenance\Models\MaintenanceRecord;
 use App\Domain\Maintenance\Models\MaintenanceSchedule;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class MaintenanceService
@@ -37,10 +38,17 @@ class MaintenanceService
                     ->find($record->maintenance_schedule_id);
 
                 if ($schedule) {
+                    $calculatedNextDueDate = $schedule->interval_days
+                        ? $record->service_date->copy()->addDays($schedule->interval_days)
+                        : null;
+                    $calculatedNextDueOdometer = $schedule->interval_km !== null && $record->odometer_km !== null
+                        ? $record->odometer_km + $schedule->interval_km
+                        : null;
+
                     $schedule->update([
-                        'next_due_date' => $schedule->interval_days ? $record->service_date->copy()->addDays($schedule->interval_days) : $schedule->next_due_date,
-                        'next_due_odometer_km' => $schedule->interval_km && $record->odometer_km
-                            ? $record->odometer_km + $schedule->interval_km
+                        'next_due_date' => $this->maxDate($schedule->next_due_date, $calculatedNextDueDate),
+                        'next_due_odometer_km' => $calculatedNextDueOdometer !== null
+                            ? max((float) ($schedule->next_due_odometer_km ?? $calculatedNextDueOdometer), $calculatedNextDueOdometer)
                             : $schedule->next_due_odometer_km,
                     ]);
 
@@ -57,5 +65,18 @@ class MaintenanceService
         $record->update($data);
 
         return $record->refresh();
+    }
+
+    private function maxDate(?Carbon $current, ?Carbon $next): ?Carbon
+    {
+        if ($current === null) {
+            return $next;
+        }
+
+        if ($next === null) {
+            return $current;
+        }
+
+        return $next->greaterThan($current) ? $next : $current;
     }
 }
