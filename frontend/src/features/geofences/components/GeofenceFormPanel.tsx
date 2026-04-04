@@ -12,7 +12,7 @@ type GeofenceFormPanelProps = {
 
 export function GeofenceFormPanel({ editingId, form, onChange, onSubmit, onCancel }: GeofenceFormPanelProps) {
   return (
-    <Panel title={editingId ? 'Edit geofence' : 'Create geofence'} description="Map drawing is placeholder-only for now; coordinates remain provider-agnostic.">
+    <Panel title={editingId ? 'Edit geofence' : 'Create geofence'} description="Use the map to place the center, then fine-tune coordinates and radius here.">
       <div className="space-y-3">
         <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="Geofence name" value={form.name} onChange={(event) => onChange((state) => ({ ...state, name: event.target.value }))} />
         <div className="grid gap-3 md:grid-cols-2">

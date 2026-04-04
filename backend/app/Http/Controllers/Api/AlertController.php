@@ -34,6 +34,6 @@ class AlertController extends Controller
             ->when($request->integer('vehicle_id'), fn ($builder, $vehicleId) => $builder->where('vehicle_id', $vehicleId))
             ->orderBy($column, $direction);
 
-        return AlertResource::collection($query->paginate());
+        return AlertResource::collection($query->paginate($request->integer('per_page', 10)));
     }
 }

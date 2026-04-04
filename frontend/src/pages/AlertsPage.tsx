@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { DataTable, DataTableBody, DataTableHead } from '@/components/ui/DataTable';
 import { Panel } from '@/components/ui/Panel';
@@ -6,13 +6,26 @@ import { SelectField } from '@/components/ui/SelectField';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useAlerts } from '@/features/alerts/useAlerts';
 
+const ALERTS_PER_PAGE = 10;
+
 export function AlertsPage() {
   const [type, setType] = useState('');
   const [status, setStatus] = useState('');
+  const [page, setPage] = useState(1);
   const { data, isLoading, isError } = useAlerts({
     type: type || undefined,
     status: status || undefined,
+    page,
+    per_page: ALERTS_PER_PAGE,
   }, { refetchInterval: 10000 });
+
+  useEffect(() => {
+    setPage(1);
+  }, [type, status]);
+
+  const currentPage = data?.meta?.current_page ?? 1;
+  const lastPage = data?.meta?.last_page ?? 1;
+  const pageNumbers = Array.from({ length: lastPage }, (_, index) => index + 1);
 
   return (
     <div>
@@ -70,6 +83,40 @@ export function AlertsPage() {
           ) : (
             <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-sm text-slate-500">No alerts match the current filters.</div>
           )
+        ) : null}
+        {!isLoading && !isError && lastPage > 1 ? (
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </button>
+            {pageNumbers.map((pageNumber) => (
+              <button
+                key={pageNumber}
+                type="button"
+                className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                  currentPage === pageNumber
+                    ? 'bg-brand-600 text-white'
+                    : 'border border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+                onClick={() => setPage(pageNumber)}
+              >
+                {pageNumber}
+              </button>
+            ))}
+            <button
+              type="button"
+              className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => setPage((current) => Math.min(lastPage, current + 1))}
+              disabled={currentPage === lastPage}
+            >
+              Next
+            </button>
+          </div>
         ) : null}
       </Panel>
     </div>

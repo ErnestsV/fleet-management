@@ -99,7 +99,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
         </aside>
         {mobileNavOpen ? (
-          <div className="fixed inset-0 z-40 lg:hidden">
+          <div className="fixed inset-0 z-[1100] lg:hidden">
             <button type="button" className="absolute inset-0 bg-slate-950/45" onClick={() => setMobileNavOpen(false)} aria-label="Close mobile navigation" />
             <aside className="absolute left-0 top-0 flex h-full w-72 flex-col border-r border-slate-200 bg-slate-950 px-5 py-6 text-white shadow-2xl">
               <div className="mb-8 flex items-center justify-between">
