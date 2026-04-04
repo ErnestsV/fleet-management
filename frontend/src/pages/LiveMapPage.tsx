@@ -1,92 +1,170 @@
-import { useMemo, useState } from 'react';
-import { MapPlaceholder } from '@/components/maps/MapPlaceholder';
+import { useCallback, useMemo, useState } from 'react';
+import { OperationsMap } from '@/components/maps/OperationsMap';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Panel } from '@/components/ui/Panel';
+import { SearchablePagedList } from '@/components/ui/SearchablePagedList';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useVehicles } from '@/features/vehicles/useVehicles';
+import type { Vehicle } from '@/types/domain';
+
+const VEHICLE_PAGE_SIZE = 5;
+
+type FleetListProps = {
+  vehicles: Vehicle[];
+  selectedVehicleId: number | null;
+  search: string;
+  onSearchChange: (value: string) => void;
+  onSelect: (vehicleId: number) => void;
+  limitResults?: boolean;
+  stickySearch?: boolean;
+  scrollable?: boolean;
+};
+
+function FleetVehicleList({
+  vehicles,
+  selectedVehicleId,
+  search,
+  onSearchChange,
+  onSelect,
+  limitResults = false,
+  stickySearch = false,
+  scrollable = false,
+}: FleetListProps) {
+  return (
+    <SearchablePagedList
+      items={vehicles}
+      query={search}
+      onQueryChange={onSearchChange}
+      filterItem={(vehicle, query) =>
+        [vehicle.name, vehicle.plate_number, vehicle.make, vehicle.model, vehicle.assigned_driver?.name]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(query))
+      }
+      renderItem={(vehicle) => (
+        <button
+          className={`w-full rounded-2xl border p-4 text-left transition ${selectedVehicleId === vehicle.id ? 'border-brand-500 bg-emerald-50/50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}
+          onClick={() => onSelect(vehicle.id)}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="font-semibold">{vehicle.plate_number}</div>
+              <div className="text-sm text-slate-500">{vehicle.make ?? 'Unknown make'} {vehicle.model ?? ''}</div>
+            </div>
+            <StatusBadge value={vehicle.state?.status ?? 'offline'} />
+          </div>
+          <div className="mt-3 flex items-center justify-between text-sm text-slate-600">
+            <span>{vehicle.state?.speed_kmh ?? 0} km/h</span>
+            <span>{vehicle.assigned_driver?.name ?? 'No driver'}</span>
+          </div>
+          <div className="mt-2 text-xs text-slate-500">
+            {vehicle.state?.last_event_at ? `Last event: ${new Date(vehicle.state.last_event_at).toLocaleString()}` : 'No telemetry yet'}
+          </div>
+        </button>
+      )}
+      getKey={(vehicle) => vehicle.id}
+      searchPlaceholder="Search fleet"
+      emptyMessage="No vehicles match the current search."
+      pageSize={limitResults ? VEHICLE_PAGE_SIZE : Math.max(vehicles.length, 1)}
+      showMoreLabel="Show 5 more vehicles"
+      stickySearch={stickySearch}
+      scrollable={scrollable}
+    />
+  );
+}
 
 export function LiveMapPage() {
   const [search, setSearch] = useState('');
   const [selectedVehicleId, setSelectedVehicleId] = useState<number | null>(null);
+  const [vehicleFocusVersion, setVehicleFocusVersion] = useState(0);
   const { data, isLoading, isError } = useVehicles({ is_active: true });
 
-  const vehicles = useMemo(() => {
+  const vehicles = useMemo(() => data?.data ?? [], [data?.data]);
+
+  const filteredVehicles = useMemo(() => {
     const query = search.trim().toLowerCase();
-    const source = data?.data ?? [];
 
     if (!query) {
-      return source;
+      return vehicles;
     }
 
-    return source.filter((vehicle) =>
+    return vehicles.filter((vehicle) =>
       [vehicle.name, vehicle.plate_number, vehicle.make, vehicle.model, vehicle.assigned_driver?.name]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query)),
     );
-  }, [data?.data, search]);
+  }, [vehicles, search]);
 
-  const selectedVehicle = vehicles.find((vehicle) => vehicle.id === selectedVehicleId) ?? vehicles[0] ?? null;
+  const selectedVehicle = filteredVehicles.find((vehicle) => vehicle.id === selectedVehicleId) ?? filteredVehicles[0] ?? null;
 
   const markers = useMemo(
     () =>
-      vehicles.map((vehicle) => ({
+      filteredVehicles.map((vehicle) => ({
         id: vehicle.id,
         label: vehicle.plate_number,
         status: vehicle.state?.status,
         latitude: vehicle.state?.latitude,
         longitude: vehicle.state?.longitude,
+        details: `${vehicle.name} · ${vehicle.assigned_driver?.name ?? 'No driver'}`,
       })),
-    [vehicles],
+    [filteredVehicles],
   );
+
+  const selectVehicle = useCallback((vehicleId: number) => {
+    setSelectedVehicleId(vehicleId);
+    setVehicleFocusVersion((current) => current + 1);
+  }, []);
+  const handleMapVehicleSelect = useCallback((vehicleId: number | string) => {
+    selectVehicle(Number(vehicleId));
+  }, [selectVehicle]);
 
   return (
     <div>
       <PageHeader title="Live map" description="Search the active fleet, inspect the current vehicle state, and view marker positions on a provider-agnostic operations map." />
-      <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+      <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)] xl:items-start">
         <Panel
           title="Fleet search"
           description="Search by plate, name, make, or model and drill into a specific vehicle."
-          actions={<input className="rounded-2xl border border-slate-200 px-4 py-2 text-sm" placeholder="Search fleet" value={search} onChange={(event) => setSearch(event.target.value)} />}
+          className="xl:sticky xl:top-6 xl:flex xl:h-[calc(100vh-8.5rem)] xl:flex-col"
         >
           {isLoading ? <div className="text-sm text-slate-500">Loading vehicles...</div> : null}
           {isError ? <div className="text-sm text-rose-600">Failed to load fleet data.</div> : null}
           {!isLoading && !isError ? (
-            vehicles.length > 0 ? (
-              <div className="space-y-3">
-                {vehicles.map((vehicle) => (
-                  <button
-                    key={vehicle.id}
-                    className={`w-full rounded-2xl border p-4 text-left transition ${selectedVehicle?.id === vehicle.id ? 'border-brand-500 bg-emerald-50/50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}
-                    onClick={() => setSelectedVehicleId(vehicle.id)}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="font-semibold">{vehicle.plate_number}</div>
-                        <div className="text-sm text-slate-500">{vehicle.make ?? 'Unknown make'} {vehicle.model ?? ''}</div>
-                      </div>
-                      <StatusBadge value={vehicle.state?.status ?? 'offline'} />
-                    </div>
-                    <div className="mt-3 flex items-center justify-between text-sm text-slate-600">
-                      <span>{vehicle.state?.speed_kmh ?? 0} km/h</span>
-                      <span>{vehicle.assigned_driver?.name ?? 'No driver'}</span>
-                    </div>
-                    <div className="mt-2 text-xs text-slate-500">
-                      {vehicle.state?.last_event_at ? `Last event: ${new Date(vehicle.state.last_event_at).toLocaleString()}` : 'No telemetry yet'}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">No vehicles match the current search.</div>
-            )
+            <FleetVehicleList
+              vehicles={vehicles}
+              selectedVehicleId={selectedVehicle?.id ?? null}
+              search={search}
+              onSearchChange={setSearch}
+              onSelect={selectVehicle}
+              stickySearch
+              scrollable
+              limitResults
+            />
           ) : null}
         </Panel>
 
-        <div className="space-y-6">
-          <MapPlaceholder
-            markers={markers}
-            selectedMarkerId={selectedVehicle?.id ?? null}
-            caption="Live fleet map workspace. Swap in Mapbox or Leaflet later without changing the vehicle-state contract."
+        <div className="space-y-6 xl:sticky xl:top-6">
+          <OperationsMap
+            vehicleMarkers={markers}
+            selectedVehicleId={selectedVehicle?.id ?? null}
+            vehicleFocusKey={selectedVehicle ? `${selectedVehicle.id}:${vehicleFocusVersion}` : null}
+            caption="Live fleet positions on an OpenStreetMap operations canvas."
+            emptyMessage="No active vehicles have a live location yet."
+            allowFullscreen
+            fullscreenSidebarTitle="Fleet search"
+            fullscreenSidebar={
+              <FleetVehicleList
+                vehicles={vehicles}
+                selectedVehicleId={selectedVehicle?.id ?? null}
+                search={search}
+                onSearchChange={setSearch}
+                onSelect={selectVehicle}
+                stickySearch
+                scrollable
+                limitResults
+              />
+            }
+            heightClassName="min-h-[420px]"
+            onVehicleSelect={handleMapVehicleSelect}
           />
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">

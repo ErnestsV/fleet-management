@@ -19,6 +19,8 @@ class AlertIndexRequest extends FormRequest
             'status' => ['nullable', Rule::in(['active', 'resolved'])],
             'vehicle_id' => ['nullable', 'integer', 'exists:vehicles,id'],
             'sort' => ['nullable', Rule::in(['triggered_at', '-triggered_at', 'severity', '-severity'])],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ];
     }
 }

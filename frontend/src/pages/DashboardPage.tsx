@@ -1,5 +1,6 @@
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { MapPlaceholder } from '@/components/maps/MapPlaceholder';
+import { Link } from 'react-router-dom';
+import { useState } from 'react';
 import { DataTable, DataTableBody, DataTableHead } from '@/components/ui/DataTable';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Panel } from '@/components/ui/Panel';
@@ -7,6 +8,8 @@ import { StatCard } from '@/components/ui/StatCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useDashboardSummary } from '@/features/dashboard/useDashboardSummary';
 import { formatDateTime } from '@/lib/utils/format';
+
+const DASHBOARD_ATTENTION_PAGE_SIZE = 3;
 
 function RankingPanel({
   title,
@@ -66,6 +69,7 @@ function WorkingTimeCard({
 
 export function DashboardPage() {
   const { data, isLoading, isError } = useDashboardSummary({ refetchInterval: 10000 });
+  const [visibleAttentionCount, setVisibleAttentionCount] = useState(DASHBOARD_ATTENTION_PAGE_SIZE);
 
   const stats = [
     { label: 'Total vehicles', value: String(data?.total_vehicles ?? 0), hint: 'Across selected scope' },
@@ -79,6 +83,24 @@ export function DashboardPage() {
   )) ?? [];
   const fuelTrendData = data?.fuel.trend ?? [];
   const fuelChartMode = fuelTrendSamples.length >= 2 ? 'chart' : fuelTrendSamples.length === 1 ? 'single-day' : 'empty';
+  const vehiclesWithoutDriver = data?.fleet.filter((vehicle) => !vehicle.driver) ?? [];
+  const vehiclesWithoutTelemetry = data?.fleet.filter((vehicle) => !vehicle.last_event_at) ?? [];
+  const vehiclesWithUnknownStatus = data?.fleet.filter((vehicle) => !vehicle.status || vehicle.status === 'unknown') ?? [];
+  const lowFuelVehicles = data?.fleet.filter((vehicle) => typeof vehicle.fuel_level === 'number' && vehicle.fuel_level <= 20) ?? [];
+  const readinessItems = [
+    { label: 'Without driver', count: vehiclesWithoutDriver.length, tone: 'amber' as const },
+    { label: 'Without telemetry', count: vehiclesWithoutTelemetry.length, tone: 'slate' as const },
+    { label: 'Unknown status', count: vehiclesWithUnknownStatus.length, tone: 'sky' as const },
+    { label: 'Low fuel', count: lowFuelVehicles.length, tone: 'rose' as const },
+  ];
+  const attentionVehicles = Array.from(new Map(
+    [
+      ...lowFuelVehicles,
+      ...vehiclesWithoutTelemetry,
+      ...vehiclesWithoutDriver,
+      ...vehiclesWithUnknownStatus,
+    ].map((vehicle) => [vehicle.id, vehicle]),
+  ).values()).slice(0, 6);
 
   return (
     <div>
@@ -162,39 +184,83 @@ export function DashboardPage() {
             </Panel>
           </div>
 
-          <div className="mt-6 grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
-            <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-panel">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Live fleet</h2>
-                <span className="text-xs uppercase tracking-[0.16em] text-slate-500">Realtime-ready</span>
-              </div>
-              <div className="space-y-3">
-                {data.fleet.slice(0, 6).map((vehicle) => (
-                  <div key={vehicle.id} className="rounded-2xl border border-slate-200 p-4">
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <div className="font-semibold">{vehicle.plate_number}</div>
-                        <div className="text-sm text-slate-500">{vehicle.make ?? 'Unknown make'} {vehicle.model ?? ''}</div>
-                      </div>
-                      <StatusBadge value={vehicle.status} />
-                    </div>
-                    <div className="mt-2 text-sm text-slate-500">
-                      {vehicle.speed_kmh ? `${vehicle.speed_kmh} km/h` : 'No recent movement'} · {vehicle.driver ?? 'No driver'}
+          <div className="mt-6">
+            <Panel
+              title="Operational gaps"
+              description="A compact readiness view for gaps that are not already covered by alert totals or the full fleet status table."
+              actions={(
+                <Link to="/live-map" className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+                  Open live map
+                </Link>
+              )}
+            >
+              <div className="grid gap-4 md:grid-cols-2">
+                {readinessItems.map((item) => (
+                  <div key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="text-xs uppercase tracking-[0.16em] text-slate-500">{item.label}</div>
+                    <div className={`mt-2 text-3xl font-semibold ${
+                      item.tone === 'rose'
+                        ? 'text-rose-600'
+                        : item.tone === 'amber'
+                          ? 'text-amber-600'
+                          : item.tone === 'sky'
+                            ? 'text-sky-700'
+                            : 'text-slate-950'
+                    }`}
+                    >
+                      {item.count}
                     </div>
                   </div>
                 ))}
               </div>
-            </section>
-            <MapPlaceholder
-              markers={data.fleet.map((vehicle) => ({
-                id: vehicle.id,
-                label: vehicle.plate_number,
-                status: vehicle.status,
-                latitude: vehicle.latitude,
-                longitude: vehicle.longitude,
-              }))}
-              caption="Live fleet state rendered on a provider-agnostic operations canvas."
-            />
+              <div className="mt-6">
+                <div className="text-sm font-semibold text-slate-900">Vehicles needing follow-up</div>
+                <div className="mt-3 space-y-3">
+                  {attentionVehicles.length > 0 ? (
+                    attentionVehicles.slice(0, visibleAttentionCount).map((vehicle) => {
+                      const reasons = [
+                        !vehicle.driver ? 'No driver' : null,
+                        !vehicle.last_event_at ? 'No telemetry' : null,
+                        !vehicle.status || vehicle.status === 'unknown' ? 'Unknown status' : null,
+                        typeof vehicle.fuel_level === 'number' && vehicle.fuel_level <= 20 ? `Low fuel ${vehicle.fuel_level}%` : null,
+                      ].filter(Boolean);
+
+                      return (
+                        <div key={vehicle.id} className="rounded-2xl border border-slate-200 p-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <div className="font-semibold">{vehicle.plate_number}</div>
+                              <div className="text-sm text-slate-500">{vehicle.make ?? 'Unknown make'} {vehicle.model ?? ''}</div>
+                            </div>
+                            <StatusBadge value={vehicle.status} />
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {reasons.map((reason) => (
+                              <span key={`${vehicle.id}-${reason}`} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                                {reason}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">
+                      No immediate operational gaps stand out in the current fleet snapshot.
+                    </div>
+                  )}
+                  {attentionVehicles.length > visibleAttentionCount ? (
+                    <button
+                      type="button"
+                      className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      onClick={() => setVisibleAttentionCount((current) => current + DASHBOARD_ATTENTION_PAGE_SIZE)}
+                    >
+                      Show 3 more vehicles
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </Panel>
           </div>
 
           <div className="mt-6 grid gap-6 xl:grid-cols-2">
