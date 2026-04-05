@@ -15,6 +15,7 @@ const CompaniesPage = lazy(() => import('@/pages/CompaniesPage').then((module) =
 const UsersPage = lazy(() => import('@/pages/UsersPage').then((module) => ({ default: module.UsersPage })));
 const VehiclesPage = lazy(() => import('@/pages/VehiclesPage').then((module) => ({ default: module.VehiclesPage })));
 const DriversPage = lazy(() => import('@/pages/DriversPage').then((module) => ({ default: module.DriversPage })));
+const DriverInsightsPage = lazy(() => import('@/pages/DriverInsightsPage').then((module) => ({ default: module.DriverInsightsPage })));
 const AlertsPage = lazy(() => import('@/pages/AlertsPage').then((module) => ({ default: module.AlertsPage })));
 const ProfilePage = lazy(() => import('@/pages/ProfilePage').then((module) => ({ default: module.ProfilePage })));
 const TripsPage = lazy(() => import('@/pages/TripsPage').then((module) => ({ default: module.TripsPage })));
@@ -65,6 +66,7 @@ export function AppRouter() {
         <Route path="/vehicles" element={<VehiclesPage />} />
         <Route path="/live-map" element={<LiveMapPage />} />
         <Route path="/drivers" element={<DriversPage />} />
+        <Route path="/driver-insights" element={<DriverInsightsPage />} />
         <Route path="/trips" element={<TripsPage />} />
         <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/geofences" element={<GeofencesPage />} />

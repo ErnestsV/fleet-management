@@ -70,6 +70,7 @@ function WorkingTimeCard({
 export function DashboardPage() {
   const { data, isLoading, isError } = useDashboardSummary({ refetchInterval: 10000 });
   const [visibleAttentionCount, setVisibleAttentionCount] = useState(DASHBOARD_ATTENTION_PAGE_SIZE);
+  const [fleetStatusPage, setFleetStatusPage] = useState(1);
 
   const stats = [
     { label: 'Total vehicles', value: String(data?.total_vehicles ?? 0), hint: 'Across selected scope' },
@@ -101,6 +102,33 @@ export function DashboardPage() {
       ...vehiclesWithUnknownStatus,
     ].map((vehicle) => [vehicle.id, vehicle]),
   ).values());
+  const totalFleetCount = Math.max(data?.fleet.length ?? 0, 1);
+  const statusPriority: Record<string, number> = {
+    moving: 0,
+    idling: 1,
+    stopped: 2,
+    offline: 3,
+    unknown: 4,
+  };
+  const sortedFleet = [...(data?.fleet ?? [])].sort((left, right) => {
+    const leftStatus = left.status ?? 'unknown';
+    const rightStatus = right.status ?? 'unknown';
+    const byStatus = (statusPriority[leftStatus] ?? 99) - (statusPriority[rightStatus] ?? 99);
+
+    if (byStatus !== 0) {
+      return byStatus;
+    }
+
+    const leftLastEvent = left.last_event_at ? new Date(left.last_event_at).getTime() : 0;
+    const rightLastEvent = right.last_event_at ? new Date(right.last_event_at).getTime() : 0;
+
+    return rightLastEvent - leftLastEvent;
+  });
+  const fleetStatusPerPage = 10;
+  const fleetStatusLastPage = Math.max(1, Math.ceil(sortedFleet.length / fleetStatusPerPage));
+  const currentFleetStatusPage = Math.min(fleetStatusPage, fleetStatusLastPage);
+  const fleetStatusRows = sortedFleet.slice((currentFleetStatusPage - 1) * fleetStatusPerPage, currentFleetStatusPage * fleetStatusPerPage);
+  const fleetStatusPageNumbers = Array.from({ length: fleetStatusLastPage }, (_, index) => index + 1);
 
   return (
     <div>
@@ -185,6 +213,38 @@ export function DashboardPage() {
           </div>
 
           <div className="mt-6">
+            <Panel title="Fleet utilization" description="Asset-usage signals for how much of the fleet is actually being exercised today versus sitting idle or only doing minimal work.">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Active today</div>
+                  <div className="mt-2 text-3xl font-semibold text-emerald-600">{data.fleet_utilization.active_today.percentage.toFixed(0)}%</div>
+                  <div className="mt-2 text-sm text-slate-500">{data.fleet_utilization.active_today.count} vehicles with at least one trip today</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Unused over 3 days</div>
+                  <div className="mt-2 text-3xl font-semibold text-amber-600">{data.fleet_utilization.unused_over_3_days.count}</div>
+                  <div className="mt-2 text-sm text-slate-500">{data.fleet_utilization.unused_over_3_days.percentage.toFixed(0)}% of fleet has no trips in the last 3 days</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Idling over {data.fleet_utilization.idling_over_threshold.threshold_hours}h</div>
+                  <div className="mt-2 text-3xl font-semibold text-rose-600">{data.fleet_utilization.idling_over_threshold.count}</div>
+                  <div className="mt-2 text-sm text-slate-500">{data.fleet_utilization.idling_over_threshold.percentage.toFixed(0)}% of fleet is currently stuck idling past threshold</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-500">No trips today</div>
+                  <div className="mt-2 text-3xl font-semibold text-slate-950">{data.fleet_utilization.no_trips_today.count}</div>
+                  <div className="mt-2 text-sm text-slate-500">{data.fleet_utilization.no_trips_today.percentage.toFixed(0)}% of fleet has not moved today</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Short trips only</div>
+                  <div className="mt-2 text-3xl font-semibold text-sky-700">{data.fleet_utilization.short_trips_only_today.count}</div>
+                  <div className="mt-2 text-sm text-slate-500">{data.fleet_utilization.short_trips_only_today.percentage.toFixed(0)}% of fleet only made trips up to {data.fleet_utilization.short_trips_only_today.max_trip_km.toFixed(0)} km today</div>
+                </div>
+              </div>
+            </Panel>
+          </div>
+
+          <div className="mt-6">
             <Panel
               title="Operational gaps"
               description="A compact readiness view for gaps that are not already covered by alert totals or the full fleet status table."
@@ -209,6 +269,9 @@ export function DashboardPage() {
                     }`}
                     >
                       {item.count}
+                    </div>
+                    <div className="mt-2 text-sm text-slate-500">
+                      {((item.count / totalFleetCount) * 100).toFixed(0)}% of visible fleet
                     </div>
                   </div>
                 ))}
@@ -460,8 +523,9 @@ export function DashboardPage() {
           </div>
 
           <div className="mt-6">
-            <Panel title="Fleet status table" description="Current vehicle materialized state with assigned driver and location context.">
-              {data.fleet.length > 0 ? (
+            <Panel title="Fleet status table" description="Current vehicle state prioritized for operations review: moving first, then idling, stopped, offline, and unknown states.">
+              {sortedFleet.length > 0 ? (
+                <>
                 <DataTable>
                   <DataTableHead>
                       <tr>
@@ -474,7 +538,7 @@ export function DashboardPage() {
                       </tr>
                   </DataTableHead>
                   <DataTableBody>
-                      {data.fleet.map((vehicle) => (
+                      {fleetStatusRows.map((vehicle) => (
                         <tr key={vehicle.id}>
                           <td className="px-4 py-3">
                             <div className="font-semibold">{vehicle.plate_number}</div>
@@ -489,6 +553,41 @@ export function DashboardPage() {
                       ))}
                   </DataTableBody>
                 </DataTable>
+                {fleetStatusLastPage > 1 ? (
+                  <div className="mt-6 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      onClick={() => setFleetStatusPage((current) => Math.max(1, current - 1))}
+                      disabled={currentFleetStatusPage === 1}
+                    >
+                      Previous
+                    </button>
+                    {fleetStatusPageNumbers.map((pageNumber) => (
+                      <button
+                        key={pageNumber}
+                        type="button"
+                        className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                          currentFleetStatusPage === pageNumber
+                            ? 'bg-brand-600 text-white'
+                            : 'border border-slate-200 text-slate-700 hover:bg-slate-50'
+                        }`}
+                        onClick={() => setFleetStatusPage(pageNumber)}
+                      >
+                        {pageNumber}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      onClick={() => setFleetStatusPage((current) => Math.min(fleetStatusLastPage, current + 1))}
+                      disabled={currentFleetStatusPage === fleetStatusLastPage}
+                    >
+                      Next
+                    </button>
+                  </div>
+                ) : null}
+                </>
               ) : (
                 <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">No fleet state data is available yet.</div>
               )}

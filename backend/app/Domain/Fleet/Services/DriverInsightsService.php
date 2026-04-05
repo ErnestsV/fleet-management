@@ -1,0 +1,243 @@
+<?php
+
+namespace App\Domain\Fleet\Services;
+
+use App\Domain\Alerts\Enums\AlertType;
+use App\Domain\Fleet\Models\Driver;
+use App\Models\User;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+
+class DriverInsightsService
+{
+    public function summary(User $user): array
+    {
+        $companyId = $user->company_id;
+        $timezone = $user->timezone ?: config('app.timezone', 'UTC');
+        $windowEnd = now();
+        $windowStart = now()->subDays(6)->startOfDay();
+        $previousWindowEnd = $windowStart->copy()->subSecond();
+        $previousWindowStart = $windowStart->copy()->subDays(7);
+
+        $drivers = $this->visibleDriversQuery($companyId, $user)
+            ->get(['id', 'name', 'is_active']);
+
+        $currentTripStats = $this->tripStatsByDriver($companyId, $user, $windowStart, $windowEnd, $timezone);
+        $currentAlertStats = $this->alertStatsByDriver($companyId, $user, $windowStart, $windowEnd);
+        $previousTripStats = $this->tripStatsByDriver($companyId, $user, $previousWindowStart, $previousWindowEnd, $timezone);
+        $previousAlertStats = $this->alertStatsByDriver($companyId, $user, $previousWindowStart, $previousWindowEnd);
+
+        $driverRows = $drivers
+            ->map(function (Driver $driver) use ($currentTripStats, $currentAlertStats, $previousTripStats, $previousAlertStats) {
+                $currentTrips = $currentTripStats->get($driver->id);
+                $currentAlerts = $currentAlertStats->get($driver->id);
+                $previousTrips = $previousTripStats->get($driver->id);
+                $previousAlerts = $previousAlertStats->get($driver->id);
+
+                $tripCount = (int) ($currentTrips->trip_count ?? 0);
+                $distanceKm = round((float) ($currentTrips->distance_km ?? 0), 1);
+                $speedingAlerts = (int) ($currentAlerts->speeding_alerts ?? 0);
+                $idlingAlerts = (int) ($currentAlerts->idling_alerts ?? 0);
+                $previousScore = $this->buildDriverScore(
+                    tripCount: (int) ($previousTrips->trip_count ?? 0),
+                    distanceKm: (float) ($previousTrips->distance_km ?? 0),
+                    speedingAlerts: (int) ($previousAlerts->speeding_alerts ?? 0),
+                    idlingAlerts: (int) ($previousAlerts->idling_alerts ?? 0),
+                );
+                $score = $this->buildDriverScore(
+                    tripCount: $tripCount,
+                    distanceKm: $distanceKm,
+                    speedingAlerts: $speedingAlerts,
+                    idlingAlerts: $idlingAlerts,
+                );
+
+                return [
+                    'driver_id' => $driver->id,
+                    'name' => $driver->name,
+                    'is_active' => (bool) $driver->is_active,
+                    'trip_count' => $tripCount,
+                    'distance_km' => $distanceKm,
+                    'avg_trip_distance_km' => $tripCount > 0 ? round($distanceKm / $tripCount, 1) : 0.0,
+                    'avg_trip_duration_minutes' => round((float) ($currentTrips->avg_trip_duration_minutes ?? 0), 1),
+                    'total_drive_hours' => round((float) ($currentTrips->total_drive_hours ?? 0), 1),
+                    'after_hours_trip_count' => (int) ($currentTrips->after_hours_trip_count ?? 0),
+                    'speeding_alerts' => $speedingAlerts,
+                    'idling_alerts' => $idlingAlerts,
+                    'score' => $score,
+                    'previous_score' => $previousScore,
+                    'score_delta' => $score !== null && $previousScore !== null ? round($score - $previousScore, 1) : null,
+                    'has_activity' => $tripCount > 0,
+                ];
+            })
+            ->sortByDesc(fn (array $driver) => [$driver['has_activity'], $driver['distance_km'], $driver['trip_count'], $driver['score'] ?? -1])
+            ->values();
+
+        $activeDrivers = $driverRows->filter(fn (array $driver) => $driver['has_activity']);
+        $scoredDrivers = $driverRows->filter(fn (array $driver) => $driver['score'] !== null)->values();
+        $improvedDrivers = $driverRows
+            ->filter(fn (array $driver) => $driver['score_delta'] !== null)
+            ->sortByDesc('score_delta')
+            ->take(5)
+            ->values()
+            ->map(fn (array $driver) => [
+                'driver_id' => $driver['driver_id'],
+                'label' => $driver['name'],
+                'score' => $driver['score_delta'],
+            ]);
+
+        return [
+            'window' => [
+                'label' => 'Last 7 days',
+                'start' => $windowStart->toIso8601String(),
+                'end' => $windowEnd->toIso8601String(),
+            ],
+            'headline' => [
+                'active_drivers' => $activeDrivers->count(),
+                'total_distance_km' => round($activeDrivers->sum('distance_km'), 1),
+                'total_trips' => $activeDrivers->sum('trip_count'),
+                'average_trip_distance_km' => $activeDrivers->isNotEmpty()
+                    ? round($activeDrivers->avg('avg_trip_distance_km') ?? 0, 1)
+                    : null,
+                'average_trip_duration_minutes' => $activeDrivers->isNotEmpty()
+                    ? round($activeDrivers->avg('avg_trip_duration_minutes') ?? 0, 1)
+                    : null,
+                'total_drive_hours' => round($activeDrivers->sum('total_drive_hours'), 1),
+                'after_hours_trip_count' => $activeDrivers->sum('after_hours_trip_count'),
+                'average_score' => $scoredDrivers->isNotEmpty()
+                    ? round($scoredDrivers->avg('score') ?? 0, 1)
+                    : null,
+            ],
+            'leaderboards' => [
+                'top_drivers' => $scoredDrivers
+                    ->sortByDesc('score')
+                    ->take(5)
+                    ->values()
+                    ->map(fn (array $driver) => [
+                        'driver_id' => $driver['driver_id'],
+                        'label' => $driver['name'],
+                        'score' => $driver['score'],
+                    ]),
+                'needs_coaching' => $scoredDrivers
+                    ->sortBy('score')
+                    ->filter(fn (array $driver) => $driver['speeding_alerts'] > 0 || $driver['idling_alerts'] > 0 || ($driver['score'] ?? 100) < 70)
+                    ->take(5)
+                    ->values()
+                    ->map(fn (array $driver) => [
+                        'driver_id' => $driver['driver_id'],
+                        'label' => $driver['name'],
+                        'score' => $driver['score'],
+                    ]),
+                'most_improved' => $improvedDrivers,
+            ],
+            'drivers' => $driverRows->values(),
+        ];
+    }
+
+    private function tripStatsByDriver(?int $companyId, User $user, Carbon $windowStart, Carbon $windowEnd, string $timezone): Collection
+    {
+        return DB::table('vehicle_driver_assignments as assignments')
+            ->join('trips', function ($join) {
+                $join->on('trips.vehicle_id', '=', 'assignments.vehicle_id')
+                    ->whereColumn('trips.start_time', '>=', 'assignments.assigned_from')
+                    ->where(function ($query) {
+                        $query->whereNull('assignments.assigned_until')
+                            ->orWhereColumn('trips.start_time', '<', 'assignments.assigned_until');
+                    });
+            })
+            ->when(
+                ! $user->isSuperAdmin(),
+                fn ($query) => $companyId === null
+                    ? $query->whereRaw('1 = 0')
+                    : $query->where('assignments.company_id', $companyId)
+            )
+            ->whereBetween('trips.start_time', [$windowStart, $windowEnd])
+            ->select([
+                'assignments.driver_id',
+                'trips.start_time',
+                'trips.distance_km',
+                'trips.duration_seconds',
+            ])
+            ->get()
+            ->groupBy('driver_id')
+            ->map(function (Collection $rows) use ($timezone) {
+                $tripCount = $rows->count();
+                $distanceKm = round((float) $rows->sum('distance_km'), 1);
+                $durationSeconds = (int) $rows->sum('duration_seconds');
+                $afterHoursTripCount = $rows->filter(fn ($row) => $this->isAfterHours(Carbon::parse($row->start_time), $timezone))->count();
+
+                return (object) [
+                    'trip_count' => $tripCount,
+                    'distance_km' => $distanceKm,
+                    'avg_trip_duration_minutes' => $tripCount > 0 ? round(($durationSeconds / $tripCount) / 60, 1) : 0.0,
+                    'total_drive_hours' => round($durationSeconds / 3600, 1),
+                    'after_hours_trip_count' => $afterHoursTripCount,
+                ];
+            });
+    }
+
+    private function alertStatsByDriver(?int $companyId, User $user, Carbon $windowStart, Carbon $windowEnd): Collection
+    {
+        return DB::table('vehicle_driver_assignments as assignments')
+            ->join('alerts', function ($join) {
+                $join->on('alerts.vehicle_id', '=', 'assignments.vehicle_id')
+                    ->whereColumn('alerts.triggered_at', '>=', 'assignments.assigned_from')
+                    ->where(function ($query) {
+                        $query->whereNull('assignments.assigned_until')
+                            ->orWhereColumn('alerts.triggered_at', '<', 'assignments.assigned_until');
+                    });
+            })
+            ->when(
+                ! $user->isSuperAdmin(),
+                fn ($query) => $companyId === null
+                    ? $query->whereRaw('1 = 0')
+                    : $query->where('assignments.company_id', $companyId)
+            )
+            ->whereBetween('alerts.triggered_at', [$windowStart, $windowEnd])
+            ->whereIn('alerts.type', [AlertType::Speeding->value, AlertType::ProlongedIdling->value])
+            ->selectRaw('assignments.driver_id')
+            ->selectRaw('SUM(CASE WHEN alerts.type = ? THEN 1 ELSE 0 END) as speeding_alerts', [AlertType::Speeding->value])
+            ->selectRaw('SUM(CASE WHEN alerts.type = ? THEN 1 ELSE 0 END) as idling_alerts', [AlertType::ProlongedIdling->value])
+            ->groupBy('assignments.driver_id')
+            ->get()
+            ->keyBy('driver_id');
+    }
+
+    private function visibleDriversQuery(?int $companyId, User $user)
+    {
+        return Driver::query()
+            ->whereNull('deleted_at')
+            ->when(
+                ! $user->isSuperAdmin(),
+                fn ($query) => $companyId === null
+                    ? $query->whereRaw('1 = 0')
+                    : $query->where('company_id', $companyId)
+            );
+    }
+
+    private function buildDriverScore(int $tripCount, float $distanceKm, int $speedingAlerts, int $idlingAlerts): ?float
+    {
+        if ($tripCount <= 0) {
+            return null;
+        }
+
+        $avgTripDistanceKm = $distanceKm / max($tripCount, 1);
+        $weightedAlerts = ($speedingAlerts * 1.25) + ($idlingAlerts * 0.9);
+        $alertRatePer100Km = ($weightedAlerts * 100) / max($distanceKm, 1);
+        $productivityBonus = min(18, $avgTripDistanceKm * 1.5) + min(12, $tripCount * 2);
+        $penalty = min(70, $alertRatePer100Km * 10);
+        $score = 70 + $productivityBonus - $penalty;
+
+        return round(max(0, min(100, $score)), 1);
+    }
+
+    private function isAfterHours(Carbon $timestamp, string $timezone): bool
+    {
+        $localTimestamp = $timestamp->copy()->timezone($timezone);
+        $startHour = (int) env('FLEET_AFTER_HOURS_START_HOUR', 7);
+        $endHour = (int) env('FLEET_AFTER_HOURS_END_HOUR', 19);
+        $hour = (int) $localTimestamp->format('G');
+
+        return $hour < $startHour || $hour >= $endHour;
+    }
+}

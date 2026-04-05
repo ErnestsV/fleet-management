@@ -1,5 +1,6 @@
 import { DataTable, DataTableBody, DataTableHead } from '@/components/ui/DataTable';
 import { Panel } from '@/components/ui/Panel';
+import { SearchField } from '@/components/ui/SearchField';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import type { Driver, PaginatedResponse } from '@/types/domain';
 
@@ -14,7 +15,11 @@ type DriversTablePanelProps = {
 
 export function DriversTablePanel({ search, onSearchChange, data, isLoading, isError, onSelect }: DriversTablePanelProps) {
   return (
-    <Panel title="Driver table" description="Review and manage driver records." actions={<input className="rounded-2xl border border-slate-200 px-4 py-2 text-sm" placeholder="Search drivers" value={search} onChange={(event) => onSearchChange(event.target.value)} />}>
+    <Panel
+      title="Driver table"
+      description="Review and manage driver records."
+      actions={<SearchField value={search} onChange={onSearchChange} placeholder="Search drivers" />}
+    >
       {isLoading ? <div className="text-sm text-slate-500">Loading drivers...</div> : null}
       {isError ? <div className="text-sm text-rose-600">Failed to load drivers.</div> : null}
       {!isLoading && !isError ? (

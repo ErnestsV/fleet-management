@@ -42,6 +42,7 @@ class DashboardService
         $tripsOverTime = $this->operationsReadService->buildTripsOverTime($companyId, $user, $windowStart);
         $fleetEfficiencyBreakdown = $this->performanceReadService->buildFleetEfficiencyBreakdown($fleetVehicles, $states, $companyId, $user, $windowStart);
         $drivingBehaviour = $this->performanceReadService->buildDrivingBehaviour($fleetVehicles, $companyId, $user, $windowStart, $minimumBehaviourTripSamples);
+        $fleetUtilization = $this->performanceReadService->buildFleetUtilizationSummary($fleetVehicles, $companyId, $user, $today);
         $workingTime = $this->operationsReadService->buildWorkingTime($companyId, $user, $today);
         $mileageAndFuel = $this->fuelMileageReadService->buildMileageAndFuelMetrics(
             companyId: $companyId,
@@ -70,6 +71,7 @@ class DashboardService
                 'selected_average_score' => round($fleetEfficiencyBreakdown->avg('score') ?? 0, 1),
                 'breakdown' => $fleetEfficiencyBreakdown,
             ],
+            'fleet_utilization' => $fleetUtilization,
             'driving_behaviour' => $drivingBehaviour,
             'mileage' => $mileageAndFuel['mileage'],
             'fuel' => $mileageAndFuel['fuel'],

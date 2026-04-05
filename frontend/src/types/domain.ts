@@ -38,6 +38,30 @@ export type DashboardSummary = {
     selected_average_score: number;
     breakdown: { label: string; score: number }[];
   };
+  fleet_utilization: {
+    active_today: {
+      count: number;
+      percentage: number;
+    };
+    unused_over_3_days: {
+      count: number;
+      percentage: number;
+    };
+    idling_over_threshold: {
+      count: number;
+      percentage: number;
+      threshold_hours: number;
+    };
+    no_trips_today: {
+      count: number;
+      percentage: number;
+    };
+    short_trips_only_today: {
+      count: number;
+      percentage: number;
+      max_trip_km: number;
+    };
+  };
   driving_behaviour: {
     has_data: boolean;
     minimum_trip_samples: number;
@@ -92,8 +116,56 @@ export type DashboardSummary = {
   }[];
 };
 
+export type DriverInsightsSummary = {
+  window: {
+    label: string;
+    start: string;
+    end: string;
+  };
+  headline: {
+    active_drivers: number;
+    total_distance_km: number;
+    total_trips: number;
+    average_trip_distance_km: number | null;
+    average_trip_duration_minutes: number | null;
+    total_drive_hours: number;
+    after_hours_trip_count: number;
+    average_score: number | null;
+  };
+  leaderboards: {
+    top_drivers: { driver_id: number; label: string; score: number }[];
+    needs_coaching: { driver_id: number; label: string; score: number }[];
+    most_improved: { driver_id: number; label: string; score: number }[];
+  };
+  drivers: {
+    driver_id: number;
+    name: string;
+    is_active: boolean;
+    trip_count: number;
+    distance_km: number;
+    avg_trip_distance_km: number;
+    avg_trip_duration_minutes: number;
+    total_drive_hours: number;
+    after_hours_trip_count: number;
+    speeding_alerts: number;
+    idling_alerts: number;
+    score: number | null;
+    previous_score: number | null;
+    score_delta: number | null;
+    has_activity: boolean;
+  }[];
+};
+
 export type PaginatedResponse<T> = {
   data: T[];
+  summary?: {
+    trip_count: number;
+    total_distance_km: number;
+    average_trip_distance_km: number | null;
+    average_trip_duration_minutes: number | null;
+    total_drive_hours: number;
+    after_hours_trip_count: number;
+  };
   links?: {
     first?: string | null;
     last?: string | null;

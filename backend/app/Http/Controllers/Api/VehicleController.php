@@ -31,10 +31,22 @@ class VehicleController extends Controller
                         ->orWhere('model', 'like', "%{$search}%");
                 });
             })
+            ->when($request->string('status')->toString(), function ($builder, string $status) {
+                if ($status === 'unknown') {
+                    $builder->where(function ($inner) {
+                        $inner->whereDoesntHave('state')
+                            ->orWhereHas('state', fn ($stateQuery) => $stateQuery->whereNull('status'));
+                    });
+
+                    return;
+                }
+
+                $builder->whereHas('state', fn ($stateQuery) => $stateQuery->where('status', $status));
+            })
             ->when($request->filled('is_active'), fn ($builder) => $builder->where('is_active', $request->boolean('is_active')))
             ->latest();
 
-        return VehicleResource::collection($query->paginate());
+        return VehicleResource::collection($query->paginate((int) $request->integer('per_page', 10)));
     }
 
     public function store(StoreVehicleRequest $request, VehicleService $service): JsonResponse

@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
-import { X } from 'lucide-react';
+import { SearchField } from '@/components/ui/SearchField';
 
 type SearchablePagedListProps<T> = {
   items: T[];
@@ -53,24 +53,11 @@ export function SearchablePagedList<T>({
   return (
     <div className={scrollable ? 'flex h-full min-h-0 flex-col' : 'space-y-4'}>
       <div className={stickySearch ? 'sticky top-0 z-10 bg-white pb-4' : ''}>
-        <div className="relative">
-          <input
-            className="w-full rounded-2xl border border-slate-200 py-2 pl-4 pr-10 text-sm"
-            placeholder={searchPlaceholder}
-            value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
-          />
-          {query ? (
-            <button
-              type="button"
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-              aria-label={`Clear ${searchPlaceholder.toLowerCase()}`}
-              onClick={() => onQueryChange('')}
-            >
-              <X className="h-4 w-4" />
-            </button>
-          ) : null}
-        </div>
+        <SearchField
+          value={query}
+          onChange={onQueryChange}
+          placeholder={searchPlaceholder}
+        />
       </div>
       {filteredItems.length > 0 ? (
         <div className={scrollable ? 'mt-4 flex min-h-0 flex-1 flex-col' : 'space-y-4'}>
