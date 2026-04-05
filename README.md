@@ -199,7 +199,9 @@ At a high level:
 
 - `Geofences` are virtual geographic zones such as depots, warehouses, customer sites, or restricted areas.
 - Their main purpose is to detect when a vehicle enters or exits those zones and raise alerts.
-- In a fuller product they also support dwell-time reporting, arrival/departure reporting, route compliance, and site-based analytics.
+- The section includes both `Manage` and `Analytics` views.
+- Analytics is derived from geofence entry and exit alert history to show top visited locations, total entries/exits, active visits, total dwell time, average dwell time, and a per-location activity table.
+- In a fuller product it can expand further into arrival/departure reporting, route compliance, and site-based analytics.
 
 ### Maintenance
 
@@ -540,6 +542,7 @@ php artisan app:simulate-telemetry --count=20
 - `GET|PATCH|DELETE /api/v1/drivers/{driver}`
 - `GET /api/v1/driver-insights`
 - `GET /api/v1/fuel-insights`
+- `GET /api/v1/geofence-analytics`
 - `POST /api/v1/alerts/{alert}/resolve`
 - `GET /api/v1/trips`
 - `GET /api/v1/trips/{trip}`

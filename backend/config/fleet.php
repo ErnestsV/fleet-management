@@ -13,6 +13,7 @@ return [
     'telemetry_stale_minutes' => (int) env('FLEET_TELEMETRY_STALE_MINUTES', 60),
     'telemetry_offline_hours' => (int) env('FLEET_TELEMETRY_OFFLINE_HOURS', 24),
     'telemetry_low_frequency_events_24h' => (int) env('FLEET_TELEMETRY_LOW_FREQUENCY_EVENTS_24H', 12),
+    'geofence_analytics_window_days' => (int) env('FLEET_GEOFENCE_ANALYTICS_WINDOW_DAYS', 7),
     'fuel_anomaly_window_minutes' => (int) env('FLEET_FUEL_ANOMALY_WINDOW_MINUTES', 120),
     'fuel_stationary_distance_km' => (float) env('FLEET_FUEL_STATIONARY_DISTANCE_KM', 1),
     'fuel_unexpected_drop_pct' => (float) env('FLEET_FUEL_UNEXPECTED_DROP_PCT', 8),
