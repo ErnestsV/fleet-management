@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Panel } from '@/components/ui/Panel';
 import { StatCard } from '@/components/ui/StatCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { ShowMoreButton } from '@/components/ui/ShowMoreButton';
 import { useDashboardSummary } from '@/features/dashboard/useDashboardSummary';
 import { formatDateTime } from '@/lib/utils/format';
 
@@ -317,14 +318,56 @@ export function DashboardPage() {
                     </div>
                   )}
                   {attentionVehicles.length > visibleAttentionCount ? (
-                    <button
-                      type="button"
-                      className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    <ShowMoreButton
+                      label="Show 3 more vehicles"
                       onClick={() => setVisibleAttentionCount((current) => current + DASHBOARD_ATTENTION_PAGE_SIZE)}
-                    >
-                      Show 3 more vehicles
-                    </button>
+                    />
                   ) : null}
+                </div>
+              </div>
+            </Panel>
+          </div>
+
+          <div className="mt-6">
+            <Panel
+              title="Telemetry health"
+              description="A SaaS-style reliability view of whether active devices are reporting frequently enough and with complete latest fields."
+              actions={(
+                <Link to="/telemetry-health" className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+                  Open telemetry health
+                </Link>
+              )}
+            >
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Freshness rate</div>
+                  <div className="mt-2 text-3xl font-semibold text-emerald-600">{data.telemetry_health.freshness_rate_pct.toFixed(0)}%</div>
+                  <div className="mt-2 text-sm text-slate-500">Latest event seen within {data.telemetry_health.thresholds.fresh_minutes} minutes</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Healthy devices</div>
+                  <div className="mt-2 text-3xl font-semibold text-emerald-600">{data.telemetry_health.healthy_count}</div>
+                  <div className="mt-2 text-sm text-slate-500">Fresh, frequent, and complete latest telemetry</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Stale telemetry</div>
+                  <div className="mt-2 text-3xl font-semibold text-amber-600">{data.telemetry_health.stale_count}</div>
+                  <div className="mt-2 text-sm text-slate-500">Older than {data.telemetry_health.thresholds.stale_minutes} minutes but not yet offline</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Offline over {data.telemetry_health.thresholds.offline_hours}h</div>
+                  <div className="mt-2 text-3xl font-semibold text-rose-600">{data.telemetry_health.offline_over_24h_count}</div>
+                  <div className="mt-2 text-sm text-slate-500">No telemetry has arrived past the offline threshold</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Low frequency</div>
+                  <div className="mt-2 text-3xl font-semibold text-amber-600">{data.telemetry_health.low_frequency_count}</div>
+                  <div className="mt-2 text-sm text-slate-500">Below {data.telemetry_health.thresholds.low_frequency_events_24h} events in the last 24h</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Missing fields</div>
+                  <div className="mt-2 text-3xl font-semibold text-sky-700">{data.telemetry_health.missing_fields_count}</div>
+                  <div className="mt-2 text-sm text-slate-500">Latest telemetry snapshot is missing location, odometer, or fuel data</div>
                 </div>
               </div>
             </Panel>

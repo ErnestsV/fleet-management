@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { SearchField } from '@/components/ui/SearchField';
+import { ShowMoreButton } from '@/components/ui/ShowMoreButton';
 
 type SearchablePagedListProps<T> = {
   items: T[];
@@ -71,13 +72,11 @@ export function SearchablePagedList<T>({
             </div>
           </div>
           {hasMore ? (
-            <button
-              type="button"
-              className="mt-4 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            <ShowMoreButton
+              label={showMoreLabel}
+              className="mt-4"
               onClick={() => setVisibleCount((current) => current + safePageSize)}
-            >
-              {showMoreLabel}
-            </button>
+            />
           ) : null}
         </div>
       ) : (
