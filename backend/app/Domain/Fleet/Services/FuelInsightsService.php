@@ -55,12 +55,14 @@ class FuelInsightsService
         $status = (string) ($filters['status'] ?? '');
 
         if ($search !== '') {
-            $query->whereHas('vehicle', function (Builder $vehicleQuery) use ($search): void {
-                $vehicleQuery->where('name', 'like', "%{$search}%")
-                    ->orWhere('plate_number', 'like', "%{$search}%")
-                    ->orWhere('make', 'like', "%{$search}%")
-                    ->orWhere('model', 'like', "%{$search}%")
-                    ->orWhere('device_identifier', 'like', "%{$search}%");
+            $searchPattern = '%'.$this->escapeLike($search).'%';
+
+            $query->whereHas('vehicle', function (Builder $vehicleQuery) use ($searchPattern): void {
+                $vehicleQuery->where('name', 'like', $searchPattern)
+                    ->orWhere('plate_number', 'like', $searchPattern)
+                    ->orWhere('make', 'like', $searchPattern)
+                    ->orWhere('model', 'like', $searchPattern)
+                    ->orWhere('device_identifier', 'like', $searchPattern);
             });
         }
 
@@ -175,5 +177,10 @@ class FuelInsightsService
     private function severitySortExpression(): string
     {
         return "CASE severity WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END";
+    }
+
+    private function escapeLike(string $value): string
+    {
+        return addcslashes($value, '\\%_');
     }
 }

@@ -540,6 +540,7 @@ php artisan app:simulate-telemetry --count=20
 - `GET|PATCH|DELETE /api/v1/drivers/{driver}`
 - `GET /api/v1/driver-insights`
 - `GET /api/v1/fuel-insights`
+- `POST /api/v1/alerts/{alert}/resolve`
 - `GET /api/v1/trips`
 - `GET /api/v1/trips/{trip}`
 - `GET /api/v1/vehicles/{vehicle}/trips`

@@ -106,8 +106,26 @@ export function OperationalGapsPanel({
 export function TelemetryHealthPanel({
   data,
 }: {
-  data: DashboardSummary['telemetry_health'];
+  data?: DashboardSummary['telemetry_health'];
 }) {
+  if (!data) {
+    return (
+      <Panel
+        title="Telemetry health"
+        description="A SaaS-style reliability view of whether active devices are reporting frequently enough and with complete latest fields."
+        actions={(
+          <Link to="/telemetry-health" className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+            Open telemetry health
+          </Link>
+        )}
+      >
+        <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">
+          Telemetry health summary is not available yet.
+        </div>
+      </Panel>
+    );
+  }
+
   return (
     <Panel
       title="Telemetry health"
@@ -157,8 +175,26 @@ export function TelemetryHealthPanel({
 export function FuelAnomaliesPanel({
   data,
 }: {
-  data: DashboardSummary['fuel_anomalies'];
+  data?: DashboardSummary['fuel_anomalies'];
 }) {
+  if (!data) {
+    return (
+      <Panel
+        title="Fuel anomalies"
+        description="Operational signals for suspicious drops, stationary refuels, and consumption outliers. These are heuristics intended for follow-up, not guaranteed theft verdicts."
+        actions={(
+          <Link to="/fuel-insights" className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+            Open fuel insights
+          </Link>
+        )}
+      >
+        <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">
+          Fuel anomaly summary is not available yet.
+        </div>
+      </Panel>
+    );
+  }
+
   return (
     <Panel
       title="Fuel anomalies"

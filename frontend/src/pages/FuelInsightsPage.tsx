@@ -15,6 +15,7 @@ import { formatDateTime } from '@/lib/utils/format';
 
 const FUEL_INSIGHTS_PER_PAGE = 10;
 const FUEL_URGENT_PAGE_SIZE = 5;
+const PAGE_WINDOW_SIZE = 5;
 
 function formatDelta(value: number | null, suffix = '%') {
   if (value == null) {
@@ -51,12 +52,18 @@ export function FuelInsightsPage() {
 
   const currentPage = data?.meta?.current_page ?? 1;
   const lastPage = data?.meta?.last_page ?? 1;
-  const pageNumbers = Array.from({ length: lastPage }, (_, index) => index + 1);
   const visibleUrgentVehicles = (data?.summary?.suspicious_vehicles ?? []).slice(0, visibleUrgentCount);
   const canResolveFuelAlerts = useMemo(
     () => actor?.role === 'super_admin' || actor?.role === 'owner' || actor?.role === 'admin',
     [actor?.role],
   );
+  const pageNumbers = useMemo(() => {
+    const windowStart = Math.max(1, currentPage - Math.floor(PAGE_WINDOW_SIZE / 2));
+    const windowEnd = Math.min(lastPage, windowStart + PAGE_WINDOW_SIZE - 1);
+    const adjustedStart = Math.max(1, windowEnd - PAGE_WINDOW_SIZE + 1);
+
+    return Array.from({ length: windowEnd - adjustedStart + 1 }, (_, index) => adjustedStart + index);
+  }, [currentPage, lastPage]);
 
   const stats = data?.summary ? [
     { label: 'Active anomalies', value: String(data.summary.active_anomalies), hint: 'Current unresolved fuel signals' },

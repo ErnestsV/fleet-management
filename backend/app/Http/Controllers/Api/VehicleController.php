@@ -21,6 +21,7 @@ class VehicleController extends Controller
     {
         $this->authorize('viewAny', Vehicle::class);
         $request->validate([
+            'search' => ['nullable', 'string'],
             'status' => ['nullable', 'string', Rule::in(['moving', 'idling', 'stopped', 'offline', 'unknown'])],
             'distance_bucket' => ['nullable', 'string', Rule::in(['none', '1_50', '50_200', '200_plus'])],
         ]);
@@ -28,6 +29,10 @@ class VehicleController extends Controller
         $recentDistanceSubquery = Trip::query()
             ->selectRaw('vehicle_id, SUM(distance_km) as recent_distance_km')
             ->where('start_time', '>=', now()->subDays(7))
+            ->when(
+                ! $request->user()->isSuperAdmin(),
+                fn ($query) => $query->where('company_id', $request->user()->company_id)
+            )
             ->groupBy('vehicle_id');
 
         $query = Vehicle::query()

@@ -10,9 +10,13 @@ export type DashboardReadinessItem = {
   tone: 'amber' | 'slate' | 'sky' | 'rose';
 };
 
+export type DashboardFuelChartMode = 'chart' | 'single-day' | 'empty';
+
 export function useDashboardViewModel(data: DashboardSummary | undefined) {
   const [visibleAttentionCount, setVisibleAttentionCount] = useState(DASHBOARD_ATTENTION_PAGE_SIZE);
   const [fleetStatusPage, setFleetStatusPage] = useState(1);
+  const fuel = data?.fuel;
+  const fleet = data?.fleet ?? [];
 
   const stats = [
     { label: 'Total vehicles', value: String(data?.total_vehicles ?? 0), hint: 'Across selected scope' },
@@ -21,16 +25,20 @@ export function useDashboardViewModel(data: DashboardSummary | undefined) {
     { label: 'Active alerts', value: String(data?.active_alerts ?? 0), hint: 'Requires operator action' },
   ];
 
-  const fuelTrendSamples = data?.fuel.trend.filter((entry) => (
+  const fuelTrendSamples = fuel?.trend?.filter((entry) => (
     entry.estimated_consumption_l_per_100km != null || entry.estimated_fuel_used_l != null
   )) ?? [];
-  const fuelTrendData = data?.fuel.trend ?? [];
-  const fuelChartMode = fuelTrendSamples.length >= 2 ? 'chart' : fuelTrendSamples.length === 1 ? 'single-day' : 'empty';
+  const fuelTrendData = fuel?.trend ?? [];
+  const fuelChartMode: DashboardFuelChartMode = fuelTrendSamples.length >= 2
+    ? 'chart'
+    : fuelTrendSamples.length === 1
+      ? 'single-day'
+      : 'empty';
 
-  const vehiclesWithoutDriver = data?.fleet.filter((vehicle) => !vehicle.driver) ?? [];
-  const vehiclesWithoutTelemetry = data?.fleet.filter((vehicle) => !vehicle.last_event_at) ?? [];
-  const vehiclesWithUnknownStatus = data?.fleet.filter((vehicle) => !vehicle.status || vehicle.status === 'unknown') ?? [];
-  const lowFuelVehicles = data?.fleet.filter((vehicle) => typeof vehicle.fuel_level === 'number' && vehicle.fuel_level <= 20) ?? [];
+  const vehiclesWithoutDriver = fleet.filter((vehicle) => !vehicle.driver);
+  const vehiclesWithoutTelemetry = fleet.filter((vehicle) => !vehicle.last_event_at);
+  const vehiclesWithUnknownStatus = fleet.filter((vehicle) => !vehicle.status || vehicle.status === 'unknown');
+  const lowFuelVehicles = fleet.filter((vehicle) => typeof vehicle.fuel_level === 'number' && vehicle.fuel_level <= 20);
 
   const readinessItems: DashboardReadinessItem[] = [
     { label: 'Without driver', count: vehiclesWithoutDriver.length, tone: 'amber' },
@@ -48,7 +56,7 @@ export function useDashboardViewModel(data: DashboardSummary | undefined) {
     ].map((vehicle) => [vehicle.id, vehicle]),
   ).values());
 
-  const totalFleetCount = Math.max(data?.fleet.length ?? 0, 1);
+  const totalFleetCount = Math.max(fleet.length, 1);
   const statusPriority: Record<string, number> = {
     moving: 0,
     idling: 1,
@@ -57,7 +65,7 @@ export function useDashboardViewModel(data: DashboardSummary | undefined) {
     unknown: 4,
   };
 
-  const sortedFleet = [...(data?.fleet ?? [])].sort((left, right) => {
+  const sortedFleet = [...fleet].sort((left, right) => {
     const leftStatus = left.status ?? 'unknown';
     const rightStatus = right.status ?? 'unknown';
     const byStatus = (statusPriority[leftStatus] ?? 99) - (statusPriority[rightStatus] ?? 99);

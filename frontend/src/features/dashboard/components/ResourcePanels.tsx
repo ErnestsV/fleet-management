@@ -43,7 +43,13 @@ export function MileagePanel({
         </div>
         <div className="rounded-2xl bg-slate-50 p-6">
           <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Delta</div>
-          <div className={`mt-3 text-4xl font-semibold ${data.delta_pct != null && data.delta_pct >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+          <div className={`mt-3 text-4xl font-semibold ${
+            data.delta_pct == null
+              ? 'text-slate-500'
+              : data.delta_pct >= 0
+                ? 'text-emerald-600'
+                : 'text-rose-600'
+          }`}>
             {data.delta_pct != null ? `${data.delta_pct > 0 ? '+' : ''}${data.delta_pct.toFixed(1)}%` : 'N/A'}
           </div>
         </div>
