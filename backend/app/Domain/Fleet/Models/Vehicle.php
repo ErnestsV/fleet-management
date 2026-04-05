@@ -6,6 +6,7 @@ use App\Domain\Companies\Models\Company;
 use App\Domain\Telemetry\Models\DeviceToken;
 use App\Domain\Telemetry\Models\TelemetryEvent;
 use App\Domain\Telemetry\Models\VehicleState;
+use App\Domain\Trips\Models\Trip;
 use Database\Factories\VehicleFactory;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -63,6 +64,11 @@ class Vehicle extends Model
     public function assignments(): HasMany
     {
         return $this->hasMany(VehicleDriverAssignment::class);
+    }
+
+    public function trips(): HasMany
+    {
+        return $this->hasMany(Trip::class);
     }
 
     public function deviceTokens(): HasMany

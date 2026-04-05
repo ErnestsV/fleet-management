@@ -15,6 +15,8 @@ class AlertEvaluationService
 {
     public function evaluateTelemetry(TelemetryEvent $event, VehicleState $state): void
     {
+        $this->evaluateFuelAnomalies($event, $state);
+
         if ($event->speed_kmh > 90) {
             $this->createAlert(
                 type: AlertType::Speeding,
@@ -41,6 +43,130 @@ class AlertEvaluationService
             ->where('is_active', true)
             ->with('vehicle')
             ->each(fn (MaintenanceSchedule $schedule) => $this->evaluateMaintenanceSchedule($schedule, $event->odometer_km));
+    }
+
+    private function evaluateFuelAnomalies(TelemetryEvent $event, VehicleState $state): void
+    {
+        if ($event->fuel_level === null || $event->odometer_km === null) {
+            return;
+        }
+
+        $previousEvent = TelemetryEvent::query()
+            ->where('vehicle_id', $event->vehicle_id)
+            ->where('occurred_at', '<', $event->occurred_at)
+            ->whereNotNull('fuel_level')
+            ->whereNotNull('odometer_km')
+            ->latest('occurred_at')
+            ->latest('id')
+            ->first();
+
+        if (! $previousEvent) {
+            return;
+        }
+
+        $timeDeltaMinutes = max(1, $previousEvent->occurred_at->diffInMinutes($event->occurred_at));
+
+        if ($timeDeltaMinutes > (int) config('fleet.fuel_anomaly_window_minutes', 120)) {
+            return;
+        }
+
+        $distanceDeltaKm = max(0, $event->odometer_km - $previousEvent->odometer_km);
+        $fuelDeltaPct = $event->fuel_level - $previousEvent->fuel_level;
+        $stationaryDistanceKm = (float) config('fleet.fuel_stationary_distance_km', 1);
+        $isStationaryWindow = $distanceDeltaKm <= $stationaryDistanceKm;
+        $expectedConsumption = (float) config('fleet.expected_fuel_consumption_l_per_100km', 28);
+        $tankCapacityLiters = (float) config('fleet.estimated_tank_capacity_liters', 100);
+
+        if ($fuelDeltaPct <= -1) {
+            $fuelDropPct = abs($fuelDeltaPct);
+
+            if ($isStationaryWindow && $fuelDropPct >= (float) config('fleet.fuel_unexpected_drop_pct', 8)) {
+                $this->createAlert(
+                    type: AlertType::UnexpectedFuelDrop,
+                    vehicleId: $event->vehicle_id,
+                    companyId: $event->company_id,
+                    message: 'Fuel level dropped sharply without corresponding vehicle movement.',
+                    context: $this->fuelAnomalyContext($previousEvent, $event, $distanceDeltaKm, $timeDeltaMinutes)
+                );
+            }
+
+            if (
+                $isStationaryWindow
+                && $fuelDropPct >= (float) config('fleet.fuel_possible_theft_drop_pct', 12)
+                && $this->looksStationaryAtFuelEvent($event, $state)
+            ) {
+                $this->createAlert(
+                    type: AlertType::PossibleFuelTheft,
+                    vehicleId: $event->vehicle_id,
+                    companyId: $event->company_id,
+                    message: 'Fuel level dropped while the vehicle appeared stationary, suggesting possible fuel theft.',
+                    context: $this->fuelAnomalyContext($previousEvent, $event, $distanceDeltaKm, $timeDeltaMinutes)
+                );
+            }
+
+            if (
+                $distanceDeltaKm >= (float) config('fleet.fuel_min_distance_for_consumption_km', 10)
+                && $expectedConsumption > 0
+                && $tankCapacityLiters > 0
+            ) {
+                $estimatedFuelUsedLiters = ($fuelDropPct / 100) * $tankCapacityLiters;
+                $estimatedConsumption = ($estimatedFuelUsedLiters / $distanceDeltaKm) * 100;
+
+                if ($estimatedConsumption >= $expectedConsumption * (float) config('fleet.fuel_abnormal_consumption_multiplier', 1.8)) {
+                    $this->createAlert(
+                        type: AlertType::AbnormalFuelConsumption,
+                        vehicleId: $event->vehicle_id,
+                        companyId: $event->company_id,
+                        message: 'Estimated fuel consumption materially exceeded the configured fleet baseline.',
+                        context: array_merge(
+                            $this->fuelAnomalyContext($previousEvent, $event, $distanceDeltaKm, $timeDeltaMinutes),
+                            [
+                                'estimated_fuel_used_l' => round($estimatedFuelUsedLiters, 2),
+                                'estimated_consumption_l_per_100km' => round($estimatedConsumption, 1),
+                                'expected_consumption_l_per_100km' => round($expectedConsumption, 1),
+                            ]
+                        )
+                    );
+                }
+            }
+        }
+
+        if (
+            $fuelDeltaPct >= (float) config('fleet.fuel_refuel_increase_pct', 10)
+            && $isStationaryWindow
+        ) {
+            $this->createAlert(
+                type: AlertType::RefuelWithoutTrip,
+                vehicleId: $event->vehicle_id,
+                companyId: $event->company_id,
+                message: 'Fuel level increased without a meaningful trip between telemetry samples.',
+                context: $this->fuelAnomalyContext($previousEvent, $event, $distanceDeltaKm, $timeDeltaMinutes)
+            );
+        }
+    }
+
+    private function fuelAnomalyContext(
+        TelemetryEvent $previousEvent,
+        TelemetryEvent $event,
+        float $distanceDeltaKm,
+        int $timeDeltaMinutes,
+    ): array {
+        return [
+            'previous_event_at' => $previousEvent->occurred_at->toIso8601String(),
+            'current_event_at' => $event->occurred_at->toIso8601String(),
+            'previous_fuel_level' => round((float) $previousEvent->fuel_level, 1),
+            'current_fuel_level' => round((float) $event->fuel_level, 1),
+            'fuel_delta_pct' => round((float) $event->fuel_level - (float) $previousEvent->fuel_level, 1),
+            'distance_delta_km' => round($distanceDeltaKm, 2),
+            'time_delta_minutes' => $timeDeltaMinutes,
+        ];
+    }
+
+    private function looksStationaryAtFuelEvent(TelemetryEvent $event, VehicleState $state): bool
+    {
+        return ! $event->engine_on
+            || $event->speed_kmh <= 1
+            || in_array($state->status, [VehicleStatus::Stopped, VehicleStatus::Idling, VehicleStatus::Offline], true);
     }
 
     public function markOffline(VehicleState $state): void
@@ -181,9 +307,25 @@ class AlertEvaluationService
                 'vehicle_id' => $vehicleId,
                 'type' => $type,
                 'message' => $message,
-                'severity' => $type === AlertType::MaintenanceDue ? 'high' : 'medium',
+                'severity' => $this->severityForType($type),
                 'triggered_at' => now(),
                 'context' => $context,
             ]);
+    }
+
+    private function severityForType(AlertType $type): string
+    {
+        return match ($type) {
+            AlertType::MaintenanceDue,
+            AlertType::DriverLicenseExpired,
+            AlertType::PossibleFuelTheft,
+            AlertType::UnexpectedFuelDrop => 'high',
+            AlertType::RefuelWithoutTrip,
+            AlertType::Speeding,
+            AlertType::ProlongedIdling,
+            AlertType::OfflineVehicle,
+            AlertType::AbnormalFuelConsumption => 'medium',
+            default => 'low',
+        };
     }
 }

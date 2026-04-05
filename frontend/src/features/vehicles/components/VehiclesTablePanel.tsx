@@ -9,8 +9,10 @@ import type { PaginatedResponse, Vehicle } from '@/types/domain';
 type VehiclesTablePanelProps = {
   search: string;
   status: string;
+  distanceBucket: string;
   onSearchChange: (value: string) => void;
   onStatusChange: (value: string) => void;
+  onDistanceBucketChange: (value: string) => void;
   data?: PaginatedResponse<Vehicle>;
   isLoading: boolean;
   isError: boolean;
@@ -22,8 +24,10 @@ type VehiclesTablePanelProps = {
 export function VehiclesTablePanel({
   search,
   status,
+  distanceBucket,
   onSearchChange,
   onStatusChange,
+  onDistanceBucketChange,
   data,
   isLoading,
   isError,
@@ -37,7 +41,7 @@ export function VehiclesTablePanel({
   return (
     <Panel
       title="Fleet table"
-      description="Search, filter by live status, inspect, edit, and deactivate vehicles."
+      description="Search, filter by live status and recent distance, inspect, edit, and deactivate vehicles."
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <SearchField value={search} onChange={onSearchChange} placeholder="Search vehicles" />
@@ -48,6 +52,13 @@ export function VehiclesTablePanel({
             <option value="stopped">Stopped</option>
             <option value="offline">Offline</option>
             <option value="unknown">Unknown</option>
+          </SelectField>
+          <SelectField className="py-2" value={distanceBucket} onValueChange={onDistanceBucketChange}>
+            <option value="">All distances</option>
+            <option value="none">No recent distance</option>
+            <option value="1_50">1-50 km</option>
+            <option value="50_200">50-200 km</option>
+            <option value="200_plus">200+ km</option>
           </SelectField>
         </div>
       }
@@ -61,6 +72,7 @@ export function VehiclesTablePanel({
               <tr>
                 <th className="px-4 py-3">Vehicle</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Recent distance</th>
                 <th className="px-4 py-3">Driver</th>
                 <th className="px-4 py-3">Last event</th>
               </tr>
@@ -73,6 +85,7 @@ export function VehiclesTablePanel({
                     <div className="text-slate-500">{vehicle.name}</div>
                   </td>
                   <td className="px-4 py-3"><StatusBadge value={vehicle.state?.status ?? (vehicle.is_active ? undefined : 'offline')} /></td>
+                  <td className="px-4 py-3 text-slate-600">{vehicle.recent_distance_km.toFixed(1)} km</td>
                   <td className="px-4 py-3 text-slate-600">{vehicle.assigned_driver?.name ?? 'Unassigned'}</td>
                   <td className="px-4 py-3 text-slate-600">{formatDateTime(vehicle.state?.last_event_at)}</td>
                 </tr>
@@ -80,7 +93,7 @@ export function VehiclesTablePanel({
             </DataTableBody>
           </DataTable>
         ) : (
-          <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-sm text-slate-500">No vehicles match the current search or status filter.</div>
+          <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-sm text-slate-500">No vehicles match the current search, status, or distance filter.</div>
         )
       ) : null}
       {!isLoading && !isError && lastPage > 1 ? (

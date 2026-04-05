@@ -63,6 +63,7 @@ export type DashboardSummary = {
     };
   };
   telemetry_health: TelemetryHealthSummary;
+  fuel_anomalies: FuelAnomalySummary;
   driving_behaviour: {
     has_data: boolean;
     minimum_trip_samples: number;
@@ -115,6 +116,52 @@ export type DashboardSummary = {
     last_event_at: string | null;
     driver: string | null;
   }[];
+};
+
+export type FuelAnomalySummary = {
+  total_anomalies: number;
+  active_anomalies: number;
+  resolved_anomalies: number;
+  affected_vehicles: number;
+  unexpected_drop_count: number;
+  possible_theft_count: number;
+  refuel_without_trip_count: number;
+  abnormal_consumption_count: number;
+  suspicious_vehicles: {
+    vehicle_id: number;
+    plate_number: string;
+    name: string;
+    anomaly_count: number;
+    latest_triggered_at: string | null;
+  }[];
+  thresholds: {
+    unexpected_drop_pct: number;
+    possible_theft_drop_pct: number;
+    refuel_increase_pct: number;
+    abnormal_consumption_multiplier: number;
+  };
+};
+
+export type FuelAnomalyRow = {
+  id: number;
+  type: 'unexpected_fuel_drop' | 'possible_fuel_theft' | 'refuel_without_trip' | 'abnormal_fuel_consumption';
+  severity: string;
+  message: string;
+  triggered_at: string;
+  resolved_at: string | null;
+  status: 'active' | 'resolved';
+  vehicle?: {
+    id: number;
+    name: string;
+    plate_number: string;
+  } | null;
+  fuel_delta_pct: number | null;
+  distance_delta_km: number | null;
+  previous_fuel_level: number | null;
+  current_fuel_level: number | null;
+  estimated_fuel_used_l: number | null;
+  estimated_consumption_l_per_100km: number | null;
+  time_delta_minutes: number | null;
 };
 
 export type TelemetryHealthSummary = {
@@ -234,6 +281,7 @@ export type Vehicle = {
   year: number | null;
   vin?: string | null;
   device_identifier: string | null;
+  recent_distance_km: number;
   device_token?: {
     id: number;
     name: string;

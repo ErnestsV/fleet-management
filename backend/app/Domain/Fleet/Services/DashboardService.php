@@ -6,6 +6,7 @@ use App\Domain\Fleet\Services\Dashboard\DashboardFuelMileageReadService;
 use App\Domain\Fleet\Services\Dashboard\DashboardOperationsReadService;
 use App\Domain\Fleet\Services\Dashboard\DashboardPerformanceReadService;
 use App\Domain\Fleet\Services\Dashboard\DashboardQueryFactory;
+use App\Domain\Fleet\Services\FuelInsightsService;
 use App\Domain\Telemetry\Services\TelemetryHealthService;
 use App\Domain\Telemetry\Enums\VehicleStatus;
 use App\Models\User;
@@ -18,6 +19,7 @@ class DashboardService
         private readonly DashboardOperationsReadService $operationsReadService,
         private readonly DashboardPerformanceReadService $performanceReadService,
         private readonly DashboardFuelMileageReadService $fuelMileageReadService,
+        private readonly FuelInsightsService $fuelInsightsService,
         private readonly TelemetryHealthService $telemetryHealthService,
     ) {
     }
@@ -29,8 +31,8 @@ class DashboardService
         $yesterday = $today->copy()->subDay();
         $windowStart = $today->copy()->subDays(6);
         $minimumBehaviourTripSamples = (int) config('fleet.behaviour_min_trips', 3);
-        $estimatedTankCapacityLiters = (float) env('FLEET_ESTIMATED_TANK_CAPACITY_LITERS', 100);
-        $expectedFuelConsumptionPer100Km = (float) env('FLEET_EXPECTED_FUEL_CONSUMPTION_L_PER_100KM', 28);
+        $estimatedTankCapacityLiters = (float) config('fleet.estimated_tank_capacity_liters', 100);
+        $expectedFuelConsumptionPer100Km = (float) config('fleet.expected_fuel_consumption_l_per_100km', 28);
 
         $vehicles = $this->queryFactory->vehicleQuery($companyId, $user);
         $states = $this->queryFactory->stateQuery($companyId, $user);
@@ -46,6 +48,7 @@ class DashboardService
         $drivingBehaviour = $this->performanceReadService->buildDrivingBehaviour($fleetVehicles, $companyId, $user, $windowStart, $minimumBehaviourTripSamples);
         $fleetUtilization = $this->performanceReadService->buildFleetUtilizationSummary($fleetVehicles, $companyId, $user, $today);
         $telemetryHealth = $this->telemetryHealthService->summary($user);
+        $fuelAnomalies = $this->fuelInsightsService->dashboardSummary($user);
         $workingTime = $this->operationsReadService->buildWorkingTime($companyId, $user, $today);
         $mileageAndFuel = $this->fuelMileageReadService->buildMileageAndFuelMetrics(
             companyId: $companyId,
@@ -76,6 +79,7 @@ class DashboardService
             ],
             'fleet_utilization' => $fleetUtilization,
             'telemetry_health' => $telemetryHealth,
+            'fuel_anomalies' => $fuelAnomalies,
             'driving_behaviour' => $drivingBehaviour,
             'mileage' => $mileageAndFuel['mileage'],
             'fuel' => $mileageAndFuel['fuel'],

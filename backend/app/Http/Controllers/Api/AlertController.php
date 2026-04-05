@@ -6,6 +6,7 @@ use App\Domain\Alerts\Models\Alert;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AlertIndexRequest;
 use App\Http\Resources\AlertResource;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class AlertController extends Controller
@@ -35,5 +36,19 @@ class AlertController extends Controller
             ->orderBy($column, $direction);
 
         return AlertResource::collection($query->paginate($request->integer('per_page', 10)));
+    }
+
+    public function resolve(Alert $alert): JsonResponse
+    {
+        $this->authorize('resolve', $alert);
+
+        if (! $alert->resolved_at) {
+            $alert->forceFill(['resolved_at' => now()])->save();
+        }
+
+        return response()->json([
+            'message' => 'Alert resolved successfully.',
+            'data' => (new AlertResource($alert->fresh(['vehicle', 'rule'])))->resolve(),
+        ]);
     }
 }

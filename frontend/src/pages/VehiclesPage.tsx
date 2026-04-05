@@ -13,6 +13,7 @@ import { getApiErrorMessage } from '@/lib/api/errors';
 export function VehiclesPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  const [distanceBucket, setDistanceBucket] = useState('');
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -20,6 +21,7 @@ export function VehiclesPage() {
   const { data, isLoading, isError } = useVehicles({
     search: search || undefined,
     status: status || undefined,
+    distance_bucket: distanceBucket || undefined,
     page,
     per_page: 10,
   });
@@ -44,7 +46,7 @@ export function VehiclesPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, status]);
+  }, [search, status, distanceBucket]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -96,8 +98,10 @@ export function VehiclesPage() {
         <VehiclesTablePanel
           search={search}
           status={status}
+          distanceBucket={distanceBucket}
           onSearchChange={setSearch}
           onStatusChange={setStatus}
+          onDistanceBucketChange={setDistanceBucket}
           data={data}
           isLoading={isLoading}
           isError={isError}

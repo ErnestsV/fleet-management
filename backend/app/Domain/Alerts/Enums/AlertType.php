@@ -11,4 +11,21 @@ enum AlertType: string
     case OfflineVehicle = 'offline_vehicle';
     case MaintenanceDue = 'maintenance_due';
     case DriverLicenseExpired = 'driver_license_expired';
+    case UnexpectedFuelDrop = 'unexpected_fuel_drop';
+    case PossibleFuelTheft = 'possible_fuel_theft';
+    case RefuelWithoutTrip = 'refuel_without_trip';
+    case AbnormalFuelConsumption = 'abnormal_fuel_consumption';
+
+    /**
+     * @return list<self>
+     */
+    public static function fuelTypes(): array
+    {
+        return [
+            self::UnexpectedFuelDrop,
+            self::PossibleFuelTheft,
+            self::RefuelWithoutTrip,
+            self::AbnormalFuelConsumption,
+        ];
+    }
 }

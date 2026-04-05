@@ -5,6 +5,7 @@ namespace Tests\Feature\Fleet;
 use App\Domain\Fleet\Models\Vehicle;
 use App\Domain\Telemetry\Models\DeviceToken;
 use App\Domain\Shared\Enums\UserRole;
+use App\Domain\Trips\Models\Trip;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -133,5 +134,56 @@ class VehicleManagementTest extends TestCase
                 'engine_on' => true,
             ])
             ->assertStatus(202);
+    }
+
+    public function test_vehicle_index_returns_recent_distance_and_distance_bucket_filter(): void
+    {
+        $admin = User::factory()->create(['role' => UserRole::Admin]);
+        Sanctum::actingAs($admin);
+
+        $nearVehicle = Vehicle::factory()->create([
+            'company_id' => $admin->company_id,
+            'plate_number' => 'NEAR-1',
+        ]);
+        $farVehicle = Vehicle::factory()->create([
+            'company_id' => $admin->company_id,
+            'plate_number' => 'FAR-1',
+        ]);
+
+        Trip::factory()->create([
+            'company_id' => $admin->company_id,
+            'vehicle_id' => $nearVehicle->id,
+            'start_time' => now()->subDays(2),
+            'end_time' => now()->subDays(2)->addHour(),
+            'distance_km' => 32,
+        ]);
+
+        Trip::factory()->create([
+            'company_id' => $admin->company_id,
+            'vehicle_id' => $farVehicle->id,
+            'start_time' => now()->subDay(),
+            'end_time' => now()->subDay()->addHour(),
+            'distance_km' => 245,
+        ]);
+
+        $this->getJson('/api/v1/vehicles?distance_bucket=200_plus')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.plate_number', 'FAR-1');
+
+        $this->assertSame(
+            245.0,
+            (float) $this->getJson('/api/v1/vehicles?distance_bucket=200_plus')->json('data.0.recent_distance_km')
+        );
+
+        $this->getJson('/api/v1/vehicles?distance_bucket=1_50')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.plate_number', 'NEAR-1');
+
+        $this->assertSame(
+            32.0,
+            (float) $this->getJson('/api/v1/vehicles?distance_bucket=1_50')->json('data.0.recent_distance_km')
+        );
     }
 }
