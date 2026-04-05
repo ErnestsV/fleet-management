@@ -114,6 +114,8 @@ At a high level:
 - `vehicles` are company-owned fleet assets that receive telemetry, generate trips, and can be assigned to drivers.
 - `telemetry events` are raw append-only GPS/device messages coming from remote devices or integration APIs.
 - `vehicle state` is the latest materialized status of each vehicle for fast UI access.
+- `driver insights` are management-facing analytics derived from trips, assignment windows, and alert signals per driver.
+- `telemetry health` is the device-reliability and signal-freshness layer for seeing whether active vehicles are reporting often enough and with complete latest fields.
 - `trips`, `alerts`, `geofences`, and `maintenance` are operational modules derived from or attached to those fleet assets.
 
 ## What each section is for
@@ -157,11 +159,25 @@ At a high level:
 - This section exists to manage driver records, track who is responsible for a vehicle, and preserve assignment history.
 - Driver records can later be used in reporting, accountability, dispatching, and trip context.
 
+### Driver Insights
+
+- `Driver Insights` is the management analytics page for comparing driver output and coaching signals over a recent rolling window.
+- It is derived from trip activity attributed through assignment windows plus speeding and idling alerts.
+- Current MVP metrics include trip counts, distance, average trip distance, average trip duration, drive time, after-hours trips, and a coaching-oriented driver score.
+- It is intended for recognition, coaching, and identifying underused or risky driving patterns rather than for payroll or compliance.
+
 ### Trips
 
 - `Trips` are derived records created from telemetry/state transitions, not typically entered manually.
 - Their purpose is to show where, when, and how far vehicles traveled.
 - Trip history supports later reporting, utilization analysis, route analysis, working-time analysis, and driver/vehicle behaviour metrics.
+
+### Telemetry Health
+
+- `Telemetry Health` is the device reliability and signal quality page.
+- It exists to help operators understand whether the data stream itself is trustworthy before making decisions from trips, alerts, or live status.
+- Current MVP metrics include freshness rate, healthy devices, stale telemetry, devices offline over threshold, low-frequency devices, missing latest fields, and no-data vehicles.
+- The detailed view supports search, filtering, freshness buckets, and per-vehicle diagnostics such as last event age and missing fields.
 
 ### Alerts
 
@@ -206,6 +222,7 @@ At a high level:
 6. Trips and alerts are derived from that data.
 7. Geofences add location-based events.
 8. Maintenance schedules and records support service planning and audit history.
+9. Driver insights and telemetry health surfaces turn the operational stream into management and SaaS reliability analytics.
 
 ## Super admin bootstrap
 
@@ -511,6 +528,7 @@ php artisan app:simulate-telemetry --count=20
 - `GET|PATCH|DELETE /api/v1/vehicles/{vehicle}`
 - `GET|POST /api/v1/drivers`
 - `GET|PATCH|DELETE /api/v1/drivers/{driver}`
+- `GET /api/v1/driver-insights`
 - `GET /api/v1/trips`
 - `GET /api/v1/trips/{trip}`
 - `GET /api/v1/vehicles/{vehicle}/trips`
@@ -521,13 +539,14 @@ php artisan app:simulate-telemetry --count=20
 - `GET /api/v1/maintenance-upcoming`
 - `GET|POST|PATCH|DELETE /api/v1/maintenance-records`
 - `GET /api/v1/alerts`
+- `GET /api/v1/telemetry-health`
 - `GET /api/v1/vehicle-states`
 - `GET /api/v1/dashboard/summary`
 - `POST /api/v1/telemetry/events`
 
 ## Current MVP notes
 
-- Trips, assignments, geofences, maintenance, alerts, dashboard, profile, vehicles, and drivers are exposed in both API and frontend.
+- Trips, assignments, geofences, maintenance, alerts, dashboard, driver insights, telemetry health, profile, vehicles, and drivers are exposed in both API and frontend.
 - Device auth is token-based for MVP. The `DeviceToken` model and ingestion service are structured so HMAC/device-signature auth can replace or augment it later.
 - Vehicle state is materialized in `vehicle_states`; raw events remain append-only in `telemetry_events`.
 - Alert checks run asynchronously through `EvaluateTelemetryAlertsJob`.

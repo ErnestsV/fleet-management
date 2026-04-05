@@ -39,6 +39,7 @@ class DashboardSummaryTest extends TestCase
                 'trips_over_time',
                 'fleet',
                 'fleet_utilization',
+                'telemetry_health',
             ]);
     }
 

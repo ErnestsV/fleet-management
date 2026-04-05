@@ -62,6 +62,7 @@ export type DashboardSummary = {
       max_trip_km: number;
     };
   };
+  telemetry_health: TelemetryHealthSummary;
   driving_behaviour: {
     has_data: boolean;
     minimum_trip_samples: number;
@@ -116,6 +117,44 @@ export type DashboardSummary = {
   }[];
 };
 
+export type TelemetryHealthSummary = {
+  total_devices: number;
+  freshness_rate_pct: number;
+  healthy_count: number;
+  stale_count: number;
+  offline_over_24h_count: number;
+  no_data_count: number;
+  low_frequency_count: number;
+  missing_fields_count: number;
+  freshness_buckets: {
+    key: 'fresh' | 'delayed' | 'stale' | 'offline' | 'no_data';
+    label: string;
+    count: number;
+  }[];
+  thresholds: {
+    fresh_minutes: number;
+    stale_minutes: number;
+    offline_hours: number;
+    low_frequency_events_24h: number;
+  };
+};
+
+export type TelemetryHealthRow = {
+  vehicle_id: number;
+  name: string;
+  plate_number: string;
+  make: string | null;
+  model: string | null;
+  device_identifier: string | null;
+  status: string | null;
+  last_event_at: string | null;
+  minutes_since_last_event: number | null;
+  freshness_bucket: 'fresh' | 'delayed' | 'stale' | 'offline' | 'no_data';
+  health_status: 'healthy' | 'missing_fields' | 'low_frequency' | 'stale' | 'offline' | 'no_data';
+  events_last_24h: number;
+  missing_fields: string[];
+};
+
 export type DriverInsightsSummary = {
   window: {
     label: string;
@@ -156,16 +195,18 @@ export type DriverInsightsSummary = {
   }[];
 };
 
-export type PaginatedResponse<T> = {
+export type TripSummary = {
+  trip_count: number;
+  total_distance_km: number;
+  average_trip_distance_km: number | null;
+  average_trip_duration_minutes: number | null;
+  total_drive_hours: number;
+  after_hours_trip_count: number;
+};
+
+export type PaginatedResponse<T, S = never> = {
   data: T[];
-  summary?: {
-    trip_count: number;
-    total_distance_km: number;
-    average_trip_distance_km: number | null;
-    average_trip_duration_minutes: number | null;
-    total_drive_hours: number;
-    after_hours_trip_count: number;
-  };
+  summary?: S;
   links?: {
     first?: string | null;
     last?: string | null;

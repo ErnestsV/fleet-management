@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\MaintenanceRecordController;
 use App\Http\Controllers\Api\MaintenanceScheduleController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\TelemetryIngestionController;
+use App\Http\Controllers\Api\TelemetryHealthController;
 use App\Http\Controllers\Api\TripController;
 use App\Http\Controllers\Api\VehicleController;
 use App\Http\Controllers\Api\VehicleDriverAssignmentController;
@@ -36,6 +37,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/auth/change-password', [ProfileController::class, 'changePassword']);
 
         Route::get('/dashboard/summary', DashboardController::class);
+        Route::get('/telemetry-health', TelemetryHealthController::class);
         Route::get('/driver-insights', DriverInsightsController::class);
         Route::apiResource('companies', CompanyController::class)->only(['index', 'store', 'update']);
         Route::apiResource('users', CompanyUserController::class)->only(['index', 'store', 'update']);

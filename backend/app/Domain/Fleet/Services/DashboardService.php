@@ -6,6 +6,7 @@ use App\Domain\Fleet\Services\Dashboard\DashboardFuelMileageReadService;
 use App\Domain\Fleet\Services\Dashboard\DashboardOperationsReadService;
 use App\Domain\Fleet\Services\Dashboard\DashboardPerformanceReadService;
 use App\Domain\Fleet\Services\Dashboard\DashboardQueryFactory;
+use App\Domain\Telemetry\Services\TelemetryHealthService;
 use App\Domain\Telemetry\Enums\VehicleStatus;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -17,6 +18,7 @@ class DashboardService
         private readonly DashboardOperationsReadService $operationsReadService,
         private readonly DashboardPerformanceReadService $performanceReadService,
         private readonly DashboardFuelMileageReadService $fuelMileageReadService,
+        private readonly TelemetryHealthService $telemetryHealthService,
     ) {
     }
 
@@ -43,6 +45,7 @@ class DashboardService
         $fleetEfficiencyBreakdown = $this->performanceReadService->buildFleetEfficiencyBreakdown($fleetVehicles, $states, $companyId, $user, $windowStart);
         $drivingBehaviour = $this->performanceReadService->buildDrivingBehaviour($fleetVehicles, $companyId, $user, $windowStart, $minimumBehaviourTripSamples);
         $fleetUtilization = $this->performanceReadService->buildFleetUtilizationSummary($fleetVehicles, $companyId, $user, $today);
+        $telemetryHealth = $this->telemetryHealthService->summary($user);
         $workingTime = $this->operationsReadService->buildWorkingTime($companyId, $user, $today);
         $mileageAndFuel = $this->fuelMileageReadService->buildMileageAndFuelMetrics(
             companyId: $companyId,
@@ -72,6 +75,7 @@ class DashboardService
                 'breakdown' => $fleetEfficiencyBreakdown,
             ],
             'fleet_utilization' => $fleetUtilization,
+            'telemetry_health' => $telemetryHealth,
             'driving_behaviour' => $drivingBehaviour,
             'mileage' => $mileageAndFuel['mileage'],
             'fuel' => $mileageAndFuel['fuel'],
