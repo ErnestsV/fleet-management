@@ -136,7 +136,7 @@ class DriverInsightsService
 
     private function tripStatsByDriver(?int $companyId, User $user, Carbon $windowStart, Carbon $windowEnd, string $timezone): Collection
     {
-        return DB::table('vehicle_driver_assignments as assignments')
+        $baseQuery = DB::table('vehicle_driver_assignments as assignments')
             ->join('trips', function ($join) {
                 $join->on('trips.vehicle_id', '=', 'assignments.vehicle_id')
                     ->whereColumn('trips.start_time', '>=', 'assignments.assigned_from')
@@ -151,29 +151,49 @@ class DriverInsightsService
                     ? $query->whereRaw('1 = 0')
                     : $query->where('assignments.company_id', $companyId)
             )
-            ->whereBetween('trips.start_time', [$windowStart, $windowEnd])
+            ->whereBetween('trips.start_time', [$windowStart, $windowEnd]);
+
+        $tripAggregates = (clone $baseQuery)
+            ->selectRaw('assignments.driver_id')
+            ->selectRaw('COUNT(*) as trip_count')
+            ->selectRaw('COALESCE(SUM(trips.distance_km), 0) as distance_km')
+            ->selectRaw('COALESCE(SUM(trips.duration_seconds), 0) as duration_seconds')
+            ->groupBy('assignments.driver_id')
+            ->get()
+            ->keyBy('driver_id');
+
+        $afterHoursTripCounts = [];
+
+        (clone $baseQuery)
             ->select([
                 'assignments.driver_id',
                 'trips.start_time',
-                'trips.distance_km',
-                'trips.duration_seconds',
             ])
-            ->get()
-            ->groupBy('driver_id')
-            ->map(function (Collection $rows) use ($timezone) {
-                $tripCount = $rows->count();
-                $distanceKm = round((float) $rows->sum('distance_km'), 1);
-                $durationSeconds = (int) $rows->sum('duration_seconds');
-                $afterHoursTripCount = $rows->filter(fn ($row) => $this->isAfterHours(Carbon::parse($row->start_time), $timezone))->count();
+            ->orderBy('assignments.driver_id')
+            ->cursor()
+            ->each(function ($row) use (&$afterHoursTripCounts, $timezone): void {
+                if (! $this->isAfterHours(Carbon::parse($row->start_time), $timezone)) {
+                    return;
+                }
 
-                return (object) [
-                    'trip_count' => $tripCount,
-                    'distance_km' => $distanceKm,
-                    'avg_trip_duration_minutes' => $tripCount > 0 ? round(($durationSeconds / $tripCount) / 60, 1) : 0.0,
-                    'total_drive_hours' => round($durationSeconds / 3600, 1),
-                    'after_hours_trip_count' => $afterHoursTripCount,
-                ];
+                $driverId = (int) $row->driver_id;
+                $afterHoursTripCounts[$driverId] = ($afterHoursTripCounts[$driverId] ?? 0) + 1;
             });
+
+        return $tripAggregates->map(function ($row) use ($afterHoursTripCounts) {
+            $tripCount = (int) ($row->trip_count ?? 0);
+            $distanceKm = round((float) ($row->distance_km ?? 0), 1);
+            $durationSeconds = (int) ($row->duration_seconds ?? 0);
+            $driverId = (int) ($row->driver_id ?? 0);
+
+            return (object) [
+                'trip_count' => $tripCount,
+                'distance_km' => $distanceKm,
+                'avg_trip_duration_minutes' => $tripCount > 0 ? round(($durationSeconds / $tripCount) / 60, 1) : 0.0,
+                'total_drive_hours' => round($durationSeconds / 3600, 1),
+                'after_hours_trip_count' => $afterHoursTripCounts[$driverId] ?? 0,
+            ];
+        });
     }
 
     private function alertStatsByDriver(?int $companyId, User $user, Carbon $windowStart, Carbon $windowEnd): Collection
@@ -234,8 +254,8 @@ class DriverInsightsService
     private function isAfterHours(Carbon $timestamp, string $timezone): bool
     {
         $localTimestamp = $timestamp->copy()->timezone($timezone);
-        $startHour = (int) env('FLEET_AFTER_HOURS_START_HOUR', 7);
-        $endHour = (int) env('FLEET_AFTER_HOURS_END_HOUR', 19);
+        $startHour = (int) config('fleet.after_hours_start_hour', 7);
+        $endHour = (int) config('fleet.after_hours_end_hour', 19);
         $hour = (int) $localTimestamp->format('G');
 
         return $hour < $startHour || $hour >= $endHour;

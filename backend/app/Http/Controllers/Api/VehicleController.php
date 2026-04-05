@@ -18,6 +18,7 @@ class VehicleController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $this->authorize('viewAny', Vehicle::class);
+        $perPage = min(max((int) $request->integer('per_page', 10), 1), 100);
 
         $query = Vehicle::query()
             ->with(['state', 'assignments.driver'])
@@ -46,7 +47,7 @@ class VehicleController extends Controller
             ->when($request->filled('is_active'), fn ($builder) => $builder->where('is_active', $request->boolean('is_active')))
             ->latest();
 
-        return VehicleResource::collection($query->paginate((int) $request->integer('per_page', 10)));
+        return VehicleResource::collection($query->paginate($perPage));
     }
 
     public function store(StoreVehicleRequest $request, VehicleService $service): JsonResponse

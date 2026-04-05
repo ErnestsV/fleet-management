@@ -72,6 +72,7 @@ class TripController extends Controller
         $timezone = $request->user()?->timezone ?: config('app.timezone', 'UTC');
         $summaryQuery = (clone $query)
             ->reorder()
+            ->setEagerLoads([])
             ->getQuery();
         $aggregate = $summaryQuery
             ->selectRaw('COUNT(*) as trip_count')
@@ -83,7 +84,9 @@ class TripController extends Controller
         $totalDurationSeconds = (int) ($aggregate->total_duration_seconds ?? 0);
         $afterHoursTripCount = (clone $query)
             ->reorder()
-            ->get(['start_time'])
+            ->setEagerLoads([])
+            ->select('start_time')
+            ->cursor()
             ->filter(fn (Trip $trip) => $this->isAfterHours($trip->start_time, $timezone))
             ->count();
 
@@ -100,8 +103,8 @@ class TripController extends Controller
     private function isAfterHours(Carbon $timestamp, string $timezone): bool
     {
         $localTimestamp = $timestamp->copy()->timezone($timezone);
-        $startHour = (int) env('FLEET_AFTER_HOURS_START_HOUR', 7);
-        $endHour = (int) env('FLEET_AFTER_HOURS_END_HOUR', 19);
+        $startHour = (int) config('fleet.after_hours_start_hour', 7);
+        $endHour = (int) config('fleet.after_hours_end_hour', 19);
         $hour = (int) $localTimestamp->format('G');
 
         return $hour < $startHour || $hour >= $endHour;

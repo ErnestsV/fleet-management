@@ -80,7 +80,7 @@ export function VehiclesTablePanel({
             </DataTableBody>
           </DataTable>
         ) : (
-          <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-sm text-slate-500">No vehicles match the current search.</div>
+          <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-sm text-slate-500">No vehicles match the current search or status filter.</div>
         )
       ) : null}
       {!isLoading && !isError && lastPage > 1 ? (

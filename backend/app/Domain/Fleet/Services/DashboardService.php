@@ -26,7 +26,7 @@ class DashboardService
         $today = Carbon::today();
         $yesterday = $today->copy()->subDay();
         $windowStart = $today->copy()->subDays(6);
-        $minimumBehaviourTripSamples = (int) env('FLEET_BEHAVIOUR_MIN_TRIPS', 3);
+        $minimumBehaviourTripSamples = (int) config('fleet.behaviour_min_trips', 3);
         $estimatedTankCapacityLiters = (float) env('FLEET_ESTIMATED_TANK_CAPACITY_LITERS', 100);
         $expectedFuelConsumptionPer100Km = (float) env('FLEET_EXPECTED_FUEL_CONSUMPTION_L_PER_100KM', 28);
 

@@ -14,6 +14,30 @@ const dashboardSummary = {
     selected_average_score: 82,
     breakdown: [{ label: 'Utilization', score: 82 }],
   },
+  fleet_utilization: {
+    active_today: {
+      count: 1,
+      percentage: 100,
+    },
+    unused_over_3_days: {
+      count: 0,
+      percentage: 0,
+    },
+    idling_over_threshold: {
+      count: 0,
+      percentage: 0,
+      threshold_hours: 2,
+    },
+    no_trips_today: {
+      count: 0,
+      percentage: 0,
+    },
+    short_trips_only_today: {
+      count: 0,
+      percentage: 0,
+      max_trip_km: 5,
+    },
+  },
   driving_behaviour: {
     has_data: true,
     minimum_trip_samples: 3,

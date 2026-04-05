@@ -56,7 +56,7 @@ export function SearchableVehicleField({
           id={searchId}
           name={searchName}
           autoComplete="off"
-          inputClassName="px-4"
+          inputClassName="pl-4"
           placeholder={placeholder}
           value={searchValue}
           onChange={onSearchChange}

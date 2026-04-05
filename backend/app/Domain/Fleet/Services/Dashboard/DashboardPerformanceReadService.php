@@ -165,8 +165,8 @@ class DashboardPerformanceReadService
         $fleetVehicleIds = $fleetVehicles->pluck('id');
         $fleetCount = max($fleetVehicles->count(), 1);
         $unusedCutoff = $today->copy()->subDays(3);
-        $idleThresholdHours = max((int) env('FLEET_DASHBOARD_IDLE_THRESHOLD_HOURS', 2), 1);
-        $shortTripThresholdKm = max((float) env('FLEET_DASHBOARD_SHORT_TRIP_MAX_KM', 5), 0.1);
+        $idleThresholdHours = max((int) config('fleet.dashboard_idle_threshold_hours', 2), 1);
+        $shortTripThresholdKm = max((float) config('fleet.dashboard_short_trip_max_km', 5), 0.1);
 
         $todayTripStatsByVehicle = $this->queryFactory->tripQuery($companyId, $user)
             ->whereIn('vehicle_id', $fleetVehicleIds)

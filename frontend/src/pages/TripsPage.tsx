@@ -41,6 +41,16 @@ export function TripsPage() {
     setPage(1);
   }, [search, vehicleId, dateFrom, dateTo]);
 
+  useEffect(() => {
+    if (selectedId == null) {
+      return;
+    }
+
+    if (!(data?.data ?? []).some((trip) => trip.id === selectedId)) {
+      setSelectedId(null);
+    }
+  }, [data, selectedId]);
+
   return (
     <div>
       <PageHeader title="Trips" description="Derived trip history based on telemetry events and vehicle state transitions." />

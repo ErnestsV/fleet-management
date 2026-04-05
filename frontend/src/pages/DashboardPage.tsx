@@ -1,6 +1,6 @@
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DataTable, DataTableBody, DataTableHead } from '@/components/ui/DataTable';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Panel } from '@/components/ui/Panel';
@@ -129,6 +129,10 @@ export function DashboardPage() {
   const currentFleetStatusPage = Math.min(fleetStatusPage, fleetStatusLastPage);
   const fleetStatusRows = sortedFleet.slice((currentFleetStatusPage - 1) * fleetStatusPerPage, currentFleetStatusPage * fleetStatusPerPage);
   const fleetStatusPageNumbers = Array.from({ length: fleetStatusLastPage }, (_, index) => index + 1);
+
+  useEffect(() => {
+    setFleetStatusPage((current) => Math.min(Math.max(1, current), fleetStatusLastPage));
+  }, [fleetStatusLastPage]);
 
   return (
     <div>
@@ -558,7 +562,7 @@ export function DashboardPage() {
                     <button
                       type="button"
                       className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      onClick={() => setFleetStatusPage((current) => Math.max(1, current - 1))}
+                      onClick={() => setFleetStatusPage(Math.max(1, currentFleetStatusPage - 1))}
                       disabled={currentFleetStatusPage === 1}
                     >
                       Previous
@@ -580,7 +584,7 @@ export function DashboardPage() {
                     <button
                       type="button"
                       className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      onClick={() => setFleetStatusPage((current) => Math.min(fleetStatusLastPage, current + 1))}
+                      onClick={() => setFleetStatusPage(Math.min(fleetStatusLastPage, currentFleetStatusPage + 1))}
                       disabled={currentFleetStatusPage === fleetStatusLastPage}
                     >
                       Next
