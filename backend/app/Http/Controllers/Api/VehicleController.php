@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Domain\Fleet\Models\Vehicle;
+use App\Domain\Trips\Models\Trip;
 use App\Domain\Fleet\Services\VehicleService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreVehicleRequest;
@@ -21,10 +22,20 @@ class VehicleController extends Controller
         $this->authorize('viewAny', Vehicle::class);
         $request->validate([
             'status' => ['nullable', 'string', Rule::in(['moving', 'idling', 'stopped', 'offline', 'unknown'])],
+            'distance_bucket' => ['nullable', 'string', Rule::in(['none', '1_50', '50_200', '200_plus'])],
         ]);
         $perPage = min(max((int) $request->integer('per_page', 10), 1), 100);
+        $recentDistanceSubquery = Trip::query()
+            ->selectRaw('vehicle_id, SUM(distance_km) as recent_distance_km')
+            ->where('start_time', '>=', now()->subDays(7))
+            ->groupBy('vehicle_id');
 
         $query = Vehicle::query()
+            ->leftJoinSub($recentDistanceSubquery, 'recent_trip_distance', function ($join) {
+                $join->on('recent_trip_distance.vehicle_id', '=', 'vehicles.id');
+            })
+            ->select('vehicles.*')
+            ->selectRaw('COALESCE(recent_trip_distance.recent_distance_km, 0) as recent_distance_km')
             ->with(['state', 'assignments.driver'])
             ->when(! $request->user()->isSuperAdmin(), fn ($builder) => $builder->where('company_id', $request->user()->company_id))
             ->when($request->string('search')->toString(), function ($builder, $search) {
@@ -48,8 +59,31 @@ class VehicleController extends Controller
 
                 $builder->whereHas('state', fn ($stateQuery) => $stateQuery->where('status', $status));
             })
+            ->when($request->string('distance_bucket')->toString(), function ($builder, string $distanceBucket) {
+                if ($distanceBucket === 'none') {
+                    $builder->whereRaw('COALESCE(recent_trip_distance.recent_distance_km, 0) = 0');
+
+                    return;
+                }
+
+                if ($distanceBucket === '1_50') {
+                    $builder->whereRaw('COALESCE(recent_trip_distance.recent_distance_km, 0) > 0')
+                        ->whereRaw('COALESCE(recent_trip_distance.recent_distance_km, 0) < 50');
+
+                    return;
+                }
+
+                if ($distanceBucket === '50_200') {
+                    $builder->whereRaw('COALESCE(recent_trip_distance.recent_distance_km, 0) >= 50')
+                        ->whereRaw('COALESCE(recent_trip_distance.recent_distance_km, 0) < 200');
+
+                    return;
+                }
+
+                $builder->whereRaw('COALESCE(recent_trip_distance.recent_distance_km, 0) >= 200');
+            })
             ->when($request->filled('is_active'), fn ($builder) => $builder->where('is_active', $request->boolean('is_active')))
-            ->latest();
+            ->latest('vehicles.created_at');
 
         return VehicleResource::collection($query->paginate($perPage));
     }

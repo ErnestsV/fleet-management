@@ -19,6 +19,7 @@ class VehicleResource extends JsonResource
             'model' => $this->model,
             'year' => $this->year,
             'device_identifier' => $this->device_identifier,
+            'recent_distance_km' => round((float) ($this->recent_distance_km ?? 0), 1),
             'is_active' => $this->is_active,
             'deleted_at' => $this->deleted_at,
             'device_token' => $this->whenLoaded('activeDeviceToken', fn () => $this->activeDeviceToken ? [

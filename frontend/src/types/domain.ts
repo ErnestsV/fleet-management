@@ -281,6 +281,7 @@ export type Vehicle = {
   year: number | null;
   vin?: string | null;
   device_identifier: string | null;
+  recent_distance_km: number;
   device_token?: {
     id: number;
     name: string;
