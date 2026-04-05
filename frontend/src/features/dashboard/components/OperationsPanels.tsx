@@ -8,6 +8,77 @@ import { formatDateTime } from '@/lib/utils/format';
 
 type FleetVehicle = DashboardSummary['fleet'][number];
 
+function riskToneClasses(level: 'low' | 'medium' | 'high') {
+  if (level === 'high') {
+    return {
+      chip: 'bg-rose-100 text-rose-700',
+      text: 'text-rose-600',
+    };
+  }
+
+  if (level === 'medium') {
+    return {
+      chip: 'bg-amber-100 text-amber-700',
+      text: 'text-amber-600',
+    };
+  }
+
+  return {
+    chip: 'bg-emerald-100 text-emerald-700',
+    text: 'text-emerald-600',
+  };
+}
+
+export function FleetRiskOverviewPanel({
+  data,
+}: {
+  data: DashboardSummary['fleet_risk'];
+}) {
+  const overallTone = riskToneClasses(data.overall.level);
+
+  return (
+    <Panel
+      title="Fleet risk overview"
+      description="A transparent executive rollup of the main issues currently driving fleet risk."
+      actions={(
+        <Link to="/alerts" className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+          Open alerts
+        </Link>
+      )}
+    >
+      <div className="grid gap-6 xl:grid-cols-[220px_minmax(0,1fr)]">
+        <div className="rounded-[28px] bg-slate-50 p-6 text-center">
+          <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Overall fleet risk</div>
+          <div className={`mt-3 text-4xl font-semibold ${overallTone.text}`}>{data.overall.label}</div>
+          <div className="mt-3 text-sm text-slate-500">
+            {data.overall.high_driver_count} high and {data.overall.medium_driver_count} medium risk driver{data.overall.medium_driver_count === 1 ? '' : 's'} currently contributing.
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          {data.drivers.map((item) => {
+            const tone = riskToneClasses(item.severity);
+
+            return (
+              <div key={item.key} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-500">{item.label}</div>
+                  <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${tone.chip}`}>
+                    {item.severity}
+                  </span>
+                </div>
+                <div className={`mt-3 text-3xl font-semibold ${tone.text}`}>{item.count}</div>
+                <div className="mt-2 text-sm text-slate-500">
+                  Medium at {item.thresholds.medium}, high at {item.thresholds.high}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
 export function OperationalGapsPanel({
   readinessItems,
   totalFleetCount,

@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Dashboard;
 
+use App\Domain\Alerts\Enums\AlertType;
+use App\Domain\Alerts\Models\Alert;
 use App\Domain\Fleet\Models\Vehicle;
 use App\Domain\Trips\Models\Trip;
 use App\Domain\Telemetry\Models\TelemetryEvent;
@@ -39,6 +41,7 @@ class DashboardSummaryTest extends TestCase
                 'trips_over_time',
                 'fleet',
                 'fleet_utilization',
+                'fleet_risk',
                 'telemetry_health',
                 'fuel_anomalies',
                 'geofence_analytics',
@@ -214,5 +217,93 @@ class DashboardSummaryTest extends TestCase
         $this->assertSame(50.0, (float) $utilization['no_trips_today']['percentage']);
         $this->assertSame(1, $utilization['short_trips_only_today']['count']);
         $this->assertSame(25.0, (float) $utilization['short_trips_only_today']['percentage']);
+    }
+
+    public function test_dashboard_summary_returns_explainable_fleet_risk_overview(): void
+    {
+        $user = User::factory()->create();
+
+        $vehicleWithoutDriverA = Vehicle::factory()->create(['company_id' => $user->company_id]);
+        $vehicleWithoutDriverB = Vehicle::factory()->create(['company_id' => $user->company_id]);
+        $vehicleWithoutDriverC = Vehicle::factory()->create(['company_id' => $user->company_id]);
+        $vehicleWithDriver = Vehicle::factory()->create(['company_id' => $user->company_id]);
+
+        VehicleState::create([
+            'company_id' => $user->company_id,
+            'vehicle_id' => $vehicleWithoutDriverA->id,
+            'status' => VehicleStatus::Offline,
+            'last_event_at' => now()->subHours(30),
+        ]);
+
+        Alert::factory()->create([
+            'company_id' => $user->company_id,
+            'vehicle_id' => $vehicleWithoutDriverA->id,
+            'type' => AlertType::MaintenanceDue,
+            'resolved_at' => null,
+            'triggered_at' => now()->subHour(),
+        ]);
+
+        Alert::factory()->create([
+            'company_id' => $user->company_id,
+            'vehicle_id' => $vehicleWithoutDriverB->id,
+            'type' => AlertType::UnexpectedFuelDrop,
+            'resolved_at' => null,
+            'triggered_at' => now()->subMinutes(30),
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->getJson('/api/v1/dashboard/summary')
+            ->assertOk();
+
+        $risk = $response->json('fleet_risk');
+
+        $this->assertSame('high', $risk['overall']['level']);
+        $this->assertSame(0, $risk['overall']['high_driver_count']);
+        $this->assertSame(4, $risk['overall']['medium_driver_count']);
+        $this->assertEqualsCanonicalizing(
+            ['maintenance_overdue', 'offline_vehicles', 'unassigned_vehicles', 'active_alerts', 'active_fuel_anomalies'],
+            collect($risk['drivers'])->pluck('key')->all(),
+        );
+        $this->assertSame(0, collect($risk['drivers'])->firstWhere('key', 'active_alerts')['count']);
+        $this->assertSame('medium', collect($risk['drivers'])->firstWhere('key', 'maintenance_overdue')['severity']);
+        $this->assertSame('medium', collect($risk['drivers'])->firstWhere('key', 'offline_vehicles')['severity']);
+        $this->assertSame('medium', collect($risk['drivers'])->firstWhere('key', 'unassigned_vehicles')['severity']);
+    }
+
+    public function test_dashboard_summary_active_alerts_excludes_geofence_exit_but_keeps_geofence_entry(): void
+    {
+        $user = User::factory()->create();
+        $vehicle = Vehicle::factory()->create(['company_id' => $user->company_id]);
+
+        Alert::factory()->create([
+            'company_id' => $user->company_id,
+            'vehicle_id' => $vehicle->id,
+            'type' => AlertType::GeofenceEntry,
+            'resolved_at' => null,
+            'triggered_at' => now()->subMinutes(10),
+        ]);
+
+        Alert::factory()->create([
+            'company_id' => $user->company_id,
+            'vehicle_id' => $vehicle->id,
+            'type' => AlertType::GeofenceExit,
+            'resolved_at' => null,
+            'triggered_at' => now()->subMinutes(5),
+        ]);
+
+        Alert::factory()->create([
+            'company_id' => $user->company_id,
+            'vehicle_id' => $vehicle->id,
+            'type' => AlertType::Speeding,
+            'resolved_at' => null,
+            'triggered_at' => now()->subMinute(),
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/v1/dashboard/summary')
+            ->assertOk()
+            ->assertJsonPath('active_alerts', 2);
     }
 }
