@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { DismissibleAlert } from '@/components/ui/DismissibleAlert';
 import { useAssignments, useCreateAssignment, useEndAssignment } from '@/features/assignments/useAssignments';
@@ -12,10 +12,17 @@ import { getApiErrorMessage } from '@/lib/api/errors';
 
 export function VehiclesPage() {
   const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+  const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState(createEmptyVehicleFormValues);
-  const { data, isLoading, isError } = useVehicles({ search });
+  const { data, isLoading, isError } = useVehicles({
+    search: search || undefined,
+    status: status || undefined,
+    page,
+    per_page: 10,
+  });
   const { data: detail, isLoading: detailLoading, isError: detailError } = useVehicle(selectedId);
   const { data: drivers } = useDrivers();
   const { data: assignments } = useAssignments({ vehicle_id: selectedId ?? undefined });
@@ -34,6 +41,10 @@ export function VehiclesPage() {
   const dismissUpdateError = useCallback(() => updateMutation.reset(), [updateMutation]);
   const dismissDeleteError = useCallback(() => deleteMutation.reset(), [deleteMutation]);
   const dismissRotateTokenError = useCallback(() => rotateDeviceTokenMutation.reset(), [rotateDeviceTokenMutation]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, status]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -82,7 +93,18 @@ export function VehiclesPage() {
       {rotateDeviceTokenMutation.isError ? <DismissibleAlert className="mb-6" tone="error" message={getApiErrorMessage(rotateDeviceTokenMutation.error)} onClose={dismissRotateTokenError} /> : null}
       <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)_340px]">
         <VehicleFormPanel editingId={editingId} form={form} onChange={setForm} onSubmit={submit} onCancel={resetForm} />
-        <VehiclesTablePanel search={search} onSearchChange={setSearch} data={data} isLoading={isLoading} isError={isError} onSelect={setSelectedId} />
+        <VehiclesTablePanel
+          search={search}
+          status={status}
+          onSearchChange={setSearch}
+          onStatusChange={setStatus}
+          data={data}
+          isLoading={isLoading}
+          isError={isError}
+          onSelect={setSelectedId}
+          currentPage={data?.meta?.current_page ?? page}
+          onPageChange={setPage}
+        />
         <VehicleDetailsPanel
           detail={detail}
           detailLoading={detailLoading}

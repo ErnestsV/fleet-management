@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { SearchField } from '@/components/ui/SearchField';
 import { SelectField } from '@/components/ui/SelectField';
 import type { Vehicle } from '@/types/domain';
 
@@ -51,14 +52,14 @@ export function SearchableVehicleField({
   return (
     <>
       <div className="relative">
-        <input
+        <SearchField
           id={searchId}
           name={searchName}
           autoComplete="off"
-          className="w-full rounded-2xl border border-slate-200 px-4 py-3"
+          inputClassName="pl-4"
           placeholder={placeholder}
           value={searchValue}
-          onChange={(event) => onSearchChange(event.target.value)}
+          onChange={onSearchChange}
         />
         {showSuggestions ? (
           <div className="absolute z-10 mt-2 max-h-56 w-full overflow-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">

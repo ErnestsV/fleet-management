@@ -6,6 +6,7 @@ use App\Domain\Alerts\Enums\AlertType;
 use App\Domain\Alerts\Models\Alert;
 use App\Domain\Fleet\Models\Vehicle;
 use App\Domain\Fleet\Models\VehicleDriverAssignment;
+use App\Domain\Telemetry\Enums\VehicleStatus;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 
@@ -156,6 +157,73 @@ class DashboardPerformanceReadService
             'vehicle_scores' => $behaviourScoredVehicles->take(8)->values(),
             'best_vehicles' => $behaviourScoredVehicles->take(5)->values(),
             'worst_vehicles' => $behaviourNeedsCoaching->take(5)->values(),
+        ];
+    }
+
+    public function buildFleetUtilizationSummary($fleetVehicles, ?int $companyId, User $user, Carbon $today): array
+    {
+        $fleetVehicleIds = $fleetVehicles->pluck('id');
+        $fleetCount = max($fleetVehicles->count(), 1);
+        $unusedCutoff = now()->subDays(3);
+        $idleThresholdHours = max((int) config('fleet.dashboard_idle_threshold_hours', 2), 1);
+        $shortTripThresholdKm = max((float) config('fleet.dashboard_short_trip_max_km', 5), 0.1);
+
+        $todayTripStatsByVehicle = $this->queryFactory->tripQuery($companyId, $user)
+            ->whereIn('vehicle_id', $fleetVehicleIds)
+            ->whereDate('start_time', $today)
+            ->selectRaw('vehicle_id')
+            ->selectRaw('COUNT(*) as trip_count')
+            ->selectRaw('MAX(distance_km) as longest_trip_km')
+            ->groupBy('vehicle_id')
+            ->get()
+            ->keyBy('vehicle_id');
+
+        $recentTripVehicleIds = $this->queryFactory->tripQuery($companyId, $user)
+            ->whereIn('vehicle_id', $fleetVehicleIds)
+            ->where('start_time', '>=', $unusedCutoff)
+            ->distinct()
+            ->pluck('vehicle_id')
+            ->all();
+
+        $longIdleVehicleCount = $this->queryFactory->stateQuery($companyId, $user)
+            ->whereIn('vehicle_id', $fleetVehicleIds)
+            ->where('status', VehicleStatus::Idling)
+            ->whereNotNull('idling_started_at')
+            ->where('idling_started_at', '<=', now()->subHours($idleThresholdHours))
+            ->count();
+
+        $activeTodayCount = $todayTripStatsByVehicle->count();
+        $noTripsTodayCount = $fleetVehicles->count() - $activeTodayCount;
+        $unusedOverThreeDaysCount = $fleetVehicles
+            ->reject(fn (Vehicle $vehicle) => in_array($vehicle->id, $recentTripVehicleIds, true))
+            ->count();
+        $shortTripsOnlyTodayCount = $todayTripStatsByVehicle
+            ->filter(fn ($stats) => (int) ($stats->trip_count ?? 0) > 0 && (float) ($stats->longest_trip_km ?? 0) <= $shortTripThresholdKm)
+            ->count();
+
+        return [
+            'active_today' => [
+                'count' => $activeTodayCount,
+                'percentage' => round($this->percent($activeTodayCount, $fleetCount), 1),
+            ],
+            'unused_over_3_days' => [
+                'count' => $unusedOverThreeDaysCount,
+                'percentage' => round($this->percent($unusedOverThreeDaysCount, $fleetCount), 1),
+            ],
+            'idling_over_threshold' => [
+                'count' => $longIdleVehicleCount,
+                'percentage' => round($this->percent($longIdleVehicleCount, $fleetCount), 1),
+                'threshold_hours' => $idleThresholdHours,
+            ],
+            'no_trips_today' => [
+                'count' => $noTripsTodayCount,
+                'percentage' => round($this->percent($noTripsTodayCount, $fleetCount), 1),
+            ],
+            'short_trips_only_today' => [
+                'count' => $shortTripsOnlyTodayCount,
+                'percentage' => round($this->percent($shortTripsOnlyTodayCount, $fleetCount), 1),
+                'max_trip_km' => round($shortTripThresholdKm, 1),
+            ],
         ];
     }
 
