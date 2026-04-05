@@ -164,7 +164,7 @@ class DashboardPerformanceReadService
     {
         $fleetVehicleIds = $fleetVehicles->pluck('id');
         $fleetCount = max($fleetVehicles->count(), 1);
-        $unusedCutoff = $today->copy()->subDays(3);
+        $unusedCutoff = now()->subDays(3);
         $idleThresholdHours = max((int) config('fleet.dashboard_idle_threshold_hours', 2), 1);
         $shortTripThresholdKm = max((float) config('fleet.dashboard_short_trip_max_km', 5), 0.1);
 

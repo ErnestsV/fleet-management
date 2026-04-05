@@ -29,12 +29,13 @@ export function TripsPage() {
   const currentPage = data?.meta?.current_page ?? 1;
   const lastPage = data?.meta?.last_page ?? 1;
   const pageNumbers = Array.from({ length: lastPage }, (_, index) => index + 1);
+  const afterHoursHint = 'Trips starting outside the configured after-hours working window';
   const summaryCards = data?.summary ? [
     { label: 'Trips', value: String(data.summary.trip_count), hint: 'Across the current filtered result set' },
     { label: 'Avg trip distance', value: data.summary.average_trip_distance_km != null ? `${data.summary.average_trip_distance_km.toFixed(1)} km` : 'N/A', hint: 'Across the current filtered result set' },
     { label: 'Avg trip duration', value: data.summary.average_trip_duration_minutes != null ? `${data.summary.average_trip_duration_minutes.toFixed(1)} min` : 'N/A', hint: 'Across the current filtered result set' },
     { label: 'Drive time', value: `${data.summary.total_drive_hours.toFixed(1)} h`, hint: 'Total completed trip time' },
-    { label: 'After-hours trips', value: String(data.summary.after_hours_trip_count), hint: 'Trips starting outside the default 07:00-19:00 window' },
+    { label: 'After-hours trips', value: String(data.summary.after_hours_trip_count), hint: afterHoursHint },
   ] : [];
 
   useEffect(() => {

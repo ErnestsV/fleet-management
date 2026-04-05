@@ -16,8 +16,8 @@ class DriverInsightsService
         $companyId = $user->company_id;
         $timezone = $user->timezone ?: config('app.timezone', 'UTC');
         $windowEnd = now();
-        $windowStart = now()->subDays(6)->startOfDay();
-        $previousWindowEnd = $windowStart->copy()->subSecond();
+        $windowStart = $windowEnd->copy()->subDays(7);
+        $previousWindowEnd = $windowStart->copy();
         $previousWindowStart = $windowStart->copy()->subDays(7);
 
         $drivers = $this->visibleDriversQuery($companyId, $user)
@@ -36,7 +36,8 @@ class DriverInsightsService
                 $previousAlerts = $previousAlertStats->get($driver->id);
 
                 $tripCount = (int) ($currentTrips->trip_count ?? 0);
-                $distanceKm = round((float) ($currentTrips->distance_km ?? 0), 1);
+                $distanceKmRaw = (float) ($currentTrips->distance_km ?? 0);
+                $distanceKm = round($distanceKmRaw, 1);
                 $speedingAlerts = (int) ($currentAlerts->speeding_alerts ?? 0);
                 $idlingAlerts = (int) ($currentAlerts->idling_alerts ?? 0);
                 $previousScore = $this->buildDriverScore(
@@ -57,9 +58,11 @@ class DriverInsightsService
                     'name' => $driver->name,
                     'is_active' => (bool) $driver->is_active,
                     'trip_count' => $tripCount,
+                    'distance_km_raw' => $distanceKmRaw,
                     'distance_km' => $distanceKm,
                     'avg_trip_distance_km' => $tripCount > 0 ? round($distanceKm / $tripCount, 1) : 0.0,
                     'avg_trip_duration_minutes' => round((float) ($currentTrips->avg_trip_duration_minutes ?? 0), 1),
+                    'duration_seconds' => (int) ($currentTrips->duration_seconds ?? 0),
                     'total_drive_hours' => round((float) ($currentTrips->total_drive_hours ?? 0), 1),
                     'after_hours_trip_count' => (int) ($currentTrips->after_hours_trip_count ?? 0),
                     'speeding_alerts' => $speedingAlerts,
@@ -75,6 +78,9 @@ class DriverInsightsService
 
         $activeDrivers = $driverRows->filter(fn (array $driver) => $driver['has_activity']);
         $scoredDrivers = $driverRows->filter(fn (array $driver) => $driver['score'] !== null)->values();
+        $totalTrips = (int) $activeDrivers->sum('trip_count');
+        $totalDistanceKm = (float) $activeDrivers->sum('distance_km_raw');
+        $totalDurationSeconds = (int) $activeDrivers->sum('duration_seconds');
         $improvedDrivers = $driverRows
             ->filter(fn (array $driver) => $driver['score_delta'] !== null)
             ->sortByDesc('score_delta')
@@ -94,15 +100,15 @@ class DriverInsightsService
             ],
             'headline' => [
                 'active_drivers' => $activeDrivers->count(),
-                'total_distance_km' => round($activeDrivers->sum('distance_km'), 1),
-                'total_trips' => $activeDrivers->sum('trip_count'),
-                'average_trip_distance_km' => $activeDrivers->isNotEmpty()
-                    ? round($activeDrivers->avg('avg_trip_distance_km') ?? 0, 1)
+                'total_distance_km' => round($totalDistanceKm, 1),
+                'total_trips' => $totalTrips,
+                'average_trip_distance_km' => $totalTrips > 0
+                    ? round($totalDistanceKm / $totalTrips, 1)
                     : null,
-                'average_trip_duration_minutes' => $activeDrivers->isNotEmpty()
-                    ? round($activeDrivers->avg('avg_trip_duration_minutes') ?? 0, 1)
+                'average_trip_duration_minutes' => $totalTrips > 0
+                    ? round(($totalDurationSeconds / $totalTrips) / 60, 1)
                     : null,
-                'total_drive_hours' => round($activeDrivers->sum('total_drive_hours'), 1),
+                'total_drive_hours' => round($totalDurationSeconds / 3600, 1),
                 'after_hours_trip_count' => $activeDrivers->sum('after_hours_trip_count'),
                 'average_score' => $scoredDrivers->isNotEmpty()
                     ? round($scoredDrivers->avg('score') ?? 0, 1)
@@ -151,7 +157,8 @@ class DriverInsightsService
                     ? $query->whereRaw('1 = 0')
                     : $query->where('assignments.company_id', $companyId)
             )
-            ->whereBetween('trips.start_time', [$windowStart, $windowEnd]);
+            ->where('trips.start_time', '>=', $windowStart)
+            ->where('trips.start_time', '<', $windowEnd);
 
         $tripAggregates = (clone $baseQuery)
             ->selectRaw('assignments.driver_id')
@@ -188,9 +195,10 @@ class DriverInsightsService
 
             return (object) [
                 'trip_count' => $tripCount,
-                'distance_km' => $distanceKm,
-                'avg_trip_duration_minutes' => $tripCount > 0 ? round(($durationSeconds / $tripCount) / 60, 1) : 0.0,
-                'total_drive_hours' => round($durationSeconds / 3600, 1),
+                'distance_km' => (float) ($row->distance_km ?? 0),
+                'duration_seconds' => $durationSeconds,
+                'avg_trip_duration_minutes' => $tripCount > 0 ? ($durationSeconds / $tripCount) / 60 : 0.0,
+                'total_drive_hours' => $durationSeconds / 3600,
                 'after_hours_trip_count' => $afterHoursTripCounts[$driverId] ?? 0,
             ];
         });
@@ -213,7 +221,8 @@ class DriverInsightsService
                     ? $query->whereRaw('1 = 0')
                     : $query->where('assignments.company_id', $companyId)
             )
-            ->whereBetween('alerts.triggered_at', [$windowStart, $windowEnd])
+            ->where('alerts.triggered_at', '>=', $windowStart)
+            ->where('alerts.triggered_at', '<', $windowEnd)
             ->whereIn('alerts.type', [AlertType::Speeding->value, AlertType::ProlongedIdling->value])
             ->selectRaw('assignments.driver_id')
             ->selectRaw('SUM(CASE WHEN alerts.type = ? THEN 1 ELSE 0 END) as speeding_alerts', [AlertType::Speeding->value])

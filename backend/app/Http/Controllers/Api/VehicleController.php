@@ -12,12 +12,16 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Validation\Rule;
 
 class VehicleController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
         $this->authorize('viewAny', Vehicle::class);
+        $request->validate([
+            'status' => ['nullable', 'string', Rule::in(['moving', 'idling', 'stopped', 'offline', 'unknown'])],
+        ]);
         $perPage = min(max((int) $request->integer('per_page', 10), 1), 100);
 
         $query = Vehicle::query()

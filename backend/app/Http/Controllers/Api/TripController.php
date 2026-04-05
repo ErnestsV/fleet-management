@@ -7,6 +7,7 @@ use App\Domain\Trips\Models\Trip;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreTripFilterRequest;
 use App\Http\Resources\TripResource;
+use DateTimeInterface;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Carbon;
@@ -62,8 +63,14 @@ class TripController extends Controller
                     });
                 });
             })
-            ->when($request->string('date_from')->toString(), fn ($builder, $dateFrom) => $builder->whereDate('start_time', '>=', $dateFrom))
-            ->when($request->string('date_to')->toString(), fn ($builder, $dateTo) => $builder->whereDate('start_time', '<=', $dateTo))
+            ->when(
+                $request->string('date_from')->toString(),
+                fn ($builder, $dateFrom) => $builder->where('start_time', '>=', $this->tripFilterBoundary($request, $dateFrom, false))
+            )
+            ->when(
+                $request->string('date_to')->toString(),
+                fn ($builder, $dateTo) => $builder->where('start_time', '<=', $this->tripFilterBoundary($request, $dateTo, true))
+            )
             ->latest('start_time');
     }
 
@@ -108,5 +115,15 @@ class TripController extends Controller
         $hour = (int) $localTimestamp->format('G');
 
         return $hour < $startHour || $hour >= $endHour;
+    }
+
+    private function tripFilterBoundary(Request $request, string $date, bool $isEndOfDay): DateTimeInterface
+    {
+        $timezone = $request->user()?->timezone ?: config('app.timezone', 'UTC');
+        $boundary = Carbon::parse($date, $timezone);
+
+        return $isEndOfDay
+            ? $boundary->endOfDay()->utc()
+            : $boundary->startOfDay()->utc();
     }
 }
