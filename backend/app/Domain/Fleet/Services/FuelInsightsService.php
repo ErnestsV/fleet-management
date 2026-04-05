@@ -152,7 +152,7 @@ class FuelInsightsService
             'current_fuel_level' => $this->floatContextValue($alert, 'current_fuel_level'),
             'estimated_fuel_used_l' => $this->floatContextValue($alert, 'estimated_fuel_used_l'),
             'estimated_consumption_l_per_100km' => $this->floatContextValue($alert, 'estimated_consumption_l_per_100km'),
-            'time_delta_minutes' => data_get($alert->context, 'time_delta_minutes'),
+            'time_delta_minutes' => $this->floatContextValue($alert, 'time_delta_minutes'),
         ];
     }
 

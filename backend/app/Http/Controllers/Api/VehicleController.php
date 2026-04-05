@@ -27,7 +27,7 @@ class VehicleController extends Controller
         ]);
         $perPage = min(max((int) $request->integer('per_page', 10), 1), 100);
         $recentDistanceSubquery = Trip::query()
-            ->selectRaw('vehicle_id, SUM(distance_km) as recent_distance_km')
+            ->selectRaw('vehicle_id, ROUND(SUM(distance_km), 1) as recent_distance_km')
             ->where('start_time', '>=', now()->subDays(7))
             ->when(
                 ! $request->user()->isSuperAdmin(),

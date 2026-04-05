@@ -81,7 +81,7 @@ export function useDashboardViewModel(data: DashboardSummary | undefined) {
   });
 
   const fleetStatusLastPage = Math.max(1, Math.ceil(sortedFleet.length / FLEET_STATUS_PER_PAGE));
-  const currentFleetStatusPage = Math.min(fleetStatusPage, fleetStatusLastPage);
+  const currentFleetStatusPage = Math.min(Math.max(1, fleetStatusPage), fleetStatusLastPage);
   const fleetStatusRows = sortedFleet.slice(
     (currentFleetStatusPage - 1) * FLEET_STATUS_PER_PAGE,
     currentFleetStatusPage * FLEET_STATUS_PER_PAGE,

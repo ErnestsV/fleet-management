@@ -54,7 +54,7 @@ export function ActivityChartsPanels({
         </div>
         <div className="mt-4 flex justify-end">
           <Link to="/vehicles" className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
-            Open vehicles
+            Browse fleet
           </Link>
         </div>
       </Panel>
