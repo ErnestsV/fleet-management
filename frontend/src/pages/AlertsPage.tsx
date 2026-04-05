@@ -39,6 +39,10 @@ export function AlertsPage() {
               <option value="">All types</option>
               <option value="speeding">Speeding</option>
               <option value="prolonged_idling">Prolonged idling</option>
+              <option value="unexpected_fuel_drop">Unexpected fuel drop</option>
+              <option value="possible_fuel_theft">Possible fuel theft</option>
+              <option value="refuel_without_trip">Refuel without trip</option>
+              <option value="abnormal_fuel_consumption">Abnormal fuel consumption</option>
               <option value="offline_vehicle">Offline vehicle</option>
               <option value="maintenance_due">Maintenance due</option>
               <option value="driver_license_expired">Driver license expired</option>

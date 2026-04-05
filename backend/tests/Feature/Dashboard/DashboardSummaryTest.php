@@ -40,6 +40,7 @@ class DashboardSummaryTest extends TestCase
                 'fleet',
                 'fleet_utilization',
                 'telemetry_health',
+                'fuel_anomalies',
             ]);
     }
 

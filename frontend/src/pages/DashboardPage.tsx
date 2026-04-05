@@ -527,6 +527,68 @@ export function DashboardPage() {
             </Panel>
           </div>
 
+          <div className="mt-6">
+            <Panel
+              title="Fuel anomalies"
+              description="Operational signals for suspicious drops, stationary refuels, and consumption outliers. These are heuristics intended for follow-up, not guaranteed theft verdicts."
+              actions={(
+                <Link to="/fuel-insights" className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+                  Open fuel insights
+                </Link>
+              )}
+            >
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Active anomalies</div>
+                    <div className="mt-2 text-3xl font-semibold text-rose-600">{data.fuel_anomalies.active_anomalies}</div>
+                    <div className="mt-2 text-sm text-slate-500">{data.fuel_anomalies.affected_vehicles} vehicles currently need follow-up</div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Unexpected drops</div>
+                    <div className="mt-2 text-3xl font-semibold text-amber-600">{data.fuel_anomalies.unexpected_drop_count}</div>
+                    <div className="mt-2 text-sm text-slate-500">Drops over {data.fuel_anomalies.thresholds.unexpected_drop_pct.toFixed(0)}% in a short stationary window</div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Possible theft</div>
+                    <div className="mt-2 text-3xl font-semibold text-rose-600">{data.fuel_anomalies.possible_theft_count}</div>
+                    <div className="mt-2 text-sm text-slate-500">Stationary drops over {data.fuel_anomalies.thresholds.possible_theft_drop_pct.toFixed(0)}%</div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Refuels without trip</div>
+                    <div className="mt-2 text-3xl font-semibold text-sky-700">{data.fuel_anomalies.refuel_without_trip_count}</div>
+                    <div className="mt-2 text-sm text-slate-500">Stationary increases over {data.fuel_anomalies.thresholds.refuel_increase_pct.toFixed(0)}%</div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Abnormal consumption</div>
+                    <div className="mt-2 text-3xl font-semibold text-slate-950">{data.fuel_anomalies.abnormal_consumption_count}</div>
+                    <div className="mt-2 text-sm text-slate-500">Estimated consumption above {data.fuel_anomalies.thresholds.abnormal_consumption_multiplier.toFixed(1)}x baseline</div>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 p-4">
+                  <div className="text-sm font-semibold text-slate-900">Most suspicious vehicles</div>
+                  <div className="mt-4 space-y-3">
+                    {data.fuel_anomalies.suspicious_vehicles.length > 0 ? data.fuel_anomalies.suspicious_vehicles.slice(0, 5).map((vehicle) => (
+                      <div key={vehicle.vehicle_id} className="flex items-start justify-between gap-4 rounded-2xl bg-slate-50 p-4">
+                        <div>
+                          <div className="font-semibold text-slate-900">{vehicle.plate_number}</div>
+                          <div className="text-sm text-slate-500">{vehicle.name}</div>
+                          <div className="mt-1 text-xs text-slate-400">Latest anomaly: {formatDateTime(vehicle.latest_triggered_at)}</div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1 rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">
+                          <span>{vehicle.anomaly_count}</span>
+                          <span>{vehicle.anomaly_count === 1 ? 'issue' : 'issues'}</span>
+                        </div>
+                      </div>
+                    )) : (
+                      <div className="text-sm text-slate-500">No fuel anomalies are currently active.</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Panel>
+          </div>
+
           <div className="mt-6 grid gap-6 xl:grid-cols-3">
             <Panel title="Alert counts by type" description="Active operational alerts grouped by alert type.">
               <div className="h-72">

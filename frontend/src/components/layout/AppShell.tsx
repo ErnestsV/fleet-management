@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, Bell, Building2, CarFront, ChevronDown, ChevronsLeft, ChevronsRight, CircleUserRound, LayoutDashboard, LineChart, Map, MapPinned, Menu, Route, Settings, Users, Wrench, X } from 'lucide-react';
+import { Activity, Bell, Building2, CarFront, ChevronDown, ChevronsLeft, ChevronsRight, CircleUserRound, Droplets, LayoutDashboard, LineChart, Map, MapPinned, Menu, Route, Settings, Users, Wrench, X } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/app/store/authStore';
 import { useAlerts } from '@/features/alerts/useAlerts';
@@ -14,6 +14,7 @@ const links = [
   { to: '/live-map', label: 'Live Map', icon: MapPinned },
   { to: '/drivers', label: 'Drivers', icon: Route },
   { to: '/driver-insights', label: 'Driver Insights', icon: LineChart },
+  { to: '/fuel-insights', label: 'Fuel Insights', icon: Droplets },
   { to: '/trips', label: 'Trips', icon: Route },
   { to: '/alerts', label: 'Alerts', icon: Bell },
   { to: '/telemetry-health', label: 'Telemetry Health', icon: Activity },

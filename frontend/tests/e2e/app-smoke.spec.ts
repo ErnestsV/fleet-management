@@ -61,6 +61,31 @@ const dashboardSummary = {
       low_frequency_events_24h: 12,
     },
   },
+  fuel_anomalies: {
+    total_anomalies: 2,
+    active_anomalies: 2,
+    resolved_anomalies: 0,
+    affected_vehicles: 1,
+    unexpected_drop_count: 1,
+    possible_theft_count: 1,
+    refuel_without_trip_count: 0,
+    abnormal_consumption_count: 0,
+    suspicious_vehicles: [
+      {
+        vehicle_id: 1,
+        plate_number: 'NL-101',
+        name: 'North 101',
+        anomaly_count: 2,
+        latest_triggered_at: '2026-04-01T10:00:00Z',
+      },
+    ],
+    thresholds: {
+      unexpected_drop_pct: 8,
+      possible_theft_drop_pct: 12,
+      refuel_increase_pct: 10,
+      abnormal_consumption_multiplier: 1.8,
+    },
+  },
   driving_behaviour: {
     has_data: true,
     minimum_trip_samples: 3,
