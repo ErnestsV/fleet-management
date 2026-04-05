@@ -6,8 +6,71 @@ import { formatDateTime } from '@/lib/utils/format';
 
 type FleetVehicle = DashboardSummary['fleet'][number];
 
+function freshnessLabel(
+  lastEventAt: string | null,
+  thresholds: DashboardSummary['telemetry_health']['thresholds'],
+) {
+  if (!lastEventAt) {
+    return 'No data';
+  }
+
+  const lastEventTime = new Date(lastEventAt).getTime();
+
+  if (Number.isNaN(lastEventTime)) {
+    return 'Unknown';
+  }
+
+  const minutesSinceLastEvent = Math.max(0, Math.round((Date.now() - lastEventTime) / 60000));
+
+  if (minutesSinceLastEvent >= thresholds.offline_hours * 60) {
+    return 'Offline';
+  }
+
+  if (minutesSinceLastEvent < 60) {
+    return `${minutesSinceLastEvent} min ago`;
+  }
+
+  if (minutesSinceLastEvent < 24 * 60) {
+    return `${Math.round(minutesSinceLastEvent / 60)}h ago`;
+  }
+
+  return `${Math.round(minutesSinceLastEvent / (24 * 60))}d ago`;
+}
+
+function freshnessTone(
+  lastEventAt: string | null,
+  thresholds: DashboardSummary['telemetry_health']['thresholds'],
+) {
+  if (!lastEventAt) {
+    return 'text-slate-500';
+  }
+
+  const lastEventTime = new Date(lastEventAt).getTime();
+
+  if (Number.isNaN(lastEventTime)) {
+    return 'text-slate-500';
+  }
+
+  const minutesSinceLastEvent = Math.max(0, Math.round((Date.now() - lastEventTime) / 60000));
+
+  if (minutesSinceLastEvent >= thresholds.offline_hours * 60) {
+    return 'text-rose-600';
+  }
+
+  if (minutesSinceLastEvent >= thresholds.stale_minutes) {
+    return 'text-amber-600';
+  }
+
+  if (minutesSinceLastEvent >= thresholds.fresh_minutes) {
+    return 'text-sky-600';
+  }
+
+  return 'text-emerald-600';
+}
+
 export function FleetStatusTablePanel({
   rows,
+  freshnessThresholds,
   lastPage,
   currentPage,
   pageNumbers,
@@ -16,6 +79,7 @@ export function FleetStatusTablePanel({
   onPageSelect,
 }: {
   rows: FleetVehicle[];
+  freshnessThresholds: DashboardSummary['telemetry_health']['thresholds'];
   lastPage: number;
   currentPage: number;
   pageNumbers: number[];
@@ -35,6 +99,7 @@ export function FleetStatusTablePanel({
                 <th className="px-4 py-3">Driver</th>
                 <th className="px-4 py-3">Speed</th>
                 <th className="px-4 py-3">Fuel</th>
+                <th className="px-4 py-3">Freshness</th>
                 <th className="px-4 py-3">Last event</th>
               </tr>
             </DataTableHead>
@@ -49,6 +114,9 @@ export function FleetStatusTablePanel({
                   <td className="px-4 py-3 text-slate-600">{vehicle.driver ?? 'Unassigned'}</td>
                   <td className="px-4 py-3 text-slate-600">{vehicle.speed_kmh ?? 0} km/h</td>
                   <td className="px-4 py-3 text-slate-600">{vehicle.fuel_level != null ? `${vehicle.fuel_level}%` : 'N/A'}</td>
+                  <td className={`px-4 py-3 font-medium ${freshnessTone(vehicle.last_event_at, freshnessThresholds)}`}>
+                    {freshnessLabel(vehicle.last_event_at, freshnessThresholds)}
+                  </td>
                   <td className="px-4 py-3 text-slate-600">{formatDateTime(vehicle.last_event_at) ?? 'No data'}</td>
                 </tr>
               ))}

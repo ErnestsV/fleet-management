@@ -38,6 +38,51 @@ const dashboardSummary = {
       max_trip_km: 5,
     },
   },
+  fleet_risk: {
+    overall: {
+      level: 'medium',
+      label: 'Medium',
+      high_driver_count: 0,
+      medium_driver_count: 2,
+    },
+    drivers: [
+      {
+        key: 'maintenance_overdue',
+        label: 'Maintenance overdue',
+        count: 0,
+        severity: 'low',
+        thresholds: { medium: 1, high: 3 },
+      },
+      {
+        key: 'active_alerts',
+        label: 'Other active alerts',
+        count: 1,
+        severity: 'medium',
+        thresholds: { medium: 1, high: 5 },
+      },
+      {
+        key: 'offline_vehicles',
+        label: 'Offline vehicles',
+        count: 0,
+        severity: 'low',
+        thresholds: { medium: 1, high: 3 },
+      },
+      {
+        key: 'unassigned_vehicles',
+        label: 'Unassigned vehicles',
+        count: 0,
+        severity: 'low',
+        thresholds: { medium: 2, high: 5 },
+      },
+      {
+        key: 'active_fuel_anomalies',
+        label: 'Active fuel anomalies',
+        count: 0,
+        severity: 'low',
+        thresholds: { medium: 1, high: 3 },
+      },
+    ],
+  },
   telemetry_health: {
     total_devices: 1,
     freshness_rate_pct: 100,
@@ -231,7 +276,7 @@ test('renders the authenticated dashboard and mobile navigation with mocked API 
 
   await expect(page.getByRole('heading', { name: 'Operations dashboard' })).toBeVisible();
   await expect(page.getByText('Total vehicles')).toBeVisible();
-  await expect(page.getByText('Active alerts')).toBeVisible();
+  await expect(page.locator('div').filter({ hasText: /^Active alerts$/ }).first()).toBeVisible();
   await expect(page.getByText('NL-101').first()).toBeVisible();
 
   await page.getByRole('button', { name: 'Open mobile navigation' }).click();

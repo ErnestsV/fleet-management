@@ -4,6 +4,7 @@ namespace Tests\Feature\Dashboard;
 
 use App\Domain\Alerts\Enums\AlertType;
 use App\Domain\Alerts\Models\Alert;
+use App\Domain\Fleet\Services\Dashboard\DashboardQueryFactory;
 use App\Domain\Fleet\Models\Vehicle;
 use App\Domain\Trips\Models\Trip;
 use App\Domain\Telemetry\Models\TelemetryEvent;
@@ -302,8 +303,20 @@ class DashboardSummaryTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $this->getJson('/api/v1/dashboard/summary')
-            ->assertOk()
-            ->assertJsonPath('active_alerts', 2);
+        $response = $this->getJson('/api/v1/dashboard/summary')
+            ->assertOk();
+
+        $this->assertSame(2, $response->json('active_alerts'));
+
+        $headlineAlertTypes = app(DashboardQueryFactory::class)
+            ->activeDashboardHeadlineAlertsQuery($user->company_id, $user)
+            ->pluck('type')
+            ->map(fn ($type) => $type instanceof AlertType ? $type->value : $type)
+            ->all();
+
+        $this->assertEqualsCanonicalizing(
+            [AlertType::GeofenceEntry->value, AlertType::Speeding->value],
+            $headlineAlertTypes,
+        );
     }
 }

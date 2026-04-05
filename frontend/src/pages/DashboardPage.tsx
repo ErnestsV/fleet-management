@@ -85,6 +85,7 @@ export function DashboardPage() {
           <div className="mt-6">
             <FleetStatusTablePanel
               rows={viewModel.fleetStatusRows}
+              freshnessThresholds={data.telemetry_health.thresholds}
               lastPage={viewModel.fleetStatusLastPage}
               currentPage={viewModel.currentFleetStatusPage}
               pageNumbers={viewModel.fleetStatusPageNumbers}
