@@ -2,7 +2,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { ActivityChartsPanels } from '@/features/dashboard/components/ActivityPanels';
 import { DashboardHeroStats } from '@/features/dashboard/components/DashboardHeroStats';
 import { FleetStatusTablePanel } from '@/features/dashboard/components/FleetStatusTablePanel';
-import { OperationalGapsPanel, FuelAnomaliesPanel, TelemetryHealthPanel } from '@/features/dashboard/components/OperationsPanels';
+import { GeofenceAnalyticsPanel, OperationalGapsPanel, FuelAnomaliesPanel, TelemetryHealthPanel } from '@/features/dashboard/components/OperationsPanels';
 import { DrivingBehaviourPanel, FleetEfficiencyPanel, FleetUtilizationPanel } from '@/features/dashboard/components/PerformancePanels';
 import { FuelPanel, MileagePanel, WorkingTimePanel } from '@/features/dashboard/components/ResourcePanels';
 import { useDashboardSummary } from '@/features/dashboard/useDashboardSummary';
@@ -48,6 +48,10 @@ export function DashboardPage() {
 
           <div className="mt-6">
             <TelemetryHealthPanel data={data.telemetry_health} />
+          </div>
+
+          <div className="mt-6">
+            <GeofenceAnalyticsPanel data={data.geofence_analytics} />
           </div>
 
           <div className="mt-6 grid gap-6 xl:grid-cols-2">

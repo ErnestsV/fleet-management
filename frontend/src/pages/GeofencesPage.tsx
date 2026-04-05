@@ -1,25 +1,35 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { OperationsMap } from '@/components/maps/OperationsMap';
+import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { DismissibleAlert } from '@/components/ui/DismissibleAlert';
-import { GeofenceFormPanel } from '@/features/geofences/components/GeofenceFormPanel';
-import { GeofenceListPanel } from '@/features/geofences/components/GeofenceListPanel';
+import { GeofenceAnalyticsView } from '@/features/geofences/components/GeofenceAnalyticsView';
+import { GeofenceManageView } from '@/features/geofences/components/GeofenceManageView';
 import {
   buildGeofencePayload,
   createEmptyGeofenceFormValues,
   createGeofenceFormValuesFromGeofence,
 } from '@/features/geofences/form';
+import { useGeofenceAnalytics } from '@/features/geofences/useGeofenceAnalytics';
 import { useCreateGeofence, useDeleteGeofence, useGeofences, useUpdateGeofence } from '@/features/geofences/useGeofences';
 import { getApiErrorMessage } from '@/lib/api/errors';
 import type { Geofence } from '@/types/domain';
 
 export function GeofencesPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [editing, setEditing] = useState<Geofence | null>(null);
   const [form, setForm] = useState(createEmptyGeofenceFormValues);
   const [geofenceFocusVersion, setGeofenceFocusVersion] = useState(0);
   const [focusedGeofenceCircle, setFocusedGeofenceCircle] = useState<{ latitude: number; longitude: number; radiusM: number } | null>(null);
+  const [analyticsSearch, setAnalyticsSearch] = useState('');
+  const [analyticsPage, setAnalyticsPage] = useState(1);
   const radiusRef = useRef(form.radius_m);
   const { data, isLoading, isError } = useGeofences();
+  const activeTab = searchParams.get('tab') === 'analytics' ? 'analytics' : 'manage';
+  const analyticsQuery = useGeofenceAnalytics({
+    search: analyticsSearch || undefined,
+    page: analyticsPage,
+    per_page: 10,
+  }, activeTab === 'analytics');
   const createMutation = useCreateGeofence();
   const updateMutation = useUpdateGeofence();
   const deleteMutation = useDeleteGeofence();
@@ -41,6 +51,10 @@ export function GeofencesPage() {
   useEffect(() => {
     radiusRef.current = form.radius_m;
   }, [form.radius_m]);
+
+  useEffect(() => {
+    setAnalyticsPage(1);
+  }, [analyticsSearch]);
 
   const resetForm = () => {
     setEditing(null);
@@ -129,64 +143,62 @@ export function GeofencesPage() {
       {createMutation.isError ? <DismissibleAlert className="mb-6" tone="error" message={getApiErrorMessage(createMutation.error)} onClose={dismissCreateError} /> : null}
       {updateMutation.isError ? <DismissibleAlert className="mb-6" tone="error" message={getApiErrorMessage(updateMutation.error)} onClose={dismissUpdateError} /> : null}
       {deleteMutation.isError ? <DismissibleAlert className="mb-6" tone="error" message={getApiErrorMessage(deleteMutation.error)} onClose={dismissDeleteError} /> : null}
-      <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
-        <GeofenceFormPanel editingId={editing?.id ?? null} form={form} onChange={setForm} onSubmit={submit} onCancel={resetForm} />
-        <div className="space-y-6">
-          <OperationsMap
-            geofenceCircles={[
-              ...(data?.data ?? [])
-                .filter((geofence) => geofence.id !== editing?.id)
-                .map((geofence) => ({
-                  id: geofence.id,
-                  label: geofence.name,
-                  latitude: geofence.geometry.center?.lat ?? 0,
-                  longitude: geofence.geometry.center?.lng ?? 0,
-                  radiusM: geofence.geometry.radius_m ?? 0,
-                  isActive: geofence.is_active,
-                })),
-              ...(form.center_lat && form.center_lng && form.radius_m ? [{
-                id: editing?.id ?? 'draft-geofence',
-                label: editing ? `${form.name || 'Selected geofence'} (editing)` : `${form.name || 'Draft geofence'} (draft)`,
-                latitude: Number(form.center_lat),
-                longitude: Number(form.center_lng),
-                radiusM: Number(form.radius_m),
-                isActive: form.is_active,
-              }] : []),
-            ]}
-            selectedGeofenceId={editing?.id ?? null}
-            geofenceFocusKey={editing ? `${editing.id}:${geofenceFocusVersion}` : null}
-            focusedGeofenceCircle={focusedGeofenceCircle}
-            caption="Click the map to set the geofence center. Expand for precise review and editing."
-            emptyMessage="No geofence geometry is available yet."
-            allowFullscreen
-            fullscreenSidebarTitle="Geofence list"
-            fullscreenSidebar={
-              <GeofenceListPanel
-                geofences={data?.data ?? []}
-                isLoading={isLoading}
-                isError={isError}
-                framed={false}
-                stickySearch
-                scrollable
-                onEdit={startEditingGeofence}
-                onToggleActive={toggleGeofenceActive}
-                onDelete={deleteGeofence}
-              />
-            }
-            heightClassName="min-h-[420px]"
-            onGeofenceSelect={handleMapGeofenceSelect}
-            onMapClick={handleMapClick}
-          />
-          <GeofenceListPanel
-            geofences={data?.data ?? []}
-            isLoading={isLoading}
-            isError={isError}
-            onEdit={startEditingGeofence}
-            onToggleActive={toggleGeofenceActive}
-            onDelete={deleteGeofence}
-          />
-        </div>
+      <div className="mb-6 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2">
+        <button
+          type="button"
+          className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+            activeTab === 'manage'
+              ? 'bg-brand-600 text-white'
+              : 'text-slate-700 hover:bg-slate-50'
+          }`}
+          onClick={() => setSearchParams({ tab: 'manage' })}
+        >
+          Manage
+        </button>
+        <button
+          type="button"
+          className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+            activeTab === 'analytics'
+              ? 'bg-brand-600 text-white'
+              : 'text-slate-700 hover:bg-slate-50'
+          }`}
+          onClick={() => setSearchParams({ tab: 'analytics' })}
+        >
+          Analytics
+        </button>
       </div>
+
+      {activeTab === 'manage' ? (
+        <GeofenceManageView
+          editing={editing}
+          form={form}
+          geofences={data?.data ?? []}
+          isLoading={isLoading}
+          isError={isError}
+          geofenceFocusVersion={geofenceFocusVersion}
+          focusedGeofenceCircle={focusedGeofenceCircle}
+          onFormChange={setForm}
+          onSubmit={submit}
+          onCancel={resetForm}
+          onEdit={startEditingGeofence}
+          onToggleActive={toggleGeofenceActive}
+          onDelete={deleteGeofence}
+          onMapGeofenceSelect={handleMapGeofenceSelect}
+          onMapClick={handleMapClick}
+        />
+      ) : (
+        <GeofenceAnalyticsView
+          summary={analyticsQuery.data?.summary}
+          rows={analyticsQuery.data?.data ?? []}
+          search={analyticsSearch}
+          onSearchChange={setAnalyticsSearch}
+          currentPage={analyticsQuery.data?.meta?.current_page ?? 1}
+          lastPage={analyticsQuery.data?.meta?.last_page ?? 1}
+          onPageChange={setAnalyticsPage}
+          isLoading={analyticsQuery.isLoading}
+          isError={analyticsQuery.isError}
+        />
+      )}
     </div>
   );
 }

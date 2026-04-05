@@ -172,6 +172,109 @@ export function TelemetryHealthPanel({
   );
 }
 
+export function GeofenceAnalyticsPanel({
+  data,
+}: {
+  data?: DashboardSummary['geofence_analytics'];
+}) {
+  if (!data) {
+    return (
+      <Panel
+        title="Location intelligence"
+        description="Visit and dwell analytics derived from geofence entry and exit activity."
+        actions={(
+          <Link to="/geofences?tab=analytics" className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+            Open geofence analytics
+          </Link>
+        )}
+      >
+        <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">
+          Geofence analytics are not available yet.
+        </div>
+      </Panel>
+    );
+  }
+
+  return (
+    <Panel
+      title="Location intelligence"
+      description={`Visit and dwell analytics for the last ${data.window.days} days.`}
+      actions={(
+        <Link to="/geofences?tab=analytics" className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+          Open geofence analytics
+        </Link>
+      )}
+    >
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Entries</div>
+          <div className="mt-2 text-3xl font-semibold text-slate-950">{data.summary.total_entries}</div>
+          <div className="mt-2 text-sm text-slate-500">Detected geofence arrivals</div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Exits</div>
+          <div className="mt-2 text-3xl font-semibold text-slate-950">{data.summary.total_exits}</div>
+          <div className="mt-2 text-sm text-slate-500">Detected geofence departures</div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Active visits</div>
+          <div className="mt-2 text-3xl font-semibold text-brand-700">{data.summary.active_visits}</div>
+          <div className="mt-2 text-sm text-slate-500">Vehicles currently inside monitored locations</div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Avg dwell</div>
+          <div className="mt-2 text-3xl font-semibold text-slate-950">
+            {data.summary.average_dwell_minutes != null ? `${data.summary.average_dwell_minutes.toFixed(0)} min` : 'N/A'}
+          </div>
+          <div className="mt-2 text-sm text-slate-500">{data.summary.total_dwell_hours.toFixed(1)} h total dwell</div>
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-4 xl:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 p-4">
+          <div className="text-sm font-semibold text-slate-900">Top visited locations</div>
+          <div className="mt-3 space-y-3">
+            {data.top_visited_locations.length > 0 ? data.top_visited_locations.map((location) => (
+              <div key={location.geofence_id} className="flex items-start justify-between gap-4 rounded-2xl bg-slate-50 p-4">
+                <div>
+                  <div className="font-semibold text-slate-900">{location.name}</div>
+                  <div className="text-sm text-slate-500">{location.unique_vehicle_count} vehicle{location.unique_vehicle_count === 1 ? '' : 's'}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xl font-semibold text-slate-950">{location.entry_count}</div>
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Entries</div>
+                </div>
+              </div>
+            )) : (
+              <div className="text-sm text-slate-500">No geofence arrivals are visible in the current window.</div>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 p-4">
+          <div className="text-sm font-semibold text-slate-900">Longest dwell locations</div>
+          <div className="mt-3 space-y-3">
+            {data.longest_dwell_locations.length > 0 ? data.longest_dwell_locations.map((location) => (
+              <div key={location.geofence_id} className="flex items-start justify-between gap-4 rounded-2xl bg-slate-50 p-4">
+                <div>
+                  <div className="font-semibold text-slate-900">{location.name}</div>
+                  <div className="text-sm text-slate-500">{(location.total_dwell_minutes / 60).toFixed(1)} h total dwell</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xl font-semibold text-slate-950">{location.average_dwell_minutes.toFixed(0)} min</div>
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Avg dwell</div>
+                </div>
+              </div>
+            )) : (
+              <div className="text-sm text-slate-500">No resolved dwell samples are available yet.</div>
+            )}
+          </div>
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
 export function FuelAnomaliesPanel({
   data,
 }: {

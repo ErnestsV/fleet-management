@@ -12,7 +12,11 @@ export function useCreateGeofence() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createGeofence,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['geofences'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['geofences'] });
+      queryClient.invalidateQueries({ queryKey: ['geofence-analytics'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+    },
   });
 }
 
@@ -20,7 +24,11 @@ export function useUpdateGeofence() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ geofenceId, payload }: { geofenceId: number; payload: Record<string, unknown> }) => updateGeofence(geofenceId, payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['geofences'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['geofences'] });
+      queryClient.invalidateQueries({ queryKey: ['geofence-analytics'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+    },
   });
 }
 
@@ -28,6 +36,10 @@ export function useDeleteGeofence() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteGeofence,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['geofences'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['geofences'] });
+      queryClient.invalidateQueries({ queryKey: ['geofence-analytics'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+    },
   });
 }

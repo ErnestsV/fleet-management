@@ -7,6 +7,7 @@ use App\Domain\Fleet\Services\Dashboard\DashboardOperationsReadService;
 use App\Domain\Fleet\Services\Dashboard\DashboardPerformanceReadService;
 use App\Domain\Fleet\Services\Dashboard\DashboardQueryFactory;
 use App\Domain\Fleet\Services\FuelInsightsService;
+use App\Domain\Geofences\Services\GeofenceAnalyticsService;
 use App\Domain\Telemetry\Services\TelemetryHealthService;
 use App\Domain\Telemetry\Enums\VehicleStatus;
 use App\Models\User;
@@ -20,6 +21,7 @@ class DashboardService
         private readonly DashboardPerformanceReadService $performanceReadService,
         private readonly DashboardFuelMileageReadService $fuelMileageReadService,
         private readonly FuelInsightsService $fuelInsightsService,
+        private readonly GeofenceAnalyticsService $geofenceAnalyticsService,
         private readonly TelemetryHealthService $telemetryHealthService,
     ) {
     }
@@ -49,6 +51,7 @@ class DashboardService
         $fleetUtilization = $this->performanceReadService->buildFleetUtilizationSummary($fleetVehicles, $companyId, $user, $today);
         $telemetryHealth = $this->telemetryHealthService->summary($user);
         $fuelAnomalies = $this->fuelInsightsService->dashboardSummary($user);
+        $geofenceAnalytics = $this->geofenceAnalyticsService->dashboardSummary($user);
         $workingTime = $this->operationsReadService->buildWorkingTime($companyId, $user, $today);
         $mileageAndFuel = $this->fuelMileageReadService->buildMileageAndFuelMetrics(
             companyId: $companyId,
@@ -80,6 +83,7 @@ class DashboardService
             'fleet_utilization' => $fleetUtilization,
             'telemetry_health' => $telemetryHealth,
             'fuel_anomalies' => $fuelAnomalies,
+            'geofence_analytics' => $geofenceAnalytics,
             'driving_behaviour' => $drivingBehaviour,
             'mileage' => $mileageAndFuel['mileage'],
             'fuel' => $mileageAndFuel['fuel'],

@@ -86,6 +86,27 @@ const dashboardSummary = {
       abnormal_consumption_multiplier: 1.8,
     },
   },
+  geofence_analytics: {
+    window: {
+      days: 7,
+      start: '2026-03-25T00:00:00Z',
+      end: '2026-04-01T00:00:00Z',
+    },
+    summary: {
+      active_geofences: 2,
+      total_entries: 6,
+      total_exits: 6,
+      active_visits: 0,
+      total_dwell_hours: 8.5,
+      average_dwell_minutes: 85,
+    },
+    top_visited_locations: [
+      { geofence_id: 1, name: 'North Depot', entry_count: 4, unique_vehicle_count: 1 },
+    ],
+    longest_dwell_locations: [
+      { geofence_id: 2, name: 'Warehouse East', average_dwell_minutes: 92, total_dwell_minutes: 276 },
+    ],
+  },
   driving_behaviour: {
     has_data: true,
     minimum_trip_samples: 3,

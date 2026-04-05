@@ -64,6 +64,7 @@ export type DashboardSummary = {
   };
   telemetry_health: TelemetryHealthSummary;
   fuel_anomalies: FuelAnomalySummary;
+  geofence_analytics?: GeofenceAnalyticsSummary;
   driving_behaviour: {
     has_data: boolean;
     minimum_trip_samples: number;
@@ -116,6 +117,50 @@ export type DashboardSummary = {
     last_event_at: string | null;
     driver: string | null;
   }[];
+};
+
+export type GeofenceAnalyticsSummary = {
+  window: {
+    days: number;
+    start: string;
+    end: string;
+  };
+  summary: {
+    active_geofences: number;
+    total_entries: number;
+    total_exits: number;
+    active_visits: number;
+    total_dwell_hours: number;
+    average_dwell_minutes: number | null;
+  };
+  top_visited_locations: {
+    geofence_id: number;
+    name: string;
+    entry_count: number;
+    unique_vehicle_count: number;
+  }[];
+  longest_dwell_locations: {
+    geofence_id: number;
+    name: string;
+    average_dwell_minutes: number;
+    total_dwell_minutes: number;
+  }[];
+};
+
+export type GeofenceAnalyticsRow = {
+  geofence_id: number;
+  name: string;
+  is_active: boolean;
+  entry_count: number;
+  exit_count: number;
+  unique_vehicle_count: number;
+  active_visit_count: number;
+  resolved_visit_count: number;
+  total_dwell_minutes: number;
+  average_dwell_minutes: number | null;
+  latest_entry_at: string | null;
+  latest_exit_at: string | null;
+  last_activity_at: string | null;
 };
 
 export type FuelAnomalySummary = {

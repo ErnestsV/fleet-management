@@ -41,6 +41,7 @@ class DashboardSummaryTest extends TestCase
                 'fleet_utilization',
                 'telemetry_health',
                 'fuel_anomalies',
+                'geofence_analytics',
             ]);
     }
 

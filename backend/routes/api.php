@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\DriverInsightsController;
 use App\Http\Controllers\Api\FuelInsightsController;
+use App\Http\Controllers\Api\GeofenceAnalyticsController;
 use App\Http\Controllers\Api\GeofenceController;
 use App\Http\Controllers\Api\MaintenanceRecordController;
 use App\Http\Controllers\Api\MaintenanceScheduleController;
@@ -41,6 +42,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/telemetry-health', TelemetryHealthController::class);
         Route::get('/driver-insights', DriverInsightsController::class);
         Route::get('/fuel-insights', FuelInsightsController::class);
+        Route::get('/geofence-analytics', GeofenceAnalyticsController::class);
         Route::apiResource('companies', CompanyController::class)->only(['index', 'store', 'update']);
         Route::apiResource('users', CompanyUserController::class)->only(['index', 'store', 'update']);
         Route::apiResource('vehicles', VehicleController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
