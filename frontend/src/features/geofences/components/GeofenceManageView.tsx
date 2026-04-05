@@ -40,22 +40,30 @@ export function GeofenceManageView({
   onMapGeofenceSelect,
   onMapClick,
 }: GeofenceManageViewProps) {
+  const validGeofenceCircles = geofences
+    .filter((geofence) => geofence.id !== editing?.id)
+    .filter((geofence) => (
+      geofence.geometry.center?.lat != null
+      && geofence.geometry.center?.lng != null
+      && geofence.geometry.radius_m != null
+      && geofence.geometry.radius_m > 0
+    ))
+    .map((geofence) => ({
+      id: geofence.id,
+      label: geofence.name,
+      latitude: geofence.geometry.center!.lat,
+      longitude: geofence.geometry.center!.lng,
+      radiusM: geofence.geometry.radius_m!,
+      isActive: geofence.is_active,
+    }));
+
   return (
     <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
       <GeofenceFormPanel editingId={editing?.id ?? null} form={form} onChange={onFormChange} onSubmit={onSubmit} onCancel={onCancel} />
       <div className="space-y-6">
         <OperationsMap
           geofenceCircles={[
-            ...geofences
-              .filter((geofence) => geofence.id !== editing?.id)
-              .map((geofence) => ({
-                id: geofence.id,
-                label: geofence.name,
-                latitude: geofence.geometry.center?.lat ?? 0,
-                longitude: geofence.geometry.center?.lng ?? 0,
-                radiusM: geofence.geometry.radius_m ?? 0,
-                isActive: geofence.is_active,
-              })),
+            ...validGeofenceCircles,
             ...(form.center_lat && form.center_lng && form.radius_m ? [{
               id: editing?.id ?? 'draft-geofence',
               label: editing ? `${form.name || 'Selected geofence'} (editing)` : `${form.name || 'Draft geofence'} (draft)`,

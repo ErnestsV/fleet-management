@@ -67,6 +67,8 @@ class GeofenceAnalyticsService
             return collect();
         }
 
+        $geofenceIds = $geofences->pluck('id')->map(fn ($id) => (int) $id)->all();
+
         $stats = [];
 
         foreach ($geofences as $geofence) {
@@ -85,7 +87,7 @@ class GeofenceAnalyticsService
             ];
         }
 
-        foreach ($this->baseAlertQuery($user, $windowStart)->cursor() as $alert) {
+        foreach ($this->baseAlertQuery($user, $windowStart, $geofenceIds)->cursor() as $alert) {
             $geofenceId = (int) data_get($alert->context, 'geofence_id');
 
             if (! isset($stats[$geofenceId])) {
@@ -120,6 +122,14 @@ class GeofenceAnalyticsService
             if ($stats[$geofenceId]['latest_exit_at'] === null || $alert->triggered_at?->gt($stats[$geofenceId]['latest_exit_at'])) {
                 $stats[$geofenceId]['latest_exit_at'] = $alert->triggered_at;
             }
+        }
+
+        foreach ($this->activeVisitCounts($user, $geofenceIds) as $geofenceId => $activeVisitCount) {
+            if (! isset($stats[$geofenceId])) {
+                continue;
+            }
+
+            $stats[$geofenceId]['active_visit_count'] = $activeVisitCount;
         }
 
         return collect($stats)
@@ -227,7 +237,7 @@ class GeofenceAnalyticsService
             );
     }
 
-    private function baseAlertQuery(User $user, Carbon $windowStart): Builder
+    private function baseAlertQuery(User $user, Carbon $windowStart, array $geofenceIds = []): Builder
     {
         return Alert::query()
             ->whereIn('type', [AlertType::GeofenceEntry, AlertType::GeofenceExit])
@@ -236,8 +246,55 @@ class GeofenceAnalyticsService
                 ! $user->isSuperAdmin(),
                 fn (Builder $query) => $query->where('company_id', $user->company_id)
             )
+            ->when(
+                $geofenceIds !== [],
+                fn (Builder $query) => $this->applyGeofenceFilter($query, $geofenceIds)
+            )
             ->select(['vehicle_id', 'type', 'triggered_at', 'resolved_at', 'context'])
             ->orderBy('triggered_at');
+    }
+
+    private function activeVisitCounts(User $user, array $geofenceIds): array
+    {
+        if ($geofenceIds === []) {
+            return [];
+        }
+
+        $counts = [];
+
+        foreach ($this->baseUnresolvedEntryQuery($user, $geofenceIds)->cursor() as $alert) {
+            $geofenceId = (int) data_get($alert->context, 'geofence_id');
+
+            if ($geofenceId <= 0) {
+                continue;
+            }
+
+            $counts[$geofenceId] = ($counts[$geofenceId] ?? 0) + 1;
+        }
+
+        return $counts;
+    }
+
+    private function baseUnresolvedEntryQuery(User $user, array $geofenceIds): Builder
+    {
+        return Alert::query()
+            ->where('type', AlertType::GeofenceEntry)
+            ->whereNull('resolved_at')
+            ->when(
+                ! $user->isSuperAdmin(),
+                fn (Builder $query) => $query->where('company_id', $user->company_id)
+            )
+            ->when(
+                $geofenceIds !== [],
+                fn (Builder $query) => $this->applyGeofenceFilter($query, $geofenceIds)
+            )
+            ->select(['context'])
+            ->orderBy('triggered_at');
+    }
+
+    private function applyGeofenceFilter(Builder $query, array $geofenceIds): Builder
+    {
+        return $query->whereIn('context->geofence_id', $geofenceIds);
     }
 
     private function escapeLike(string $value): string

@@ -56,6 +56,11 @@ export function GeofenceAnalyticsView({
     { label: 'Total dwell', value: `${summary.summary.total_dwell_hours.toFixed(1)} h`, hint: 'Resolved on-site time across visits' },
     { label: 'Avg dwell', value: summary.summary.average_dwell_minutes != null ? formatMinutes(summary.summary.average_dwell_minutes) : 'N/A', hint: 'Average resolved visit duration' },
   ] : [];
+  const sidePanelContent = isLoading
+    ? <div className="text-sm text-slate-500">Loading analytics summary...</div>
+    : isError
+      ? <div className="text-sm text-rose-600">Failed to load analytics summary.</div>
+      : null;
 
   return (
     <div className="space-y-6">
@@ -160,7 +165,7 @@ export function GeofenceAnalyticsView({
             description="Most-entered locations in the current analytics window."
           >
             <div className="space-y-3">
-              {summary?.top_visited_locations.length ? summary.top_visited_locations.map((location) => (
+              {sidePanelContent ?? (summary?.top_visited_locations.length ? summary.top_visited_locations.map((location) => (
                 <div key={location.geofence_id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -175,7 +180,7 @@ export function GeofenceAnalyticsView({
                 </div>
               )) : (
                 <div className="text-sm text-slate-500">No geofence visits have been detected in the current window.</div>
-              )}
+              ))}
             </div>
           </Panel>
 
@@ -184,7 +189,7 @@ export function GeofenceAnalyticsView({
             description="Locations where resolved visits are spending the longest time."
           >
             <div className="space-y-3">
-              {summary?.longest_dwell_locations.length ? summary.longest_dwell_locations.map((location) => (
+              {sidePanelContent ?? (summary?.longest_dwell_locations.length ? summary.longest_dwell_locations.map((location) => (
                 <div key={location.geofence_id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -199,7 +204,7 @@ export function GeofenceAnalyticsView({
                 </div>
               )) : (
                 <div className="text-sm text-slate-500">No resolved dwell samples are available yet.</div>
-              )}
+              ))}
             </div>
           </Panel>
         </div>
