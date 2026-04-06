@@ -1,5 +1,6 @@
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Panel } from '@/components/ui/Panel';
+import { TrendDelta } from '@/components/ui/TrendDelta';
 import type { DashboardSummary } from '@/types/domain';
 
 function WorkingTimeCard({
@@ -28,6 +29,27 @@ function WorkingTimeCard({
   );
 }
 
+function consumptionDeltaPct(fuel: DashboardSummary['fuel']): number | null {
+  const current = fuel.estimated_avg_consumption_yesterday_l_per_100km;
+  const previous = fuel.estimated_avg_consumption_previous_day_l_per_100km;
+
+  if (current == null || previous == null || previous === 0) {
+    return null;
+  }
+
+  return ((current - previous) / previous) * 100;
+}
+
+function trendToneClass(deltaPct: number | null, higherIsBetter = true): string {
+  if (deltaPct == null || deltaPct === 0) {
+    return 'text-slate-950';
+  }
+
+  const improving = higherIsBetter ? deltaPct > 0 : deltaPct < 0;
+
+  return improving ? 'text-emerald-600' : 'text-rose-600';
+}
+
 export function MileagePanel({
   data,
 }: {
@@ -43,14 +65,11 @@ export function MileagePanel({
         </div>
         <div className="rounded-2xl bg-slate-50 p-6">
           <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Delta</div>
-          <div className={`mt-3 text-4xl font-semibold ${
-            data.delta_pct == null
-              ? 'text-slate-500'
-              : data.delta_pct >= 0
-                ? 'text-emerald-600'
-                : 'text-rose-600'
-          }`}>
+          <div className={`mt-3 text-4xl font-semibold ${trendToneClass(data.delta_pct)}`}>
             {data.delta_pct != null ? `${data.delta_pct > 0 ? '+' : ''}${data.delta_pct.toFixed(1)}%` : 'N/A'}
+          </div>
+          <div className="mt-3">
+            <TrendDelta deltaPct={data.delta_pct} />
           </div>
         </div>
       </div>
@@ -86,6 +105,8 @@ export function FuelPanel({
   fuelTrendSamples: DashboardSummary['fuel']['trend'];
   fuelChartMode: 'chart' | 'single-day' | 'empty';
 }) {
+  const consumptionDelta = consumptionDeltaPct(fuel);
+
   return (
     <Panel title="Fuel" description="Estimated fuel usage derived from fuel-level telemetry and odometer distance. These values are estimates, not calibrated fuel-card totals.">
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_220px_220px]">
@@ -179,6 +200,9 @@ export function FuelPanel({
             <div className="mt-3 text-4xl font-semibold text-slate-950">
               {fuel.estimated_avg_consumption_yesterday_l_per_100km != null ? fuel.estimated_avg_consumption_yesterday_l_per_100km.toFixed(1) : 'N/A'}
             </div>
+            <div className="mt-3">
+              <TrendDelta deltaPct={consumptionDelta} higherIsBetter={false} />
+            </div>
             <div className="mt-2 text-sm text-slate-500">
               The day before: {fuel.estimated_avg_consumption_previous_day_l_per_100km != null ? `${fuel.estimated_avg_consumption_previous_day_l_per_100km.toFixed(1)} l/100km` : 'N/A'}
             </div>
@@ -196,14 +220,8 @@ export function FuelPanel({
           <div className="mt-3 text-5xl font-semibold text-slate-950">
             {fuel.estimated_fuel_used_yesterday_l != null ? `${fuel.estimated_fuel_used_yesterday_l.toFixed(1)} l` : 'N/A'}
           </div>
-          <div className={`mt-3 text-sm font-medium ${
-            fuel.delta_used_pct == null
-              ? 'text-slate-500'
-              : fuel.delta_used_pct >= 0
-                ? 'text-rose-600'
-                : 'text-emerald-600'
-          }`}>
-            {fuel.delta_used_pct != null ? `${fuel.delta_used_pct > 0 ? '+' : ''}${fuel.delta_used_pct.toFixed(1)}% vs previous day` : 'No previous-day baseline'}
+          <div className="mt-3">
+            <TrendDelta deltaPct={fuel.delta_used_pct} higherIsBetter={false} />
           </div>
           <div className="mt-2 text-sm text-slate-500">
             The day before: {fuel.estimated_fuel_used_previous_day_l != null ? `${fuel.estimated_fuel_used_previous_day_l.toFixed(1)} l` : 'N/A'}
