@@ -37,12 +37,10 @@ vi.mock('@/app/store/authStore', () => ({
 vi.mock('@/features/alerts/useAlerts', () => ({
   useAlerts: () => ({
     data: {
-      data: [
-        {
-          id: 1,
-          type: 'speeding',
-        },
-      ],
+      data: [],
+      meta: {
+        total: 1,
+      },
     },
   }),
 }));

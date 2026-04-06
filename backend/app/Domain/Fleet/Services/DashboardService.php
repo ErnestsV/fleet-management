@@ -6,6 +6,7 @@ use App\Domain\Fleet\Services\Dashboard\DashboardFuelMileageReadService;
 use App\Domain\Fleet\Services\Dashboard\DashboardOperationsReadService;
 use App\Domain\Fleet\Services\Dashboard\DashboardPerformanceReadService;
 use App\Domain\Fleet\Services\Dashboard\DashboardQueryFactory;
+use App\Domain\Fleet\Services\Dashboard\DashboardRiskReadService;
 use App\Domain\Fleet\Services\FuelInsightsService;
 use App\Domain\Geofences\Services\GeofenceAnalyticsService;
 use App\Domain\Telemetry\Services\TelemetryHealthService;
@@ -20,6 +21,7 @@ class DashboardService
         private readonly DashboardOperationsReadService $operationsReadService,
         private readonly DashboardPerformanceReadService $performanceReadService,
         private readonly DashboardFuelMileageReadService $fuelMileageReadService,
+        private readonly DashboardRiskReadService $riskReadService,
         private readonly FuelInsightsService $fuelInsightsService,
         private readonly GeofenceAnalyticsService $geofenceAnalyticsService,
         private readonly TelemetryHealthService $telemetryHealthService,
@@ -39,6 +41,7 @@ class DashboardService
         $vehicles = $this->queryFactory->vehicleQuery($companyId, $user);
         $states = $this->queryFactory->stateQuery($companyId, $user);
         $alerts = $this->queryFactory->activeActionableAlertsQuery($companyId, $user);
+        $dashboardHeadlineAlerts = $this->queryFactory->activeDashboardHeadlineAlertsQuery($companyId, $user);
         $fleetVehicles = $this->queryFactory->fleetVehiclesQuery($companyId, $user)
             ->latest()
             ->get();
@@ -52,6 +55,7 @@ class DashboardService
         $telemetryHealth = $this->telemetryHealthService->summary($user);
         $fuelAnomalies = $this->fuelInsightsService->dashboardSummary($user);
         $geofenceAnalytics = $this->geofenceAnalyticsService->dashboardSummary($user);
+        $fleetRisk = $this->riskReadService->build($fleetRows->all(), $alerts->count(), $alertsByType, $telemetryHealth, $fuelAnomalies);
         $workingTime = $this->operationsReadService->buildWorkingTime($companyId, $user, $today);
         $mileageAndFuel = $this->fuelMileageReadService->buildMileageAndFuelMetrics(
             companyId: $companyId,
@@ -67,7 +71,7 @@ class DashboardService
             'total_vehicles' => $vehicles->count(),
             'moving_vehicles' => (clone $states)->where('status', VehicleStatus::Moving)->count(),
             'idling_vehicles' => (clone $states)->where('status', VehicleStatus::Idling)->count(),
-            'active_alerts' => $alerts->count(),
+            'active_alerts' => $dashboardHeadlineAlerts->count(),
             'trips_today' => $this->queryFactory->tripQuery($companyId, $user)
                 ->whereDate('start_time', $today)
                 ->count(),
@@ -81,6 +85,7 @@ class DashboardService
                 'breakdown' => $fleetEfficiencyBreakdown,
             ],
             'fleet_utilization' => $fleetUtilization,
+            'fleet_risk' => $fleetRisk,
             'telemetry_health' => $telemetryHealth,
             'fuel_anomalies' => $fuelAnomalies,
             'geofence_analytics' => $geofenceAnalytics,

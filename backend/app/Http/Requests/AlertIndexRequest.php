@@ -18,6 +18,8 @@ class AlertIndexRequest extends FormRequest
         return [
             'type' => ['nullable', Rule::in(array_map(fn (AlertType $type) => $type->value, AlertType::cases()))],
             'status' => ['nullable', Rule::in(['active', 'resolved'])],
+            'exclude_informational' => ['nullable', Rule::in([true, false, 1, 0, '1', '0', 'true', 'false'])],
+            'exclude_geofence_exit' => ['nullable', Rule::in([true, false, 1, 0, '1', '0', 'true', 'false'])],
             'vehicle_id' => ['nullable', 'integer', 'exists:vehicles,id'],
             'sort' => ['nullable', Rule::in(['triggered_at', '-triggered_at', 'severity', '-severity'])],
             'page' => ['nullable', 'integer', 'min:1'],

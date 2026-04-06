@@ -22,7 +22,7 @@ export function useDashboardViewModel(data: DashboardSummary | undefined) {
     { label: 'Total vehicles', value: String(data?.total_vehicles ?? 0), hint: 'Across selected scope' },
     { label: 'Moving now', value: String(data?.moving_vehicles ?? 0), hint: 'Live state materialized' },
     { label: 'Idling', value: String(data?.idling_vehicles ?? 0), hint: 'Threshold-aware' },
-    { label: 'Active alerts', value: String(data?.active_alerts ?? 0), hint: 'Requires operator action' },
+    { label: 'Active alerts', value: String(data?.active_alerts ?? 0), hint: 'Requires operator action, excluding geofence exits' },
   ];
 
   const fuelTrendSamples = fuel?.trend?.filter((entry) => (

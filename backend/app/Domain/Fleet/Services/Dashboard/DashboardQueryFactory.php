@@ -18,6 +18,10 @@ class DashboardQueryFactory
         AlertType::GeofenceExit,
     ];
 
+    private const DASHBOARD_HEADLINE_EXCLUDED_ALERT_TYPES = [
+        AlertType::GeofenceExit,
+    ];
+
     public function informationalAlertTypes(): array
     {
         return self::INFORMATIONAL_ALERT_TYPES;
@@ -28,6 +32,13 @@ class DashboardQueryFactory
         return $this->scopeToCompany(Alert::query(), $companyId, $user)
             ->whereNull('resolved_at')
             ->whereNotIn('type', self::INFORMATIONAL_ALERT_TYPES);
+    }
+
+    public function activeDashboardHeadlineAlertsQuery(?int $companyId, User $user)
+    {
+        return $this->scopeToCompany(Alert::query(), $companyId, $user)
+            ->whereNull('resolved_at')
+            ->whereNotIn('type', self::DASHBOARD_HEADLINE_EXCLUDED_ALERT_TYPES);
     }
 
     public function fleetVehiclesQuery(?int $companyId, User $user)

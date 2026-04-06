@@ -62,6 +62,24 @@ export type DashboardSummary = {
       max_trip_km: number;
     };
   };
+  fleet_risk: {
+    overall: {
+      level: 'low' | 'medium' | 'high';
+      label: string;
+      high_driver_count: number;
+      medium_driver_count: number;
+    };
+    drivers: {
+      key: 'maintenance_overdue' | 'active_alerts' | 'offline_vehicles' | 'unassigned_vehicles' | 'active_fuel_anomalies';
+      label: string;
+      count: number;
+      severity: 'low' | 'medium' | 'high';
+      thresholds: {
+        medium: number;
+        high: number;
+      };
+    }[];
+  };
   telemetry_health: TelemetryHealthSummary;
   fuel_anomalies: FuelAnomalySummary;
   geofence_analytics?: GeofenceAnalyticsSummary;

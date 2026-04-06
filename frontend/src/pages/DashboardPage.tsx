@@ -2,7 +2,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { ActivityChartsPanels } from '@/features/dashboard/components/ActivityPanels';
 import { DashboardHeroStats } from '@/features/dashboard/components/DashboardHeroStats';
 import { FleetStatusTablePanel } from '@/features/dashboard/components/FleetStatusTablePanel';
-import { GeofenceAnalyticsPanel, OperationalGapsPanel, FuelAnomaliesPanel, TelemetryHealthPanel } from '@/features/dashboard/components/OperationsPanels';
+import { FleetRiskOverviewPanel, GeofenceAnalyticsPanel, OperationalGapsPanel, FuelAnomaliesPanel, TelemetryHealthPanel } from '@/features/dashboard/components/OperationsPanels';
 import { DrivingBehaviourPanel, FleetEfficiencyPanel, FleetUtilizationPanel } from '@/features/dashboard/components/PerformancePanels';
 import { FuelPanel, MileagePanel, WorkingTimePanel } from '@/features/dashboard/components/ResourcePanels';
 import { useDashboardSummary } from '@/features/dashboard/useDashboardSummary';
@@ -33,6 +33,10 @@ export function DashboardPage() {
 
           <div className="mt-6">
             <FleetUtilizationPanel data={data.fleet_utilization} />
+          </div>
+
+          <div className="mt-6">
+            <FleetRiskOverviewPanel data={data.fleet_risk} />
           </div>
 
           <div className="mt-6">
@@ -81,6 +85,7 @@ export function DashboardPage() {
           <div className="mt-6">
             <FleetStatusTablePanel
               rows={viewModel.fleetStatusRows}
+              freshnessThresholds={data.telemetry_health.thresholds}
               lastPage={viewModel.fleetStatusLastPage}
               currentPage={viewModel.currentFleetStatusPage}
               pageNumbers={viewModel.fleetStatusPageNumbers}

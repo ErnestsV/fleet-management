@@ -21,4 +21,26 @@ return [
     'fuel_refuel_increase_pct' => (float) env('FLEET_FUEL_REFUEL_INCREASE_PCT', 10),
     'fuel_abnormal_consumption_multiplier' => (float) env('FLEET_FUEL_ABNORMAL_CONSUMPTION_MULTIPLIER', 1.8),
     'fuel_min_distance_for_consumption_km' => (float) env('FLEET_FUEL_MIN_DISTANCE_FOR_CONSUMPTION_KM', 10),
+    'dashboard_risk_thresholds' => [
+        'maintenance_overdue' => [
+            'medium' => (int) env('FLEET_RISK_MAINTENANCE_OVERDUE_MEDIUM', 1),
+            'high' => (int) env('FLEET_RISK_MAINTENANCE_OVERDUE_HIGH', 3),
+        ],
+        'active_alerts' => [
+            'medium' => (int) env('FLEET_RISK_ACTIVE_ALERTS_MEDIUM', 5),
+            'high' => (int) env('FLEET_RISK_ACTIVE_ALERTS_HIGH', 10),
+        ],
+        'offline_vehicles' => [
+            'medium' => (int) env('FLEET_RISK_OFFLINE_VEHICLES_MEDIUM', 1),
+            'high' => (int) env('FLEET_RISK_OFFLINE_VEHICLES_HIGH', 3),
+        ],
+        'unassigned_vehicles' => [
+            'medium' => (int) env('FLEET_RISK_UNASSIGNED_VEHICLES_MEDIUM', 3),
+            'high' => (int) env('FLEET_RISK_UNASSIGNED_VEHICLES_HIGH', 7),
+        ],
+        'active_fuel_anomalies' => [
+            'medium' => (int) env('FLEET_RISK_ACTIVE_FUEL_ANOMALIES_MEDIUM', 1),
+            'high' => (int) env('FLEET_RISK_ACTIVE_FUEL_ANOMALIES_HIGH', 2),
+        ],
+    ],
 ];

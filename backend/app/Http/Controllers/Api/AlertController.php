@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Domain\Alerts\Models\Alert;
+use App\Domain\Fleet\Services\Dashboard\DashboardQueryFactory;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AlertIndexRequest;
 use App\Http\Resources\AlertResource;
@@ -11,6 +12,11 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class AlertController extends Controller
 {
+    public function __construct(
+        private readonly DashboardQueryFactory $dashboardQueryFactory,
+    ) {
+    }
+
     public function index(AlertIndexRequest $request): AnonymousResourceCollection
     {
         $this->authorize('viewAny', Alert::class);
@@ -22,6 +28,17 @@ class AlertController extends Controller
         $query = Alert::query()
             ->with(['vehicle', 'rule'])
             ->when(! $request->user()->isSuperAdmin(), fn ($builder) => $builder->where('company_id', $request->user()->company_id))
+            ->when(
+                $request->boolean('exclude_geofence_exit'),
+                fn ($builder) => $builder->where('type', '!=', 'geofence_exit')
+            )
+            ->when(
+                $request->boolean('exclude_informational'),
+                fn ($builder) => $builder->whereNotIn('type', array_map(
+                    fn ($type) => $type->value,
+                    $this->dashboardQueryFactory->informationalAlertTypes(),
+                ))
+            )
             ->when($request->string('type')->toString(), fn ($builder, $type) => $builder->where('type', $type))
             ->when($request->string('status')->toString(), function ($builder, $status) {
                 if ($status === 'active') {
