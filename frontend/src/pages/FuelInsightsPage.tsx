@@ -12,6 +12,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useFuelInsights, useResolveFuelAlert } from '@/features/fuel/useFuelInsights';
 import { getApiErrorMessage } from '@/lib/api/errors';
 import { formatDateTime } from '@/lib/utils/format';
+import type { FuelAnomalyRow } from '@/types/domain';
 
 const FUEL_INSIGHTS_PER_PAGE = 10;
 const FUEL_URGENT_PAGE_SIZE = 5;
@@ -139,7 +140,7 @@ export function FuelInsightsPage() {
                     </tr>
                   </DataTableHead>
                   <DataTableBody>
-                    {(data?.data ?? []).map((row) => (
+                    {(data?.data ?? []).map((row: FuelAnomalyRow) => (
                       <tr key={row.id}>
                         <td className="px-4 py-3">
                           <div className="font-semibold capitalize">{row.type.replace(/_/g, ' ')}</div>
