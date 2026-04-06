@@ -15,7 +15,13 @@ class StoreVehicleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'company_id' => ['nullable', 'integer', 'exists:companies,id'],
+            'company_id' => [
+                Rule::requiredIf($this->user()?->isSuperAdmin()),
+                Rule::prohibitedIf(! $this->user()?->isSuperAdmin()),
+                'nullable',
+                'integer',
+                'exists:companies,id',
+            ],
             'name' => ['required', 'string', 'max:255'],
             'plate_number' => [
                 'required',

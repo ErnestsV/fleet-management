@@ -40,7 +40,7 @@ class FuelInsightsService
     private function baseQuery(User $user): Builder
     {
         return Alert::query()
-            ->with('vehicle')
+            ->with(['vehicle', 'resolvedBy'])
             ->whereIn('alerts.type', $this->fuelTypeValues())
             ->when(
                 ! $user->isSuperAdmin(),
@@ -140,6 +140,11 @@ class FuelInsightsService
             'message' => $alert->message,
             'triggered_at' => $alert->triggered_at?->toIso8601String(),
             'resolved_at' => $alert->resolved_at?->toIso8601String(),
+            'resolved_by_user_id' => $alert->resolved_by_user_id,
+            'resolved_by' => $alert->resolvedBy ? [
+                'id' => $alert->resolvedBy->id,
+                'name' => $alert->resolvedBy->name,
+            ] : null,
             'status' => $alert->resolved_at ? 'resolved' : 'active',
             'vehicle' => $alert->vehicle ? [
                 'id' => $alert->vehicle->id,

@@ -11,7 +11,7 @@ use Illuminate\Support\Carbon;
 class TripDerivationService
 {
     /**
-     * MVP assumptions:
+     * Current derivation assumptions:
      * - A trip starts on the first moving event when no open trip exists.
      * - A trip remains open while the vehicle is moving.
      * - A trip closes on the first non-moving event after movement.
@@ -19,7 +19,9 @@ class TripDerivationService
      */
     public function handle(TelemetryEvent $event, VehicleState $state): ?Trip
     {
-        if ($this->isOutOfOrderForTripDerivation($event)) {
+        $latestTrip = $this->latestTripForDerivation($event->vehicle_id);
+
+        if ($this->isOutOfOrderForTripDerivation($event, $latestTrip)) {
             return null;
         }
 
@@ -97,13 +99,8 @@ class TripDerivationService
         ];
     }
 
-    private function isOutOfOrderForTripDerivation(TelemetryEvent $event): bool
+    private function isOutOfOrderForTripDerivation(TelemetryEvent $event, ?Trip $latestTrip): bool
     {
-        $latestTrip = Trip::query()
-            ->where('vehicle_id', $event->vehicle_id)
-            ->latest('start_time')
-            ->first();
-
         if (! $latestTrip) {
             return false;
         }
@@ -120,5 +117,13 @@ class TripDerivationService
             ->last();
 
         return $latestDerivedAt !== null && $event->occurred_at->lt($latestDerivedAt);
+    }
+
+    private function latestTripForDerivation(int $vehicleId): ?Trip
+    {
+        return Trip::query()
+            ->where('vehicle_id', $vehicleId)
+            ->latest('start_time')
+            ->first();
     }
 }

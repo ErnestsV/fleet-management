@@ -1,8 +1,21 @@
 <?php
 
 use Illuminate\Console\Scheduling\Schedule;
-use Illuminate\Support\Facades\Artisan;
 
-app(Schedule::class)->command('app:check-offline-vehicles')->everyFiveMinutes();
-app(Schedule::class)->command('app:check-maintenance-schedules')->everyFiveMinutes();
-app(Schedule::class)->command('app:check-driver-licenses')->daily();
+app(Schedule::class)->command('app:check-offline-vehicles')
+    ->name('check-offline-vehicles')
+    ->everyFiveMinutes()
+    ->withoutOverlapping(10)
+    ->onOneServer();
+
+app(Schedule::class)->command('app:check-maintenance-schedules')
+    ->name('check-maintenance-schedules')
+    ->everyFiveMinutes()
+    ->withoutOverlapping(10)
+    ->onOneServer();
+
+app(Schedule::class)->command('app:check-driver-licenses')
+    ->name('check-driver-licenses')
+    ->daily()
+    ->withoutOverlapping(1440)
+    ->onOneServer();

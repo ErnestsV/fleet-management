@@ -19,8 +19,10 @@ class CheckMaintenanceSchedulesCommand extends Command
             ->whereNotNull('next_due_date')
             ->whereDate('next_due_date', '<=', today())
             ->with('vehicle.state')
-            ->each(function (MaintenanceSchedule $schedule) use ($service): void {
-                $service->evaluateMaintenanceSchedule($schedule, $schedule->vehicle?->state?->odometer_km);
+            ->chunkById(200, function ($schedules) use ($service): void {
+                $schedules->each(function (MaintenanceSchedule $schedule) use ($service): void {
+                    $service->evaluateMaintenanceSchedule($schedule, $schedule->vehicle?->state?->odometer_km);
+                });
             });
 
         $this->info('Maintenance schedule check complete.');

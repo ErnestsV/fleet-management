@@ -10,6 +10,7 @@ use App\Domain\Telemetry\Enums\VehicleStatus;
 use App\Domain\Telemetry\Models\TelemetryEvent;
 use App\Domain\Telemetry\Models\VehicleState;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 class AlertEvaluationService
 {
@@ -41,7 +42,6 @@ class AlertEvaluationService
             ->where('company_id', $event->company_id)
             ->where('vehicle_id', $event->vehicle_id)
             ->where('is_active', true)
-            ->with('vehicle')
             ->each(fn (MaintenanceSchedule $schedule) => $this->evaluateMaintenanceSchedule($schedule, $event->odometer_km));
     }
 
@@ -283,26 +283,33 @@ class AlertEvaluationService
 
     private function createAlert(AlertType $type, ?int $vehicleId, int $companyId, string $message, array $context): void
     {
-        $query = Alert::query()
-            ->where('company_id', $companyId)
-            ->where('type', $type)
-            ->whereNull('resolved_at');
+        $lockKey = $this->alertLockKey($type, $companyId, $vehicleId, $context);
 
-        if ($vehicleId === null) {
-            $query->whereNull('vehicle_id');
-        } else {
-            $query->where('vehicle_id', $vehicleId);
-        }
+        Cache::lock($lockKey, 5)->block(5, function () use ($type, $vehicleId, $companyId, $message, $context): void {
+            $query = Alert::query()
+                ->where('company_id', $companyId)
+                ->where('type', $type)
+                ->whereNull('resolved_at');
 
-        if ($type === AlertType::MaintenanceDue && isset($context['maintenance_schedule_id'])) {
-            $query->where('context->maintenance_schedule_id', $context['maintenance_schedule_id']);
-        } elseif ($type === AlertType::DriverLicenseExpired && isset($context['driver_id'])) {
-            $query->where('context->driver_id', $context['driver_id']);
-        } else {
-            $query->where('created_at', '>=', now()->subMinutes(15));
-        }
+            if ($vehicleId === null) {
+                $query->whereNull('vehicle_id');
+            } else {
+                $query->where('vehicle_id', $vehicleId);
+            }
 
-        $query->exists() || Alert::create([
+            if ($type === AlertType::MaintenanceDue && isset($context['maintenance_schedule_id'])) {
+                $query->where('context->maintenance_schedule_id', $context['maintenance_schedule_id']);
+            } elseif ($type === AlertType::DriverLicenseExpired && isset($context['driver_id'])) {
+                $query->where('context->driver_id', $context['driver_id']);
+            } else {
+                $query->where('created_at', '>=', now()->subMinutes(15));
+            }
+
+            if ($query->exists()) {
+                return;
+            }
+
+            Alert::create([
                 'company_id' => $companyId,
                 'vehicle_id' => $vehicleId,
                 'type' => $type,
@@ -311,6 +318,24 @@ class AlertEvaluationService
                 'triggered_at' => now(),
                 'context' => $context,
             ]);
+        });
+    }
+
+    private function alertLockKey(AlertType $type, int $companyId, ?int $vehicleId, array $context): string
+    {
+        $identity = match ($type) {
+            AlertType::MaintenanceDue => 'schedule:'.(string) ($context['maintenance_schedule_id'] ?? 'none'),
+            AlertType::DriverLicenseExpired => 'driver:'.(string) ($context['driver_id'] ?? 'none'),
+            default => 'recent',
+        };
+
+        return sprintf(
+            'alerts:create:%s:%d:%s:%s',
+            $type->value,
+            $companyId,
+            $vehicleId ?? 'none',
+            $identity,
+        );
     }
 
     private function severityForType(AlertType $type): string

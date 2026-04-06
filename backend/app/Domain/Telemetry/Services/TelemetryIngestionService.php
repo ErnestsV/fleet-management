@@ -11,6 +11,7 @@ use App\Domain\Telemetry\Models\VehicleState;
 use App\Domain\Trips\Services\TripDerivationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Carbon;
 
 class TelemetryIngestionService
 {
@@ -75,11 +76,18 @@ class TelemetryIngestionService
             ]);
         }
 
-        $device->forceFill(['last_used_at' => now()])->save();
+        if ($this->shouldRefreshLastUsedAt($device->last_used_at)) {
+            $device->forceFill(['last_used_at' => now()])->saveQuietly();
+        }
 
         return Vehicle::query()
             ->whereKey($device->vehicle_id)
             ->where('company_id', $device->company_id)
             ->firstOrFail();
+    }
+
+    private function shouldRefreshLastUsedAt(?Carbon $lastUsedAt): bool
+    {
+        return $lastUsedAt === null || $lastUsedAt->lte(now()->subMinutes(5));
     }
 }

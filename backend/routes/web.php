@@ -6,6 +6,6 @@ Route::get('/', function () {
     return response()->json([
         'name' => config('app.name'),
         'status' => 'ok',
-        'version' => 'mvp',
+        'version' => 'current',
     ]);
 });

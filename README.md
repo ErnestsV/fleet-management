@@ -1,6 +1,6 @@
-# FleetOS MVP
+# FleetOS
 
-Production-minded Phase 1 MVP for a fleet management and telematics SaaS platform inspired by Mapon, Samsara, and Geotab.
+Fleet management and telematics SaaS platform inspired by Mapon, Samsara, and Geotab.
 
 ## Architecture
 
@@ -125,7 +125,7 @@ At a high level:
 
 - The dashboard is the operational overview page.
 - It is meant to show fleet KPIs, live state, map context, trip trends, alert counts, driver/vehicle behaviour summaries, and other management analytics.
-- In this MVP, the dashboard uses currently available telemetry, state, trip, and alert data rather than advanced BI/warehouse metrics.
+- The dashboard uses currently available telemetry, state, trip, and alert data rather than advanced BI/warehouse metrics.
 
 ### Companies
 
@@ -151,7 +151,7 @@ At a high level:
 ### Live Map
 
 - `Live Map` is the fleet-operations workspace for searching vehicles and viewing their current state on a map-style surface.
-- In this MVP, it uses a provider-agnostic map canvas backed by real vehicle coordinates and selection state.
+- It uses a provider-agnostic map canvas backed by real vehicle coordinates and selection state.
 - The intended future upgrade path is to replace the placeholder canvas with a real provider such as Mapbox or Leaflet without changing the fleet domain model.
 
 ### Drivers
@@ -164,7 +164,7 @@ At a high level:
 
 - `Driver Insights` is the management analytics page for comparing driver output and coaching signals over a recent rolling window.
 - It is derived from trip activity attributed through assignment windows plus speeding and idling alerts.
-- Current MVP metrics include trip counts, distance, average trip distance, average trip duration, drive time, after-hours trips, and a coaching-oriented driver score.
+- Current metrics include trip counts, distance, average trip distance, average trip duration, drive time, after-hours trips, and a coaching-oriented driver score.
 - It is intended for recognition, coaching, and identifying underused or risky driving patterns rather than for payroll or compliance.
 
 ### Trips
@@ -186,7 +186,7 @@ At a high level:
 
 - `Telemetry Health` is the device reliability and signal quality page.
 - It exists to help operators understand whether the data stream itself is trustworthy before making decisions from trips, alerts, or live status.
-- Current MVP metrics include freshness rate, healthy devices, stale telemetry, devices offline over threshold, low-frequency devices, missing latest fields, and no-data vehicles.
+- Current metrics include freshness rate, healthy devices, stale telemetry, devices offline over threshold, low-frequency devices, missing latest fields, and no-data vehicles.
 - The detailed view supports search, filtering, freshness buckets, and per-vehicle diagnostics such as last event age and missing fields.
 
 ### Alerts
@@ -559,14 +559,14 @@ php artisan app:simulate-telemetry --count=20
 - `GET /api/v1/dashboard/summary`
 - `POST /api/v1/telemetry/events`
 
-## Current MVP notes
+## Current product notes
 
 - Trips, assignments, geofences, maintenance, alerts, dashboard, driver insights, telemetry health, fuel insights, profile, vehicles, and drivers are exposed in both API and frontend.
-- Device auth is token-based for MVP. The `DeviceToken` model and ingestion service are structured so HMAC/device-signature auth can replace or augment it later.
+- Device auth is token-based today. The `DeviceToken` model and ingestion service are structured so HMAC/device-signature auth can replace or augment it later.
 - Vehicle state is materialized in `vehicle_states`; raw events remain append-only in `telemetry_events`.
 - Alert checks run asynchronously through `EvaluateTelemetryAlertsJob`.
-- Trip derivation uses an MVP assumption: a trip opens on a moving event and closes on the first later non-moving state.
-- Geofence UI is circle-only for MVP; the backend geometry shape remains polygon-ready.
+- Trip derivation currently assumes that a trip opens on a moving event and closes on the first later non-moving state.
+- Geofence UI is currently circle-based; the backend geometry shape remains polygon-ready.
 
 ## Verification status
 

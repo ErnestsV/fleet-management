@@ -56,7 +56,7 @@ export function FleetEfficiencyPanel({
         <div className="flex flex-col items-center justify-center rounded-[28px] bg-slate-50 p-6 text-center">
           <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Selected average</div>
           <div className="mt-3 text-5xl font-semibold text-slate-950">{data.selected_average_score.toFixed(0)}%</div>
-          <div className="mt-2 text-sm text-slate-500">Provider-neutral benchmark for this MVP</div>
+          <div className="mt-2 text-sm text-slate-500">Provider-neutral benchmark for this fleet</div>
         </div>
       </div>
     </Panel>

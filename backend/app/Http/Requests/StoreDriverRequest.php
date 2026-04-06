@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreDriverRequest extends FormRequest
 {
@@ -14,7 +15,13 @@ class StoreDriverRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'company_id' => ['nullable', 'integer', 'exists:companies,id'],
+            'company_id' => [
+                Rule::requiredIf($this->user()?->isSuperAdmin()),
+                Rule::prohibitedIf(! $this->user()?->isSuperAdmin()),
+                'nullable',
+                'integer',
+                'exists:companies,id',
+            ],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email'],
             'phone' => ['nullable', 'string', 'max:50'],

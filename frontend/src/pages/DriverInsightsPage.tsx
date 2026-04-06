@@ -274,7 +274,7 @@ export function DriverInsightsPage() {
                 <div className="flex items-start gap-2">
                   <CircleHelp size={16} className="mt-0.5 shrink-0 text-slate-500" />
                   <div>
-                    Driver score is an MVP coaching signal from 0 to 100.
+                    Driver score is a coaching signal from 0 to 100.
                     It rewards more trips and longer average trip distance, and penalizes speeding and idling alerts per 100 km.
                   </div>
                 </div>

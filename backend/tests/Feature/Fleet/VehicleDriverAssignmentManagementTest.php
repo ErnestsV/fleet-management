@@ -51,4 +51,25 @@ class VehicleDriverAssignmentManagementTest extends TestCase
         ])->assertUnprocessable()
             ->assertJsonValidationErrors(['driver_id']);
     }
+
+    public function test_company_dispatcher_cannot_assign_vehicle_or_driver_from_other_company(): void
+    {
+        $ownCompany = Company::factory()->create();
+        $otherCompany = Company::factory()->create();
+        $user = User::factory()->create([
+            'role' => UserRole::Dispatcher,
+            'company_id' => $ownCompany->id,
+        ]);
+        $vehicle = Vehicle::factory()->create(['company_id' => $otherCompany->id]);
+        $driver = Driver::factory()->create(['company_id' => $otherCompany->id]);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/vehicle-driver-assignments', [
+            'vehicle_id' => $vehicle->id,
+            'driver_id' => $driver->id,
+            'assigned_from' => now()->subHour()->toIso8601String(),
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['vehicle_id', 'driver_id']);
+    }
 }

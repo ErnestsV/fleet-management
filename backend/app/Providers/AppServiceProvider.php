@@ -5,6 +5,9 @@ namespace App\Providers;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Queue\Events\JobFailed;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -34,8 +37,36 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(5)->by($request->ip()),
         ]);
 
-        RateLimiter::for('telemetry', fn (Request $request) => [
-            Limit::perMinute(120)->by($request->bearerToken() ?: $request->ip()),
+        RateLimiter::for('forgot-password', fn (Request $request) => [
+            Limit::perMinute(3)->by('forgot-password:'.$request->ip()),
         ]);
+
+        RateLimiter::for('reset-password', fn (Request $request) => [
+            Limit::perMinute(5)->by('reset-password:'.$request->ip()),
+        ]);
+
+        RateLimiter::for('telemetry', fn (Request $request) => [
+            Limit::perMinute(120)->by('telemetry-token:'.($request->bearerToken() ?: 'missing-token')),
+            Limit::perMinute(600)->by('telemetry-ip:'.$request->ip()),
+        ]);
+
+        RateLimiter::for('api-read', fn (Request $request) => [
+            Limit::perMinute(120)->by('api-read:'.($request->user()?->id ?? $request->ip())),
+        ]);
+
+        RateLimiter::for('api-mutate', fn (Request $request) => [
+            Limit::perMinute(30)->by('api-mutate:'.($request->user()?->id ?? $request->ip())),
+        ]);
+
+        Queue::failing(function (JobFailed $event): void {
+            Log::channel('operations')->error('Queued job failed.', [
+                'connection' => $event->connectionName,
+                'queue' => $event->job->getQueue(),
+                'job_id' => $event->job->getJobId(),
+                'job_name' => $event->job->resolveName(),
+                'exception' => $event->exception::class,
+                'message' => $event->exception->getMessage(),
+            ]);
+        });
     }
 }
