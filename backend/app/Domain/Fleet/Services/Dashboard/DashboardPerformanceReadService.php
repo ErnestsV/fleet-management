@@ -23,7 +23,12 @@ class DashboardPerformanceReadService
             ->selectRaw('type')
             ->selectRaw('COUNT(*) as aggregate_count')
             ->groupBy('type')
-            ->pluck('aggregate_count', 'type');
+            ->get()
+            ->mapWithKeys(function (Alert $alert) {
+                $type = (string) $alert->getRawOriginal('type');
+
+                return [$type => (int) $alert->aggregate_count];
+            });
         $informationalTypes = $this->queryFactory->informationalAlertTypes();
 
         return collect(AlertType::cases())->map(fn (AlertType $type) => [
@@ -44,9 +49,14 @@ class DashboardPerformanceReadService
             ->distinct('vehicle_id')
             ->count('vehicle_id');
 
+        $freshMinutes = min(
+            max((int) config('fleet.telemetry_fresh_minutes', 15), 1),
+            max((int) config('fleet.offline_threshold_minutes', 10), 1),
+        );
+
         $freshTelemetryVehicleIds = (clone $states)
             ->whereIn('vehicle_id', $fleetVehicleIds)
-            ->where('last_event_at', '>=', now()->subMinutes((int) config('fleet.telemetry_fresh_minutes', 15)))
+            ->where('last_event_at', '>=', now()->subMinutes($freshMinutes))
             ->pluck('vehicle_id')
             ->unique();
 

@@ -14,7 +14,7 @@ export function useTrip(tripId: number | null) {
   return useQuery({
     queryKey: ['trip', tripId],
     queryFn: () => fetchTrip(tripId as number),
-    enabled: Boolean(tripId),
+    enabled: tripId !== null,
   });
 }
 
@@ -22,6 +22,6 @@ export function useVehicleTrips(vehicleId: number | null) {
   return useQuery<PaginatedResponse<Trip, TripSummary>>({
     queryKey: ['vehicle-trips', vehicleId],
     queryFn: () => fetchVehicleTrips(vehicleId as number),
-    enabled: Boolean(vehicleId),
+    enabled: vehicleId !== null,
   });
 }

@@ -75,10 +75,10 @@ class GeofenceAnalyticsService
         return $geofences
             ->map(function (Geofence $geofence) use ($windowedStats, $activeVisitCounts) {
                 $stat = $windowedStats[$geofence->id] ?? null;
-                $totalDwellMinutes = round((float) ($stat?->total_dwell_minutes ?? 0), 1);
+                $totalDwellMinutesRaw = (float) ($stat?->total_dwell_minutes ?? 0);
                 $resolvedVisitCount = (int) ($stat?->dwell_sample_count ?? 0);
                 $averageDwellMinutes = $resolvedVisitCount > 0
-                    ? round($totalDwellMinutes / $resolvedVisitCount, 1)
+                    ? round($totalDwellMinutesRaw / $resolvedVisitCount, 1)
                     : null;
                 $latestEntryAt = $this->isoTimestamp($stat?->latest_entry_at);
                 $latestExitAt = $this->isoTimestamp($stat?->latest_exit_at);
@@ -96,7 +96,8 @@ class GeofenceAnalyticsService
                     'unique_vehicle_count' => (int) ($stat?->unique_vehicle_count ?? 0),
                     'active_visit_count' => (int) ($activeVisitCounts[$geofence->id] ?? 0),
                     'resolved_visit_count' => $resolvedVisitCount,
-                    'total_dwell_minutes' => $totalDwellMinutes,
+                    'total_dwell_minutes_raw' => $totalDwellMinutesRaw,
+                    'total_dwell_minutes' => round($totalDwellMinutesRaw, 1),
                     'average_dwell_minutes' => $averageDwellMinutes,
                     'latest_entry_at' => $latestEntryAt,
                     'latest_exit_at' => $latestExitAt,
@@ -129,7 +130,7 @@ class GeofenceAnalyticsService
         $windowStart = now()->subDays($windowDays);
         $resolvedVisitCount = (int) $rows->sum('resolved_visit_count');
         $averageDwellMinutes = $resolvedVisitCount > 0
-            ? round((float) $rows->sum('total_dwell_minutes') / $resolvedVisitCount, 1)
+            ? round((float) $rows->sum('total_dwell_minutes_raw') / $resolvedVisitCount, 1)
             : null;
 
         return [
@@ -143,7 +144,7 @@ class GeofenceAnalyticsService
                 'total_entries' => (int) $rows->sum('entry_count'),
                 'total_exits' => (int) $rows->sum('exit_count'),
                 'active_visits' => (int) $rows->sum('active_visit_count'),
-                'total_dwell_hours' => round((float) $rows->sum('total_dwell_minutes') / 60, 1),
+                'total_dwell_hours' => round((float) $rows->sum('total_dwell_minutes_raw') / 60, 1),
                 'average_dwell_minutes' => $averageDwellMinutes,
             ],
             'top_visited_locations' => $rows
@@ -207,6 +208,7 @@ class GeofenceAnalyticsService
             ->selectRaw($this->geofenceIdSelectExpression())
             ->selectRaw('COUNT(*) as active_visit_count')
             ->groupBy(DB::raw($this->geofenceIdGroupExpression()))
+            ->get()
             ->pluck('active_visit_count', 'geofence_id')
             ->mapWithKeys(fn ($count, $geofenceId) => [(int) $geofenceId => (int) $count])
             ->all();
@@ -253,13 +255,14 @@ class GeofenceAnalyticsService
 
     private function applyGeofenceFilter(Builder $query, array $geofenceIds): Builder
     {
-        return $query->whereIn('context->geofence_id', $geofenceIds);
+        return $query->whereIn(DB::raw($this->geofenceIdExpression()), $geofenceIds);
     }
 
     private function geofenceIdSelectExpression(): string
     {
         return match (DB::connection()->getDriverName()) {
             'sqlite' => "CAST(json_extract(context, '$.geofence_id') AS integer) as geofence_id",
+            'mysql', 'mariadb' => "CAST(JSON_UNQUOTE(JSON_EXTRACT(context, '$.geofence_id')) AS unsigned) as geofence_id",
             default => "CAST(context->>'geofence_id' AS integer) as geofence_id",
         };
     }
@@ -268,6 +271,16 @@ class GeofenceAnalyticsService
     {
         return match (DB::connection()->getDriverName()) {
             'sqlite' => "CAST(json_extract(context, '$.geofence_id') AS integer)",
+            'mysql', 'mariadb' => "CAST(JSON_UNQUOTE(JSON_EXTRACT(context, '$.geofence_id')) AS unsigned)",
+            default => "CAST(context->>'geofence_id' AS integer)",
+        };
+    }
+
+    private function geofenceIdExpression(): string
+    {
+        return match (DB::connection()->getDriverName()) {
+            'sqlite' => "CAST(json_extract(context, '$.geofence_id') AS integer)",
+            'mysql', 'mariadb' => "CAST(JSON_UNQUOTE(JSON_EXTRACT(context, '$.geofence_id')) AS unsigned)",
             default => "CAST(context->>'geofence_id' AS integer)",
         };
     }
@@ -276,6 +289,7 @@ class GeofenceAnalyticsService
     {
         return match (DB::connection()->getDriverName()) {
             'sqlite' => "SUM(CASE WHEN type = ? AND resolved_at IS NOT NULL THEN (julianday(resolved_at) - julianday(triggered_at)) * 1440 ELSE 0 END) as total_dwell_minutes",
+            'mysql', 'mariadb' => "SUM(CASE WHEN type = ? AND resolved_at IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, triggered_at, resolved_at) ELSE 0 END) as total_dwell_minutes",
             default => "SUM(CASE WHEN type = ? AND resolved_at IS NOT NULL THEN EXTRACT(EPOCH FROM (resolved_at - triggered_at)) / 60 ELSE 0 END) as total_dwell_minutes",
         };
     }

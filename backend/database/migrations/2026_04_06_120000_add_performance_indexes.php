@@ -15,10 +15,12 @@ return new class extends Migration
         Schema::table('alerts', function (Blueprint $table) {
             $table->index(['company_id', 'resolved_at', 'type', 'triggered_at'], 'alerts_company_resolved_type_triggered_idx');
             $table->index(['company_id', 'vehicle_id', 'type', 'resolved_at'], 'alerts_company_vehicle_type_resolved_idx');
+            $table->index(['company_id', 'type', 'triggered_at'], 'alerts_company_type_triggered_idx');
         });
 
         Schema::table('trips', function (Blueprint $table) {
             $table->index(['vehicle_id', 'end_time', 'start_time'], 'trips_vehicle_end_start_idx');
+            $table->index(['vehicle_id', 'start_time'], 'trips_vehicle_start_idx');
         });
 
         Schema::table('vehicle_driver_assignments', function (Blueprint $table) {
@@ -38,11 +40,13 @@ return new class extends Migration
 
         Schema::table('trips', function (Blueprint $table) {
             $table->dropIndex('trips_vehicle_end_start_idx');
+            $table->dropIndex('trips_vehicle_start_idx');
         });
 
         Schema::table('alerts', function (Blueprint $table) {
             $table->dropIndex('alerts_company_resolved_type_triggered_idx');
             $table->dropIndex('alerts_company_vehicle_type_resolved_idx');
+            $table->dropIndex('alerts_company_type_triggered_idx');
         });
 
         Schema::table('telemetry_events', function (Blueprint $table) {
