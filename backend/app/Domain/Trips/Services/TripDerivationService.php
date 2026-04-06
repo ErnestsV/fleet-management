@@ -25,7 +25,11 @@ class TripDerivationService
             return null;
         }
 
-        $openTrip = $latestTrip?->end_time === null ? $latestTrip : null;
+        $openTrip = Trip::query()
+            ->where('vehicle_id', $event->vehicle_id)
+            ->whereNull('end_time')
+            ->latest('start_time')
+            ->first();
 
         if ($state->status === VehicleStatus::Moving) {
             if (! $openTrip) {

@@ -144,7 +144,6 @@ class FuelInsightsService
             'resolved_by' => $alert->resolvedBy ? [
                 'id' => $alert->resolvedBy->id,
                 'name' => $alert->resolvedBy->name,
-                'email' => $alert->resolvedBy->email,
             ] : null,
             'status' => $alert->resolved_at ? 'resolved' : 'active',
             'vehicle' => $alert->vehicle ? [

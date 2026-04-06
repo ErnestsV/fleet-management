@@ -17,7 +17,7 @@ class EvaluateTelemetryAlertsJob implements ShouldQueue, ShouldBeUnique
 
     public int $tries = 3;
 
-    public int $timeout = 120;
+    public int $timeout = 60;
 
     public int $maxExceptions = 3;
 

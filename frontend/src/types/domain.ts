@@ -216,7 +216,6 @@ export type FuelAnomalyRow = {
   resolved_by?: {
     id: number;
     name: string;
-    email: string;
   } | null;
   status: 'active' | 'resolved';
   vehicle?: {

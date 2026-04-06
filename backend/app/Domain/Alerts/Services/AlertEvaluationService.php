@@ -326,7 +326,7 @@ class AlertEvaluationService
         $identity = match ($type) {
             AlertType::MaintenanceDue => 'schedule:'.(string) ($context['maintenance_schedule_id'] ?? 'none'),
             AlertType::DriverLicenseExpired => 'driver:'.(string) ($context['driver_id'] ?? 'none'),
-            default => 'window:'.now()->startOfMinute()->format('YmdHi'),
+            default => 'recent',
         };
 
         return sprintf(
