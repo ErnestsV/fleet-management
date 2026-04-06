@@ -12,6 +12,7 @@ use App\Http\Requests\StoreVehicleDriverAssignmentRequest;
 use App\Http\Resources\VehicleDriverAssignmentResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Log;
 
 class VehicleDriverAssignmentController extends Controller
 {
@@ -33,10 +34,29 @@ class VehicleDriverAssignmentController extends Controller
     {
         $this->authorize('create', VehicleDriverAssignment::class);
 
-        $vehicle = Vehicle::findOrFail($request->integer('vehicle_id'));
-        $driver = Driver::findOrFail($request->integer('driver_id'));
+        $vehicle = Vehicle::query()
+            ->when(
+                ! $request->user()->isSuperAdmin(),
+                fn ($query) => $query->where('company_id', $request->user()->company_id)
+            )
+            ->findOrFail($request->integer('vehicle_id'));
+        $driver = Driver::query()
+            ->when(
+                ! $request->user()->isSuperAdmin(),
+                fn ($query) => $query->where('company_id', $request->user()->company_id)
+            )
+            ->findOrFail($request->integer('driver_id'));
 
         $assignment = $service->assign($vehicle, $driver, $request->validated());
+
+        Log::channel('audit')->info('Vehicle driver assignment created.', [
+            'assignment_id' => $assignment->id,
+            'company_id' => $assignment->company_id,
+            'vehicle_id' => $assignment->vehicle_id,
+            'driver_id' => $assignment->driver_id,
+            'assigned_from' => $assignment->assigned_from?->toIso8601String(),
+            'assigned_by_user_id' => $request->user()->id,
+        ]);
 
         return new VehicleDriverAssignmentResource($assignment->load(['vehicle', 'driver']));
     }
@@ -45,6 +65,17 @@ class VehicleDriverAssignmentController extends Controller
     {
         $this->authorize('update', $vehicleDriverAssignment);
 
-        return new VehicleDriverAssignmentResource($service->end($vehicleDriverAssignment, $request->string('assigned_until')->toString())->load(['vehicle', 'driver']));
+        $assignment = $service->end($vehicleDriverAssignment, $request->string('assigned_until')->toString())->load(['vehicle', 'driver']);
+
+        Log::channel('audit')->info('Vehicle driver assignment ended.', [
+            'assignment_id' => $assignment->id,
+            'company_id' => $assignment->company_id,
+            'vehicle_id' => $assignment->vehicle_id,
+            'driver_id' => $assignment->driver_id,
+            'assigned_until' => $assignment->assigned_until?->toIso8601String(),
+            'ended_by_user_id' => $request->user()->id,
+        ]);
+
+        return new VehicleDriverAssignmentResource($assignment);
     }
 }

@@ -5,6 +5,7 @@ namespace App\Domain\Alerts\Models;
 use App\Domain\Alerts\Enums\AlertType;
 use App\Domain\Companies\Models\Company;
 use App\Domain\Fleet\Models\Vehicle;
+use App\Models\User;
 use Database\Factories\AlertFactory;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -30,6 +31,7 @@ class Alert extends Model
         'message',
         'triggered_at',
         'resolved_at',
+        'resolved_by_user_id',
         'context',
     ];
 
@@ -56,5 +58,10 @@ class Alert extends Model
     public function rule(): BelongsTo
     {
         return $this->belongsTo(AlertRule::class, 'alert_rule_id');
+    }
+
+    public function resolvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'resolved_by_user_id');
     }
 }

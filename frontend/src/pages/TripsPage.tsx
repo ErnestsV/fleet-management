@@ -66,7 +66,7 @@ export function TripsPage() {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <Panel
           title="Trip history"
-          description="MVP assumptions: trip starts on first moving event and closes on first non-moving event after movement. Summary cards above cover the full filtered result set."
+          description="Trip derivation assumes a trip starts on the first moving event and closes on the first non-moving event after movement. Summary cards above cover the full filtered result set."
           actions={
             <div className="flex flex-wrap items-center gap-2">
               <SearchField value={search} onChange={setSearch} placeholder="Search vehicles" />

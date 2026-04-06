@@ -16,7 +16,9 @@ class CheckOfflineVehiclesCommand extends Command
     {
         VehicleState::query()
             ->where('last_event_at', '<', now()->subMinutes((int) config('fleet.offline_threshold_minutes', 10)))
-            ->each(fn (VehicleState $state) => $service->markOffline($state));
+            ->chunkById(200, function ($states) use ($service): void {
+                $states->each(fn (VehicleState $state) => $service->markOffline($state));
+            });
 
         $this->info('Offline check complete.');
 

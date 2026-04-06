@@ -212,6 +212,12 @@ export type FuelAnomalyRow = {
   message: string;
   triggered_at: string;
   resolved_at: string | null;
+  resolved_by_user_id: number | null;
+  resolved_by?: {
+    id: number;
+    name: string;
+    email: string;
+  } | null;
   status: 'active' | 'resolved';
   vehicle?: {
     id: number;

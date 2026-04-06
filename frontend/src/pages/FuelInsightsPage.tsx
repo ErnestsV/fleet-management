@@ -180,7 +180,12 @@ export function FuelInsightsPage() {
                                 {resolveMutation.isPending ? 'Resolving...' : 'Resolve'}
                               </button>
                             ) : (
-                              <span className="text-sm text-slate-400">Resolved</span>
+                              <div className="text-sm">
+                                <div className="text-slate-400">Resolved</div>
+                                {row.resolved_by?.name ? (
+                                  <div className="text-xs text-slate-500">by {row.resolved_by.name}</div>
+                                ) : null}
+                              </div>
                             )}
                           </td>
                         ) : null}

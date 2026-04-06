@@ -13,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class VehicleController extends Controller
@@ -130,6 +131,12 @@ class VehicleController extends Controller
         $this->authorize('update', $vehicle);
 
         $result = $service->rotateDeviceToken($vehicle);
+
+        Log::channel('audit')->info('Vehicle device token rotated.', [
+            'vehicle_id' => $vehicle->id,
+            'company_id' => $vehicle->company_id,
+            'rotated_by_user_id' => $request->user()->id,
+        ]);
 
         return response()->json([
             'data' => (new VehicleResource($result->vehicle))->resolve(),

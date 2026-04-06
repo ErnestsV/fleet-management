@@ -19,7 +19,7 @@ class CheckDriverLicensesCommand extends Command
         $staleAlertDriverIds = Alert::query()
             ->where('type', AlertType::DriverLicenseExpired)
             ->whereNull('resolved_at')
-            ->get()
+            ->cursor()
             ->pluck('context.driver_id')
             ->filter()
             ->map(fn ($id) => (int) $id)
@@ -38,7 +38,9 @@ class CheckDriverLicensesCommand extends Command
                     $query->orWhereIn('id', $staleAlertDriverIds->all());
                 }
             })
-            ->each(fn (Driver $driver) => $service->evaluateDriverLicense($driver));
+            ->chunkById(200, function ($drivers) use ($service): void {
+                $drivers->each(fn (Driver $driver) => $service->evaluateDriverLicense($driver));
+            });
 
         $this->info('Driver license check complete.');
 

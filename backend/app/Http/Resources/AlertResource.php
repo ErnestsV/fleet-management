@@ -17,6 +17,7 @@ class AlertResource extends JsonResource
             'message' => $this->message,
             'triggered_at' => $this->triggered_at,
             'resolved_at' => $this->resolved_at,
+            'resolved_by_user_id' => $this->resolved_by_user_id,
             'status' => $this->resolved_at ? 'resolved' : 'active',
             'vehicle' => $this->whenLoaded('vehicle', fn () => [
                 'id' => $this->vehicle?->id,
@@ -27,6 +28,11 @@ class AlertResource extends JsonResource
                 'id' => $this->rule?->id,
                 'name' => $this->rule?->name,
             ]),
+            'resolved_by' => $this->whenLoaded('resolvedBy', fn () => $this->resolvedBy ? [
+                'id' => $this->resolvedBy->id,
+                'name' => $this->resolvedBy->name,
+                'email' => $this->resolvedBy->email,
+            ] : null),
             'context' => $this->context,
         ];
     }

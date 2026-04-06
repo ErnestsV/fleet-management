@@ -207,9 +207,12 @@ class FuelInsightsTest extends TestCase
         $this->postJson("/api/v1/alerts/{$alert->id}/resolve")
             ->assertOk()
             ->assertJsonPath('message', 'Alert resolved successfully.')
-            ->assertJsonPath('data.status', 'resolved');
+            ->assertJsonPath('data.status', 'resolved')
+            ->assertJsonPath('data.resolved_by_user_id', $user->id)
+            ->assertJsonPath('data.resolved_by.id', $user->id);
 
         $this->assertNotNull($alert->fresh()->resolved_at);
+        $this->assertSame($user->id, $alert->fresh()->resolved_by_user_id);
     }
 
     public function test_resolved_fuel_alerts_do_not_appear_in_suspicious_vehicle_summary(): void

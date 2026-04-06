@@ -8,7 +8,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\AlertIndexRequest;
 use App\Http\Resources\AlertResource;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Log;
 
 class AlertController extends Controller
 {
@@ -26,7 +28,7 @@ class AlertController extends Controller
         $column = ltrim($sort, '-');
 
         $query = Alert::query()
-            ->with(['vehicle', 'rule'])
+            ->with(['vehicle', 'rule', 'resolvedBy'])
             ->when(! $request->user()->isSuperAdmin(), fn ($builder) => $builder->where('company_id', $request->user()->company_id))
             ->when(
                 $request->boolean('exclude_geofence_exit'),
@@ -55,17 +57,28 @@ class AlertController extends Controller
         return AlertResource::collection($query->paginate($request->integer('per_page', 10)));
     }
 
-    public function resolve(Alert $alert): JsonResponse
+    public function resolve(Request $request, Alert $alert): JsonResponse
     {
         $this->authorize('resolve', $alert);
 
         if (! $alert->resolved_at) {
-            $alert->forceFill(['resolved_at' => now()])->save();
+            $alert->forceFill([
+                'resolved_at' => now(),
+                'resolved_by_user_id' => $request->user()->id,
+            ])->save();
+
+            Log::channel('audit')->info('Alert resolved manually.', [
+                'alert_id' => $alert->id,
+                'alert_type' => $alert->getRawOriginal('type'),
+                'company_id' => $alert->company_id,
+                'vehicle_id' => $alert->vehicle_id,
+                'resolved_by_user_id' => $request->user()->id,
+            ]);
         }
 
         return response()->json([
             'message' => 'Alert resolved successfully.',
-            'data' => (new AlertResource($alert->fresh(['vehicle', 'rule'])))->resolve(),
+            'data' => (new AlertResource($alert->fresh(['vehicle', 'rule', 'resolvedBy'])))->resolve(),
         ]);
     }
 }

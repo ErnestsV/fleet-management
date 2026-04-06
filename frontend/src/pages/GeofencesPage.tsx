@@ -138,7 +138,7 @@ export function GeofencesPage() {
 
   return (
     <div>
-      <PageHeader title="Geofences" description="Circle geofences for the MVP UI with polygon-ready backend geometry." />
+      <PageHeader title="Geofences" description="Circle geofences with polygon-ready backend geometry." />
       {successMessage ? <DismissibleAlert className="mb-6" message={successMessage} onClose={dismissSuccessMessage} /> : null}
       {createMutation.isError ? <DismissibleAlert className="mb-6" tone="error" message={getApiErrorMessage(createMutation.error)} onClose={dismissCreateError} /> : null}
       {updateMutation.isError ? <DismissibleAlert className="mb-6" tone="error" message={getApiErrorMessage(updateMutation.error)} onClose={dismissUpdateError} /> : null}
