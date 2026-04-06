@@ -9,8 +9,10 @@ import { SelectField } from '@/components/ui/SelectField';
 import { StatCard } from '@/components/ui/StatCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useDriverInsights } from '@/features/drivers/useDriverInsights';
+import type { DriverInsightsSummary } from '@/types/domain';
 
 const DRIVER_INSIGHTS_PAGE_SIZE = 10;
+type DriverInsightRow = DriverInsightsSummary['drivers'][number];
 
 function RankingPanel({
   title,
@@ -129,14 +131,14 @@ export function DriverInsightsPage() {
   const scoredScopedDrivers = scopedDrivers.filter((driver) => driver.score != null);
 
   const scopedStats = data ? [
-    { label: 'Active drivers', value: String(scopedDrivers.filter((driver) => driver.has_activity).length), hint: selectedDriver ? 'Trips attributed to selected driver in the last 7 days' : 'With at least one trip in the last 7 days' },
-    { label: 'Distance', value: `${scopedDrivers.reduce((sum, driver) => sum + driver.distance_km, 0).toFixed(1)} km`, hint: 'Attributed through assignment windows' },
-    { label: 'Trips', value: String(scopedDrivers.reduce((sum, driver) => sum + driver.trip_count, 0)), hint: 'Completed in the last 7 days' },
-    { label: 'Avg trip distance', value: scopedDrivers.filter((driver) => driver.trip_count > 0).length > 0 ? `${(scopedDrivers.filter((driver) => driver.trip_count > 0).reduce((sum, driver) => sum + driver.avg_trip_distance_km, 0) / scopedDrivers.filter((driver) => driver.trip_count > 0).length).toFixed(1)} km` : 'N/A', hint: 'Average trip length across the current scope' },
-    { label: 'Avg trip duration', value: scopedDrivers.filter((driver) => driver.trip_count > 0).length > 0 ? `${(scopedDrivers.filter((driver) => driver.trip_count > 0).reduce((sum, driver) => sum + driver.avg_trip_duration_minutes, 0) / scopedDrivers.filter((driver) => driver.trip_count > 0).length).toFixed(1)} min` : 'N/A', hint: 'Average completed trip duration' },
-    { label: 'Drive time', value: `${scopedDrivers.reduce((sum, driver) => sum + driver.total_drive_hours, 0).toFixed(1)} h`, hint: 'Total completed trip time in the last 7 days' },
-    { label: 'After-hours trips', value: String(scopedDrivers.reduce((sum, driver) => sum + driver.after_hours_trip_count, 0)), hint: 'Trips starting outside the default 07:00-19:00 working window' },
-    { label: 'Average score', value: scoredScopedDrivers.length > 0 ? ((scoredScopedDrivers.reduce((sum, driver) => sum + (driver.score ?? 0), 0)) / scoredScopedDrivers.length).toFixed(1) : 'N/A', hint: selectedDriver ? 'Selected driver score' : 'Trip output balanced against alert rate' },
+    { label: 'Active drivers', value: String(scopedDrivers.filter((driver: DriverInsightRow) => driver.has_activity).length), hint: selectedDriver ? 'Trips attributed to selected driver in the last 7 days' : 'With at least one trip in the last 7 days' },
+    { label: 'Distance', value: `${scopedDrivers.reduce((sum: number, driver: DriverInsightRow) => sum + driver.distance_km, 0).toFixed(1)} km`, hint: 'Attributed through assignment windows' },
+    { label: 'Trips', value: String(scopedDrivers.reduce((sum: number, driver: DriverInsightRow) => sum + driver.trip_count, 0)), hint: 'Completed in the last 7 days' },
+    { label: 'Avg trip distance', value: scopedDrivers.filter((driver: DriverInsightRow) => driver.trip_count > 0).length > 0 ? `${(scopedDrivers.filter((driver: DriverInsightRow) => driver.trip_count > 0).reduce((sum: number, driver: DriverInsightRow) => sum + driver.avg_trip_distance_km, 0) / scopedDrivers.filter((driver: DriverInsightRow) => driver.trip_count > 0).length).toFixed(1)} km` : 'N/A', hint: 'Average trip length across the current scope' },
+    { label: 'Avg trip duration', value: scopedDrivers.filter((driver: DriverInsightRow) => driver.trip_count > 0).length > 0 ? `${(scopedDrivers.filter((driver: DriverInsightRow) => driver.trip_count > 0).reduce((sum: number, driver: DriverInsightRow) => sum + driver.avg_trip_duration_minutes, 0) / scopedDrivers.filter((driver: DriverInsightRow) => driver.trip_count > 0).length).toFixed(1)} min` : 'N/A', hint: 'Average completed trip duration' },
+    { label: 'Drive time', value: `${scopedDrivers.reduce((sum: number, driver: DriverInsightRow) => sum + driver.total_drive_hours, 0).toFixed(1)} h`, hint: 'Total completed trip time in the last 7 days' },
+    { label: 'After-hours trips', value: String(scopedDrivers.reduce((sum: number, driver: DriverInsightRow) => sum + driver.after_hours_trip_count, 0)), hint: 'Trips starting outside the default 07:00-19:00 working window' },
+    { label: 'Average score', value: scoredScopedDrivers.length > 0 ? ((scoredScopedDrivers.reduce((sum: number, driver: DriverInsightRow) => sum + (driver.score ?? 0), 0)) / scoredScopedDrivers.length).toFixed(1) : 'N/A', hint: selectedDriver ? 'Selected driver score' : 'Trip output balanced against alert rate' },
   ] : [];
 
   const chartDrivers = scoredScopedDrivers.slice(0, 10);

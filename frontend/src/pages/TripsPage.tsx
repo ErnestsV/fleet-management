@@ -8,6 +8,7 @@ import { StatCard } from '@/components/ui/StatCard';
 import { useTrips, useTrip } from '@/features/trips/useTrips';
 import { useVehicles } from '@/features/vehicles/useVehicles';
 import { formatDateTime } from '@/lib/utils/format';
+import type { Trip } from '@/types/domain';
 
 export function TripsPage() {
   const [search, setSearch] = useState('');
@@ -47,7 +48,7 @@ export function TripsPage() {
       return;
     }
 
-    if (!(data?.data ?? []).some((trip) => trip.id === selectedId)) {
+    if (!(data?.data ?? []).some((trip: Trip) => trip.id === selectedId)) {
       setSelectedId(null);
     }
   }, [data, selectedId]);
@@ -98,7 +99,7 @@ export function TripsPage() {
                     </tr>
                 </DataTableHead>
                 <DataTableBody>
-                    {(data?.data ?? []).map((trip) => (
+                    {(data?.data ?? []).map((trip: Trip) => (
                       <tr key={trip.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setSelectedId(trip.id)}>
                         <td className="px-4 py-3">{trip.vehicle?.plate_number ?? trip.vehicle_id}</td>
                         <td className="px-4 py-3">{formatDateTime(trip.start_time)}</td>

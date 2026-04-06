@@ -19,14 +19,23 @@ class DashboardPerformanceReadService
 
     public function buildAlertsByType(?int $companyId, User $user)
     {
-        $alerts = $this->queryFactory->activeActionableAlertsQuery($companyId, $user);
+        $alertsByType = $this->queryFactory->activeActionableAlertsQuery($companyId, $user)
+            ->selectRaw('type')
+            ->selectRaw('COUNT(*) as aggregate_count')
+            ->groupBy('type')
+            ->get()
+            ->mapWithKeys(function (Alert $alert) {
+                $type = (string) $alert->getRawOriginal('type');
+
+                return [$type => (int) $alert->aggregate_count];
+            });
         $informationalTypes = $this->queryFactory->informationalAlertTypes();
 
         return collect(AlertType::cases())->map(fn (AlertType $type) => [
             'type' => $type->value,
             'count' => in_array($type, $informationalTypes, true)
                 ? 0
-                : (clone $alerts)->where('type', $type)->count(),
+                : (int) ($alertsByType[$type->value] ?? 0),
         ])->values();
     }
 
@@ -40,9 +49,14 @@ class DashboardPerformanceReadService
             ->distinct('vehicle_id')
             ->count('vehicle_id');
 
+        $freshMinutes = min(
+            max((int) config('fleet.telemetry_fresh_minutes', 15), 1),
+            max((int) config('fleet.offline_threshold_minutes', 10), 1),
+        );
+
         $freshTelemetryVehicleIds = (clone $states)
             ->whereIn('vehicle_id', $fleetVehicleIds)
-            ->where('last_event_at', '>=', now()->subMinutes((int) env('FLEET_OFFLINE_THRESHOLD_MINUTES', 10)))
+            ->where('last_event_at', '>=', now()->subMinutes($freshMinutes))
             ->pluck('vehicle_id')
             ->unique();
 

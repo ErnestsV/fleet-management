@@ -8,6 +8,7 @@ use App\Domain\Geofences\Models\Geofence;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Pagination\LengthAwarePaginator as Paginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -68,94 +69,39 @@ class GeofenceAnalyticsService
         }
 
         $geofenceIds = $geofences->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $windowedStats = $this->windowedStatsByGeofence($user, $windowStart, $geofenceIds);
+        $activeVisitCounts = $this->activeVisitCounts($user, $geofenceIds);
 
-        $stats = [];
-
-        foreach ($geofences as $geofence) {
-            $stats[$geofence->id] = [
-                'geofence_id' => $geofence->id,
-                'name' => $geofence->name,
-                'is_active' => $geofence->is_active,
-                'entry_count' => 0,
-                'exit_count' => 0,
-                'unique_vehicle_ids' => [],
-                'active_visit_count' => 0,
-                'total_dwell_minutes' => 0.0,
-                'dwell_sample_count' => 0,
-                'latest_entry_at' => null,
-                'latest_exit_at' => null,
-            ];
-        }
-
-        foreach ($this->baseAlertQuery($user, $windowStart, $geofenceIds)->cursor() as $alert) {
-            $geofenceId = (int) data_get($alert->context, 'geofence_id');
-
-            if (! isset($stats[$geofenceId])) {
-                continue;
-            }
-
-            if ($alert->vehicle_id !== null) {
-                $stats[$geofenceId]['unique_vehicle_ids'][$alert->vehicle_id] = true;
-            }
-
-            if ($alert->type === AlertType::GeofenceEntry) {
-                $stats[$geofenceId]['entry_count']++;
-
-                if ($alert->resolved_at === null) {
-                    $stats[$geofenceId]['active_visit_count']++;
-                }
-
-                if ($stats[$geofenceId]['latest_entry_at'] === null || $alert->triggered_at?->gt($stats[$geofenceId]['latest_entry_at'])) {
-                    $stats[$geofenceId]['latest_entry_at'] = $alert->triggered_at;
-                }
-
-                if ($alert->resolved_at !== null && $alert->triggered_at !== null) {
-                    $stats[$geofenceId]['total_dwell_minutes'] += (float) $alert->triggered_at->diffInMinutes($alert->resolved_at);
-                    $stats[$geofenceId]['dwell_sample_count']++;
-                }
-
-                continue;
-            }
-
-            $stats[$geofenceId]['exit_count']++;
-
-            if ($stats[$geofenceId]['latest_exit_at'] === null || $alert->triggered_at?->gt($stats[$geofenceId]['latest_exit_at'])) {
-                $stats[$geofenceId]['latest_exit_at'] = $alert->triggered_at;
-            }
-        }
-
-        foreach ($this->activeVisitCounts($user, $geofenceIds) as $geofenceId => $activeVisitCount) {
-            if (! isset($stats[$geofenceId])) {
-                continue;
-            }
-
-            $stats[$geofenceId]['active_visit_count'] = $activeVisitCount;
-        }
-
-        return collect($stats)
-            ->map(function (array $row) {
-                $averageDwellMinutes = $row['dwell_sample_count'] > 0
-                    ? round($row['total_dwell_minutes'] / $row['dwell_sample_count'], 1)
+        return $geofences
+            ->map(function (Geofence $geofence) use ($windowedStats, $activeVisitCounts) {
+                $stat = $windowedStats[$geofence->id] ?? null;
+                $totalDwellMinutesRaw = (float) ($stat?->total_dwell_minutes ?? 0);
+                $resolvedVisitCount = (int) ($stat?->dwell_sample_count ?? 0);
+                $averageDwellMinutes = $resolvedVisitCount > 0
+                    ? round($totalDwellMinutesRaw / $resolvedVisitCount, 1)
                     : null;
-                $lastActivityAt = collect([$row['latest_entry_at'], $row['latest_exit_at']])
+                $latestEntryAt = $this->isoTimestamp($stat?->latest_entry_at);
+                $latestExitAt = $this->isoTimestamp($stat?->latest_exit_at);
+                $lastActivityAt = collect([$latestEntryAt, $latestExitAt])
                     ->filter()
                     ->sortDesc()
                     ->first();
 
                 return [
-                    'geofence_id' => $row['geofence_id'],
-                    'name' => $row['name'],
-                    'is_active' => (bool) $row['is_active'],
-                    'entry_count' => $row['entry_count'],
-                    'exit_count' => $row['exit_count'],
-                    'unique_vehicle_count' => count($row['unique_vehicle_ids']),
-                    'active_visit_count' => $row['active_visit_count'],
-                    'resolved_visit_count' => $row['dwell_sample_count'],
-                    'total_dwell_minutes' => round($row['total_dwell_minutes'], 1),
+                    'geofence_id' => $geofence->id,
+                    'name' => $geofence->name,
+                    'is_active' => (bool) $geofence->is_active,
+                    'entry_count' => (int) ($stat?->entry_count ?? 0),
+                    'exit_count' => (int) ($stat?->exit_count ?? 0),
+                    'unique_vehicle_count' => (int) ($stat?->unique_vehicle_count ?? 0),
+                    'active_visit_count' => (int) ($activeVisitCounts[$geofence->id] ?? 0),
+                    'resolved_visit_count' => $resolvedVisitCount,
+                    'total_dwell_minutes_raw' => $totalDwellMinutesRaw,
+                    'total_dwell_minutes' => round($totalDwellMinutesRaw, 1),
                     'average_dwell_minutes' => $averageDwellMinutes,
-                    'latest_entry_at' => $row['latest_entry_at']?->toIso8601String(),
-                    'latest_exit_at' => $row['latest_exit_at']?->toIso8601String(),
-                    'last_activity_at' => $lastActivityAt?->toIso8601String(),
+                    'latest_entry_at' => $latestEntryAt,
+                    'latest_exit_at' => $latestExitAt,
+                    'last_activity_at' => $lastActivityAt,
                 ];
             })
             ->sort(function (array $left, array $right) {
@@ -184,7 +130,7 @@ class GeofenceAnalyticsService
         $windowStart = now()->subDays($windowDays);
         $resolvedVisitCount = (int) $rows->sum('resolved_visit_count');
         $averageDwellMinutes = $resolvedVisitCount > 0
-            ? round((float) $rows->sum('total_dwell_minutes') / $resolvedVisitCount, 1)
+            ? round((float) $rows->sum('total_dwell_minutes_raw') / $resolvedVisitCount, 1)
             : null;
 
         return [
@@ -198,7 +144,7 @@ class GeofenceAnalyticsService
                 'total_entries' => (int) $rows->sum('entry_count'),
                 'total_exits' => (int) $rows->sum('exit_count'),
                 'active_visits' => (int) $rows->sum('active_visit_count'),
-                'total_dwell_hours' => round((float) $rows->sum('total_dwell_minutes') / 60, 1),
+                'total_dwell_hours' => round((float) $rows->sum('total_dwell_minutes_raw') / 60, 1),
                 'average_dwell_minutes' => $averageDwellMinutes,
             ],
             'top_visited_locations' => $rows
@@ -249,9 +195,7 @@ class GeofenceAnalyticsService
             ->when(
                 $geofenceIds !== [],
                 fn (Builder $query) => $this->applyGeofenceFilter($query, $geofenceIds)
-            )
-            ->select(['vehicle_id', 'type', 'triggered_at', 'resolved_at', 'context'])
-            ->orderBy('triggered_at');
+            );
     }
 
     private function activeVisitCounts(User $user, array $geofenceIds): array
@@ -260,19 +204,14 @@ class GeofenceAnalyticsService
             return [];
         }
 
-        $counts = [];
-
-        foreach ($this->baseUnresolvedEntryQuery($user, $geofenceIds)->cursor() as $alert) {
-            $geofenceId = (int) data_get($alert->context, 'geofence_id');
-
-            if ($geofenceId <= 0) {
-                continue;
-            }
-
-            $counts[$geofenceId] = ($counts[$geofenceId] ?? 0) + 1;
-        }
-
-        return $counts;
+        return $this->baseUnresolvedEntryQuery($user, $geofenceIds)
+            ->selectRaw($this->geofenceIdSelectExpression())
+            ->selectRaw('COUNT(*) as active_visit_count')
+            ->groupBy(DB::raw($this->geofenceIdGroupExpression()))
+            ->get()
+            ->pluck('active_visit_count', 'geofence_id')
+            ->mapWithKeys(fn ($count, $geofenceId) => [(int) $geofenceId => (int) $count])
+            ->all();
     }
 
     private function baseUnresolvedEntryQuery(User $user, array $geofenceIds): Builder
@@ -287,14 +226,81 @@ class GeofenceAnalyticsService
             ->when(
                 $geofenceIds !== [],
                 fn (Builder $query) => $this->applyGeofenceFilter($query, $geofenceIds)
-            )
-            ->select(['context'])
-            ->orderBy('triggered_at');
+            );
+    }
+
+    private function windowedStatsByGeofence(User $user, Carbon $windowStart, array $geofenceIds): array
+    {
+        if ($geofenceIds === []) {
+            return [];
+        }
+
+        $entryType = AlertType::GeofenceEntry->value;
+        $exitType = AlertType::GeofenceExit->value;
+
+        return $this->baseAlertQuery($user, $windowStart, $geofenceIds)
+            ->selectRaw($this->geofenceIdSelectExpression())
+            ->selectRaw('SUM(CASE WHEN type = ? THEN 1 ELSE 0 END) as entry_count', [$entryType])
+            ->selectRaw('SUM(CASE WHEN type = ? THEN 1 ELSE 0 END) as exit_count', [$exitType])
+            ->selectRaw('COUNT(DISTINCT CASE WHEN vehicle_id IS NOT NULL THEN vehicle_id END) as unique_vehicle_count')
+            ->selectRaw('MAX(CASE WHEN type = ? THEN triggered_at END) as latest_entry_at', [$entryType])
+            ->selectRaw('MAX(CASE WHEN type = ? THEN triggered_at END) as latest_exit_at', [$exitType])
+            ->selectRaw($this->dwellMinutesAggregateExpression(), [$entryType])
+            ->selectRaw('SUM(CASE WHEN type = ? AND resolved_at IS NOT NULL THEN 1 ELSE 0 END) as dwell_sample_count', [$entryType])
+            ->groupBy(DB::raw($this->geofenceIdGroupExpression()))
+            ->get()
+            ->keyBy('geofence_id')
+            ->all();
     }
 
     private function applyGeofenceFilter(Builder $query, array $geofenceIds): Builder
     {
-        return $query->whereIn('context->geofence_id', $geofenceIds);
+        return $query->whereIn(DB::raw($this->geofenceIdExpression()), $geofenceIds);
+    }
+
+    private function geofenceIdSelectExpression(): string
+    {
+        return match (DB::connection()->getDriverName()) {
+            'sqlite' => "CAST(json_extract(context, '$.geofence_id') AS integer) as geofence_id",
+            'mysql', 'mariadb' => "CAST(JSON_UNQUOTE(JSON_EXTRACT(context, '$.geofence_id')) AS unsigned) as geofence_id",
+            default => "CAST(context->>'geofence_id' AS integer) as geofence_id",
+        };
+    }
+
+    private function geofenceIdGroupExpression(): string
+    {
+        return match (DB::connection()->getDriverName()) {
+            'sqlite' => "CAST(json_extract(context, '$.geofence_id') AS integer)",
+            'mysql', 'mariadb' => "CAST(JSON_UNQUOTE(JSON_EXTRACT(context, '$.geofence_id')) AS unsigned)",
+            default => "CAST(context->>'geofence_id' AS integer)",
+        };
+    }
+
+    private function geofenceIdExpression(): string
+    {
+        return match (DB::connection()->getDriverName()) {
+            'sqlite' => "CAST(json_extract(context, '$.geofence_id') AS integer)",
+            'mysql', 'mariadb' => "CAST(JSON_UNQUOTE(JSON_EXTRACT(context, '$.geofence_id')) AS unsigned)",
+            default => "CAST(context->>'geofence_id' AS integer)",
+        };
+    }
+
+    private function dwellMinutesAggregateExpression(): string
+    {
+        return match (DB::connection()->getDriverName()) {
+            'sqlite' => "SUM(CASE WHEN type = ? AND resolved_at IS NOT NULL THEN (julianday(resolved_at) - julianday(triggered_at)) * 1440 ELSE 0 END) as total_dwell_minutes",
+            'mysql', 'mariadb' => "SUM(CASE WHEN type = ? AND resolved_at IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, triggered_at, resolved_at) ELSE 0 END) as total_dwell_minutes",
+            default => "SUM(CASE WHEN type = ? AND resolved_at IS NOT NULL THEN EXTRACT(EPOCH FROM (resolved_at - triggered_at)) / 60 ELSE 0 END) as total_dwell_minutes",
+        };
+    }
+
+    private function isoTimestamp(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        return Carbon::parse($value)->toIso8601String();
     }
 
     private function escapeLike(string $value): string

@@ -9,6 +9,7 @@ import { StatCard } from '@/components/ui/StatCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useTelemetryHealth } from '@/features/telemetry/useTelemetryHealth';
 import { formatDateTime } from '@/lib/utils/format';
+import type { TelemetryHealthRow } from '@/types/domain';
 
 const TELEMETRY_HEALTH_PER_PAGE = 10;
 const TELEMETRY_URGENT_PAGE_SIZE = 5;
@@ -148,7 +149,7 @@ export function TelemetryHealthPage() {
                     </tr>
                   </DataTableHead>
                   <DataTableBody>
-                    {(data?.data ?? []).map((row) => (
+                    {(data?.data ?? []).map((row: TelemetryHealthRow) => (
                       <tr key={row.vehicle_id}>
                         <td className="px-4 py-3">
                           <div className="font-semibold">{row.plate_number}</div>
@@ -213,7 +214,7 @@ export function TelemetryHealthPage() {
 
         <Panel title="Most urgent vehicles" description="Fast follow-up list for the vehicles that currently need operator attention first.">
           <div className="space-y-3">
-            {urgentRows.length > 0 ? visibleUrgentRows.map((row) => (
+            {urgentRows.length > 0 ? visibleUrgentRows.map((row: TelemetryHealthRow) => (
               <div key={row.vehicle_id} className="rounded-2xl border border-slate-200 p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
