@@ -15,6 +15,20 @@ export type AuthUser = {
   } | null;
 };
 
+export type AiCopilotHistoryMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+export type AiCopilotResponse = {
+  message: string;
+  meta: {
+    configured: boolean;
+    model?: string | null;
+    tool_calls?: number;
+  };
+};
+
 export type Company = {
   id: number;
   name: string;

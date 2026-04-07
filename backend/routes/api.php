@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\PasswordResetController;
 use App\Http\Controllers\Api\AlertController;
+use App\Http\Controllers\Api\AiCopilotController;
 use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\CompanyUserController;
 use App\Http\Controllers\Api\DashboardController;
@@ -47,6 +48,8 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/dashboard/summary', DashboardController::class)
             ->middleware('throttle:api-read');
+        Route::post('/ai/copilot/messages', AiCopilotController::class)
+            ->middleware('throttle:ai-copilot');
         Route::get('/telemetry-health', TelemetryHealthController::class)
             ->middleware('throttle:api-read');
         Route::get('/driver-insights', DriverInsightsController::class)

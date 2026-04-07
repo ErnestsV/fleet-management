@@ -1,7 +1,8 @@
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, Bell, Building2, CarFront, ChevronDown, ChevronsLeft, ChevronsRight, CircleUserRound, Droplets, LayoutDashboard, LineChart, Map, MapPinned, Menu, Route, Settings, Users, Wrench, X } from 'lucide-react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/app/store/authStore';
+import { AiCopilotPanel } from '@/features/ai/AiCopilotPanel';
 import { useAlerts } from '@/features/alerts/useAlerts';
 import { logout } from '@/lib/api/auth';
 
@@ -23,6 +24,7 @@ const links = [
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const location = useLocation();
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const clearSession = useAuthStore((state) => state.clearSession);
@@ -33,6 +35,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { data: activeAlerts } = useAlerts({ status: 'active', exclude_geofence_exit: true, per_page: 1 }, { refetchInterval: 10000 });
 
   const activeAlertCount = activeAlerts?.meta?.total ?? 0;
+  const showAiCopilot = location.pathname === '/';
   const companyLabel = useMemo(() => {
     if (user?.company?.name) {
       return user.company.name;
@@ -205,6 +208,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <main className="flex-1 p-4 md:p-6 max-w-[100vw]">{children}</main>
         </div>
       </div>
+      {showAiCopilot ? <AiCopilotPanel /> : null}
     </div>
   );
 }
