@@ -58,6 +58,10 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(30)->by('api-mutate:'.($request->user()?->id ?? $request->ip())),
         ]);
 
+        RateLimiter::for('ai-copilot', fn (Request $request) => [
+            Limit::perMinute(12)->by('ai-copilot:'.($request->user()?->id ?? $request->ip())),
+        ]);
+
         Queue::failing(function (JobFailed $event): void {
             Log::channel('operations')->error('Queued job failed.', [
                 'connection' => $event->connectionName,
