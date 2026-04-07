@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Bot, LoaderCircle, MessageSquareText, SendHorizontal, Sparkles, X } from 'lucide-react';
+import type { AiCopilotUiConfig } from '@/features/ai/copilotContext';
 import { useAiCopilot } from '@/features/ai/useAiCopilot';
 import { getApiErrorMessage } from '@/lib/api/errors';
 import type { AiCopilotHistoryMessage } from '@/types/domain';
@@ -8,13 +9,6 @@ type ChatMessage = AiCopilotHistoryMessage & {
   id: string;
   tone?: 'default' | 'error';
 };
-
-const SUGGESTED_PROMPTS = [
-  'Summarize the current dashboard.',
-  'What should I focus on first today?',
-  'Why is fleet risk high right now?',
-  'Explain the active alerts in plain English.',
-];
 
 const MAX_HISTORY_MESSAGES = 8;
 
@@ -27,11 +21,11 @@ function createMessage(role: ChatMessage['role'], content: string, tone: ChatMes
   };
 }
 
-export function AiCopilotPanel() {
+export function AiCopilotPanel({ config }: { config: AiCopilotUiConfig }) {
   const [isOpen, setIsOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([
-    createMessage('assistant', 'Ask about fleet risk, alerts, vehicles needing attention, or a dashboard summary.'),
+    createMessage('assistant', config.intro),
   ]);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const copilotMutation = useAiCopilot();
@@ -43,6 +37,13 @@ export function AiCopilotPanel() {
       .slice(-MAX_HISTORY_MESSAGES),
     [messages],
   );
+
+  useEffect(() => {
+    setMessages([createMessage('assistant', config.intro)]);
+    setDraft('');
+    setIsOpen(false);
+    copilotMutation.reset();
+  }, [config.context]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -71,6 +72,7 @@ export function AiCopilotPanel() {
 
     try {
       const response = await copilotMutation.mutateAsync({
+        context: config.context,
         message: trimmedInput,
         history: nextHistory.slice(0, -1),
       });
@@ -90,18 +92,18 @@ export function AiCopilotPanel() {
   }
 
   return (
-    <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-3">
+    <div className="fixed inset-x-4 bottom-5 z-40 flex flex-col items-end gap-3 sm:inset-x-auto sm:right-5">
       {isOpen ? (
-        <div className="w-[calc(100vw-2rem)] max-w-[26rem] overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl shadow-slate-950/15">
+        <div className="flex w-full max-w-[26rem] max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl shadow-slate-950/15 sm:max-h-[calc(100dvh-2.5rem)]">
           <div className="relative overflow-hidden border-b border-slate-200 bg-slate-950 px-5 py-4 text-white">
             <div className="absolute inset-x-0 top-0 h-24 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.28),transparent_60%)]" />
             <div className="relative flex items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-sky-200">
                   <Sparkles size={14} />
-                  Fleet Copilot
+                  {config.label}
                 </div>
-                <p className="mt-2 text-sm text-slate-200">Read-only analytics assistant grounded in your live dashboard data.</p>
+                <p className="mt-2 text-sm text-slate-200">{config.intro}</p>
               </div>
               <button
                 type="button"
@@ -114,9 +116,9 @@ export function AiCopilotPanel() {
             </div>
           </div>
 
-          <div ref={scrollContainerRef} className="max-h-[28rem] space-y-4 overflow-y-auto bg-slate-50 px-4 py-4">
+          <div ref={scrollContainerRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-slate-50 px-4 py-4">
             <div className="flex flex-wrap gap-2">
-              {SUGGESTED_PROMPTS.map((prompt) => (
+              {config.prompts.map((prompt) => (
                 <button
                   key={prompt}
                   type="button"
@@ -163,7 +165,7 @@ export function AiCopilotPanel() {
                   id="ai-copilot-input"
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
-                  placeholder="Ask about dashboard risk, alerts, telemetry, or driver insights..."
+                  placeholder={config.placeholder}
                   rows={2}
                   maxLength={1000}
                   className="max-h-32 min-h-[3rem] w-full resize-none border-0 bg-transparent p-0 text-sm text-slate-700 outline-none placeholder:text-slate-400"
@@ -179,22 +181,24 @@ export function AiCopilotPanel() {
                 <SendHorizontal size={18} />
               </button>
             </div>
-            <p className="mt-3 text-xs text-slate-400">This copilot answers from supported live analytics only.</p>
+            <p className="mt-3 text-xs text-slate-400">This copilot answers only from analytics available on this page.</p>
           </form>
         </div>
       ) : null}
 
-      <button
-        type="button"
-        className="group flex items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-xl shadow-slate-950/10 transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-sky-700"
-        onClick={() => setIsOpen(true)}
-        aria-label="Open AI copilot"
-      >
-        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-950 text-white transition group-hover:bg-sky-600">
-          {isOpen ? <Bot size={18} /> : <MessageSquareText size={18} />}
-        </span>
-        <span className="hidden pr-1 sm:inline">Ask Fleet Copilot</span>
-      </button>
+      {!isOpen ? (
+        <button
+          type="button"
+          className="group flex items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-xl shadow-slate-950/10 transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-sky-700"
+          onClick={() => setIsOpen(true)}
+          aria-label="Open AI copilot"
+        >
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-950 text-white transition group-hover:bg-sky-600">
+            <MessageSquareText size={18} />
+          </span>
+          <span className="hidden pr-1 sm:inline">Ask {config.label}</span>
+        </button>
+      ) : null}
     </div>
   );
 }

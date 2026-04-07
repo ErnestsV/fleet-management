@@ -19,7 +19,7 @@ class AiCopilotService
     ) {
     }
 
-    public function respond(User $user, string $message, array $history = []): array
+    public function respond(User $user, string $context, string $message, array $history = []): array
     {
         $apiKey = (string) config('services.openai.api_key');
 
@@ -29,6 +29,7 @@ class AiCopilotService
                 'meta' => [
                     'configured' => false,
                     'model' => config('services.openai.model'),
+                    'context' => $context,
                 ],
             ];
         }
@@ -42,8 +43,8 @@ class AiCopilotService
 
         try {
             for ($round = 0; $round < self::MAX_TOOL_ROUNDS; $round++) {
-                $response = $this->sendResponseRequest($conversation);
-                $toolOutputs = $this->buildToolOutputs($response, $user);
+                $response = $this->sendResponseRequest($conversation, $context);
+                $toolOutputs = $this->buildToolOutputs($response, $user, $context);
 
                 if ($toolOutputs === []) {
                     return [
@@ -52,6 +53,7 @@ class AiCopilotService
                             'configured' => true,
                             'model' => (string) config('services.openai.model'),
                             'tool_calls' => $this->toolCallCount($response),
+                            'context' => $context,
                         ],
                     ];
                 }
@@ -75,6 +77,7 @@ class AiCopilotService
                 'meta' => [
                     'configured' => true,
                     'model' => (string) config('services.openai.model'),
+                    'context' => $context,
                 ],
             ];
         } catch (Throwable $exception) {
@@ -90,6 +93,7 @@ class AiCopilotService
                 'meta' => [
                     'configured' => true,
                     'model' => (string) config('services.openai.model'),
+                    'context' => $context,
                 ],
             ];
         }
@@ -105,22 +109,25 @@ class AiCopilotService
             'meta' => [
                 'configured' => true,
                 'model' => (string) config('services.openai.model'),
+                'context' => $context,
             ],
         ];
     }
 
-    private function sendResponseRequest(array $input): array
+    private function sendResponseRequest(array $input, string $context): array
     {
+        $timeoutSeconds = max(1, (int) config('services.openai.timeout', 25));
+
         $response = Http::withToken((string) config('services.openai.api_key'))
             ->baseUrl(rtrim((string) config('services.openai.base_url'), '/'))
-            ->timeout((int) config('services.openai.timeout'))
+            ->timeout($timeoutSeconds)
             ->acceptJson()
             ->post('/responses', [
                 'model' => (string) config('services.openai.model'),
                 'store' => false,
-                'instructions' => $this->instructions(),
+                'instructions' => $this->instructions($context),
                 'input' => $input,
-                'tools' => $this->toolRegistry->definitions(),
+                'tools' => $this->toolRegistry->definitions($context),
             ])
             ->throw()
             ->json();
@@ -160,12 +167,22 @@ class AiCopilotService
         ];
     }
 
-    private function instructions(): string
+    private function instructions(string $context): string
     {
+        $pageContextInstruction = match ($context) {
+            \App\Domain\Ai\Support\AiCopilotContext::DASHBOARD => 'The user is on the operations dashboard. Focus on fleet-wide KPIs, risk, alerts, and prioritization.',
+            \App\Domain\Ai\Support\AiCopilotContext::DRIVER_INSIGHTS => 'The user is on the driver insights page. Focus on score interpretation, coaching candidates, leaders, and trends.',
+            \App\Domain\Ai\Support\AiCopilotContext::FUEL_INSIGHTS => 'The user is on the fuel insights page. Focus on anomaly types, suspicious vehicles, thresholds, and follow-up signals.',
+            \App\Domain\Ai\Support\AiCopilotContext::TELEMETRY_HEALTH => 'The user is on the telemetry health page. Focus on freshness, missing data, device health, and urgent telemetry follow-up.',
+            \App\Domain\Ai\Support\AiCopilotContext::GEOFENCE_ANALYTICS => 'The user is on the geofence analytics page. Focus on entries, exits, visits, dwell time, and active locations.',
+            default => 'Stay within the current analytics context.',
+        };
+
         return implode("\n", [
             'You are FleetOS Copilot, a read-only fleet analytics assistant.',
+            $pageContextInstruction,
             'Only answer using facts grounded in tool outputs from this request.',
-            'If the request is outside supported analytics scope, say so briefly and redirect to supported topics.',
+            'If the request is outside the current page analytics scope, say so briefly and redirect to supported questions for this page.',
             'Never invent counts, rankings, reasons, or dates.',
             'Do not provide legal, compliance, or mechanical advice beyond the supplied analytics data.',
             'Keep responses concise, operational, and specific.',
@@ -173,7 +190,7 @@ class AiCopilotService
         ]);
     }
 
-    private function buildToolOutputs(array $response, User $user): array
+    private function buildToolOutputs(array $response, User $user, string $context): array
     {
         $toolOutputs = [];
 
@@ -189,7 +206,7 @@ class AiCopilotService
                 $arguments = [];
             }
 
-            $result = $this->toolRegistry->tool($name)->execute($arguments, $user);
+            $result = $this->toolRegistry->tool($name, $context)->execute($arguments, $user);
 
             $toolOutputs[] = [
                 'type' => 'function_call_output',

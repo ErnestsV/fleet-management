@@ -5,6 +5,7 @@ namespace App\Domain\Ai\Tools;
 use App\Domain\Ai\Contracts\AiCopilotTool;
 use App\Domain\Fleet\Services\DashboardService;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 
 class GetVehicleAttentionListTool implements AiCopilotTool
 {
@@ -37,9 +38,11 @@ class GetVehicleAttentionListTool implements AiCopilotTool
     {
         $limit = min(max((int) ($arguments['limit'] ?? 5), 1), 12);
         $summary = $this->dashboardService->summary($user);
+        $staleMinutes = max((int) data_get($summary, 'telemetry_health.thresholds.stale_minutes', 60), 1);
+        $staleCutoff = now()->subMinutes($staleMinutes);
 
         $attentionVehicles = collect($summary['fleet'])
-            ->map(function (array $vehicle) {
+            ->map(function (array $vehicle) use ($staleCutoff) {
                 $reasons = [];
 
                 if (! $vehicle['driver']) {
@@ -48,6 +51,8 @@ class GetVehicleAttentionListTool implements AiCopilotTool
 
                 if (! $vehicle['last_event_at']) {
                     $reasons[] = 'missing_telemetry';
+                } elseif (Carbon::parse($vehicle['last_event_at'])->lt($staleCutoff)) {
+                    $reasons[] = 'stale_telemetry';
                 }
 
                 if (! $vehicle['status'] || $vehicle['status'] === 'unknown') {
@@ -71,7 +76,10 @@ class GetVehicleAttentionListTool implements AiCopilotTool
                 ];
             })
             ->filter(fn (array $vehicle) => $vehicle['reasons'] !== [])
-            ->sortByDesc(fn (array $vehicle) => [$vehicle['severity_score'], $vehicle['last_event_at'] ?? ''])
+            ->sortByDesc(fn (array $vehicle) => [
+                $vehicle['severity_score'],
+                $vehicle['last_event_at'] ?? '9999-12-31T23:59:59+00:00',
+            ])
             ->take($limit)
             ->values()
             ->map(fn (array $vehicle) => [

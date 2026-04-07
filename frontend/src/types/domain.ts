@@ -20,12 +20,15 @@ export type AiCopilotHistoryMessage = {
   content: string;
 };
 
+export type AiCopilotContext = 'dashboard' | 'driver_insights' | 'fuel_insights' | 'telemetry_health' | 'geofence_analytics';
+
 export type AiCopilotResponse = {
   message: string;
   meta: {
     configured: boolean;
     model?: string | null;
     tool_calls?: number;
+    context?: AiCopilotContext;
   };
 };
 

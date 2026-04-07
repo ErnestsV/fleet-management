@@ -13,6 +13,7 @@ class AiCopilotController extends Controller
     {
         return response()->json($service->respond(
             user: $request->user(),
+            context: $request->validated('context'),
             message: $request->validated('message'),
             history: $request->validated('history', []),
         ));

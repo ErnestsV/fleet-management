@@ -1,7 +1,8 @@
 import { apiClient } from '@/lib/api/client';
-import type { AiCopilotHistoryMessage, AiCopilotResponse } from '@/types/domain';
+import type { AiCopilotContext, AiCopilotHistoryMessage, AiCopilotResponse } from '@/types/domain';
 
 export type SendAiCopilotMessagePayload = {
+  context: AiCopilotContext;
   message: string;
   history?: AiCopilotHistoryMessage[];
 };
