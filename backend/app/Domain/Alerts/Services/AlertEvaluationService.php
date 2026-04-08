@@ -189,6 +189,16 @@ class AlertEvaluationService
         );
     }
 
+    public function resolveOfflineAlerts(int $companyId, int $vehicleId): void
+    {
+        Alert::query()
+            ->where('company_id', $companyId)
+            ->where('vehicle_id', $vehicleId)
+            ->where('type', AlertType::OfflineVehicle)
+            ->whereNull('resolved_at')
+            ->update(['resolved_at' => now()]);
+    }
+
     public function evaluateMaintenanceSchedule(MaintenanceSchedule $schedule, ?float $currentOdometerKm = null): void
     {
         $dateDue = $schedule->next_due_date && $schedule->next_due_date->startOfDay()->lte(today());
