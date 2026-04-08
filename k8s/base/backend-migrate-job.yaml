@@ -31,8 +31,8 @@ spec:
             capabilities:
               drop: ["ALL"]
             runAsNonRoot: true
-            runAsUser: 33
-            runAsGroup: 33
+            runAsUser: 65532
+            runAsGroup: 65532
       containers:
         - name: migrate
           image: REGION-docker.pkg.dev/PROJECT_ID/fleet-management/backend-app:replace-at-deploy

@@ -60,8 +60,8 @@ spec:
             capabilities:
               drop: ["ALL"]
             runAsNonRoot: true
-            runAsUser: 101
-            runAsGroup: 101
+            runAsUser: 65532
+            runAsGroup: 65532
           resources:
             requests:
               cpu: 100m
