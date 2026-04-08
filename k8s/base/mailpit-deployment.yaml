@@ -13,15 +13,23 @@ spec:
       labels:
         app: mailpit
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: mailpit
-          image: axllent/mailpit:latest
+          image: axllent/mailpit:v1.29.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 1025
               name: smtp
             - containerPort: 8025
               name: http
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            runAsNonRoot: true
           resources:
             requests:
               cpu: 50m

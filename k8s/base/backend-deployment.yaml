@@ -13,10 +13,13 @@ spec:
       labels:
         app: backend
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       serviceAccountName: fleet-backend
       containers:
         - name: app
-          image: REGION-docker.pkg.dev/PROJECT_ID/fleet-management/backend-app:latest
+          image: REGION-docker.pkg.dev/PROJECT_ID/fleet-management/backend-app:replace-at-deploy
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
@@ -26,6 +29,11 @@ spec:
           ports:
             - containerPort: 9000
               name: php-fpm
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            runAsNonRoot: true
           resources:
             requests:
               cpu: 250m
@@ -46,6 +54,9 @@ spec:
                   name: backend-config
                   key: CLOUD_SQL_INSTANCE_CONNECTION_NAME
           securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
             runAsNonRoot: true
           resources:
             requests:
@@ -55,11 +66,16 @@ spec:
               cpu: 250m
               memory: 128Mi
         - name: web
-          image: REGION-docker.pkg.dev/PROJECT_ID/fleet-management/backend-web:latest
+          image: REGION-docker.pkg.dev/PROJECT_ID/fleet-management/backend-web:replace-at-deploy
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
               name: http
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            runAsNonRoot: true
           readinessProbe:
             httpGet:
               path: /up

@@ -6,7 +6,6 @@ on:
       image_tag:
         description: Image tag to publish and deploy
         required: true
-        default: latest
 
 env:
   GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
@@ -24,6 +23,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Validate image tag
+        run: |
+          IMAGE_TAG='${{ github.event.inputs.image_tag }}'
+          if ! printf '%s' "$IMAGE_TAG" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$'; then
+            echo "Invalid image_tag: $IMAGE_TAG" >&2
+            exit 1
+          fi
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -73,6 +80,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Validate image tag
+        run: |
+          IMAGE_TAG='${{ github.event.inputs.image_tag }}'
+          if ! printf '%s' "$IMAGE_TAG" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$'; then
+            echo "Invalid image_tag: $IMAGE_TAG" >&2
+            exit 1
+          fi
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
@@ -88,18 +103,22 @@ jobs:
           cluster_name: ${{ env.GKE_CLUSTER }}
           location: ${{ env.GKE_LOCATION }}
 
+      - name: Apply deployment prerequisites
+        run: |
+          kubectl apply -k k8s/overlays/production-prereqs
+
       - name: Update deployment image tags
         run: |
-          sed -i "s/newTag: latest/newTag: ${{ github.event.inputs.image_tag }}/g" k8s/overlays/production/kustomization.yaml
-
-      - name: Apply Kubernetes manifests
-        run: kubectl apply -k k8s/overlays/production
+          sed -i "s/newTag: replace-at-deploy/newTag: ${{ github.event.inputs.image_tag }}/g" k8s/overlays/production/kustomization.yaml
 
       - name: Run database migration job
         run: |
           sed \
-            -e "s|REGION-docker.pkg.dev/PROJECT_ID/fleet-management/backend-app:latest|${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/backend-app:${{ github.event.inputs.image_tag }}|g" \
+            -e "s|REGION-docker.pkg.dev/PROJECT_ID/fleet-management/backend-app:replace-at-deploy|${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/backend-app:${{ github.event.inputs.image_tag }}|g" \
             k8s/base/backend-migrate-job.yaml > /tmp/backend-migrate-job.yaml
           kubectl delete job backend-migrate --namespace fleet-management --ignore-not-found
           kubectl apply -f /tmp/backend-migrate-job.yaml
           kubectl wait --for=condition=complete job/backend-migrate --namespace fleet-management --timeout=300s
+
+      - name: Apply Kubernetes manifests
+        run: kubectl apply -k k8s/overlays/production

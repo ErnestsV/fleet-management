@@ -13,13 +13,21 @@ spec:
       labels:
         app: frontend
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: frontend
-          image: REGION-docker.pkg.dev/PROJECT_ID/fleet-management/frontend:latest
+          image: REGION-docker.pkg.dev/PROJECT_ID/fleet-management/frontend:replace-at-deploy
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
               name: http
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            runAsNonRoot: true
           readinessProbe:
             httpGet:
               path: /

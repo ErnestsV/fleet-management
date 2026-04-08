@@ -30,7 +30,7 @@ data:
   REDIS_HOST: 10.57.1.3
   REDIS_PORT: "6379"
   MAIL_MAILER: smtp
-  MAIL_SCHEME: null
+  MAIL_SCHEME: ""
   MAIL_HOST: mailpit
   MAIL_PORT: "1025"
   MAIL_FROM_ADDRESS: hello@example.com

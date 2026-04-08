@@ -1,18 +1,9 @@
 namespace: fleet-management
 
 resources:
-  - ../../base
-
-images:
-  - name: REGION-docker.pkg.dev/PROJECT_ID/fleet-management/backend-app
-    newName: europe-north1-docker.pkg.dev/fleetos-492609/fleetos-repo/backend-app
-    newTag: replace-at-deploy
-  - name: REGION-docker.pkg.dev/PROJECT_ID/fleet-management/backend-web
-    newName: europe-north1-docker.pkg.dev/fleetos-492609/fleetos-repo/backend-web
-    newTag: replace-at-deploy
-  - name: REGION-docker.pkg.dev/PROJECT_ID/fleet-management/frontend
-    newName: europe-north1-docker.pkg.dev/fleetos-492609/fleetos-repo/frontend
-    newTag: replace-at-deploy
+  - ../../base/namespace.yaml
+  - ../../base/backend-serviceaccount.yaml
+  - ../../base/backend-configmap.yaml
 
 patches:
   - target:
