@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Bot, LoaderCircle, MessageSquareText, SendHorizontal, Sparkles, X } from 'lucide-react';
 import type { AiCopilotUiConfig } from '@/features/ai/copilotContext';
 import { useAiCopilot } from '@/features/ai/useAiCopilot';
+import type { SendAiCopilotMessagePayload } from '@/lib/api/aiCopilot';
 import { getApiErrorMessage } from '@/lib/api/errors';
 import type { AiCopilotHistoryMessage } from '@/types/domain';
 
@@ -68,14 +69,15 @@ export function AiCopilotPanel({ config }: { config: AiCopilotUiConfig }) {
     const nextHistory = [...conversationHistory, nextHistoryMessage].slice(-MAX_HISTORY_MESSAGES);
 
     setMessages((current) => [...current, nextUserMessage]);
-    setDraft('');
+   setDraft('');
 
     try {
-      const response = await copilotMutation.mutateAsync({
+      const payload: SendAiCopilotMessagePayload = {
         context: config.context,
         message: trimmedInput,
         history: nextHistory.slice(0, -1),
-      });
+      };
+      const response = await copilotMutation.mutateAsync(payload);
 
       setMessages((current) => [...current, createMessage('assistant', response.message)]);
     } catch (error) {

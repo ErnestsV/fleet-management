@@ -2,6 +2,7 @@
 
 namespace App\Domain\Telemetry\Services;
 
+use App\Domain\Alerts\Services\AlertEvaluationService;
 use App\Domain\Alerts\Jobs\EvaluateTelemetryAlertsJob;
 use App\Domain\Fleet\Models\Vehicle;
 use App\Domain\Geofences\Services\GeofenceService;
@@ -16,6 +17,7 @@ use Illuminate\Support\Carbon;
 class TelemetryIngestionService
 {
     public function __construct(
+        private readonly AlertEvaluationService $alertEvaluationService,
         private readonly TelemetryStateResolver $stateResolver,
         private readonly TripDerivationService $tripDerivationService,
         private readonly GeofenceService $geofenceService,
@@ -53,6 +55,7 @@ class TelemetryIngestionService
             }
 
             $state = $this->stateResolver->apply($event);
+            $this->alertEvaluationService->resolveOfflineAlerts($vehicle->company_id, $vehicle->id);
             $this->tripDerivationService->handle($event, $state);
             $this->geofenceService->syncEvent($event, $state);
 

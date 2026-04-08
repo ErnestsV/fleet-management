@@ -9,6 +9,12 @@ Fleet management and telematics SaaS platform inspired by Mapon, Samsara, and Ge
 - `docker-compose.yml`: backend, queue, scheduler, frontend, postgres, redis, mailpit
 - `ARCHITECTURE.md`: module boundaries and scaling notes
 
+## Branch workflow
+
+- `main`: production-ready branch
+- `develop`: integration branch for upcoming work before merging to `main`
+- GitHub Actions CI runs on pushes to both branches and on pull requests targeting either branch
+
 ## Backend structure
 
 ```text
