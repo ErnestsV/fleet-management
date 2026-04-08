@@ -1,0 +1,124 @@
+name: Build And Deploy To GKE
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Image tag to publish and deploy
+        required: true
+
+env:
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ vars.GCP_REGION }}
+  GKE_CLUSTER: ${{ vars.GKE_CLUSTER }}
+  GKE_LOCATION: ${{ vars.GKE_LOCATION }}
+  ARTIFACT_REGISTRY_REPOSITORY: ${{ vars.ARTIFACT_REGISTRY_REPOSITORY }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate image tag
+        run: |
+          IMAGE_TAG='${{ github.event.inputs.image_tag }}'
+          if ! printf '%s' "$IMAGE_TAG" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$'; then
+            echo "Invalid image_tag: $IMAGE_TAG" >&2
+            exit 1
+          fi
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+
+      - name: Build and push backend app image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/php/Dockerfile.prod
+          push: true
+          tags: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPOSITORY }}/backend-app:${{ github.event.inputs.image_tag }}
+
+      - name: Build and push backend web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/nginx/Dockerfile.backend
+          push: true
+          tags: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPOSITORY }}/backend-web:${{ github.event.inputs.image_tag }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/frontend/Dockerfile.prod
+          push: true
+          build-args: |
+            VITE_API_BASE_URL=/api/v1
+          tags: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPOSITORY }}/frontend:${{ github.event.inputs.image_tag }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate image tag
+        run: |
+          IMAGE_TAG='${{ github.event.inputs.image_tag }}'
+          if ! printf '%s' "$IMAGE_TAG" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$'; then
+            echo "Invalid image_tag: $IMAGE_TAG" >&2
+            exit 1
+          fi
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Fetch GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER }}
+          location: ${{ env.GKE_LOCATION }}
+
+      - name: Apply deployment prerequisites
+        run: |
+          kubectl apply -k k8s/overlays/production-prereqs
+
+      - name: Update deployment image tags
+        run: |
+          sed -i "s/newTag: replace-at-deploy/newTag: ${{ github.event.inputs.image_tag }}/g" k8s/overlays/production/kustomization.yaml
+
+      - name: Run database migration job
+        run: |
+          sed \
+            -e "s|REGION-docker.pkg.dev/PROJECT_ID/fleet-management/backend-app:replace-at-deploy|${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/backend-app:${{ github.event.inputs.image_tag }}|g" \
+            k8s/base/backend-migrate-job.yaml > /tmp/backend-migrate-job.yaml
+          kubectl delete job backend-migrate --namespace fleet-management --ignore-not-found
+          kubectl apply -f /tmp/backend-migrate-job.yaml
+          kubectl wait --for=condition=complete job/backend-migrate --namespace fleet-management --timeout=300s
+
+      - name: Apply Kubernetes manifests
+        run: kubectl apply -k k8s/overlays/production

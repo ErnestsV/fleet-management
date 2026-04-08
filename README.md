@@ -67,6 +67,15 @@ Notes:
 - Demo seed data is not automatically reseeded on backend restarts.
 - Queue and scheduler containers do not run migrations or seeders.
 
+## Production deployment scaffold
+
+- Local development continues to use `docker-compose.yml`.
+- Production container assets live under `docker/php/Dockerfile.prod`, `docker/nginx/`, and `docker/frontend/Dockerfile.prod`.
+- Kubernetes manifests live under `k8s/base` with a production overlay in `k8s/overlays/production`.
+- The current GKE scaffold uses in-cluster Mailpit for testing mail flows; it does not send real SMTP mail yet.
+- A manual GitHub Actions workflow for building and deploying to GKE is available in `.github/workflows/deploy-gke.yml`.
+- Deployment notes and remaining production decisions are documented in `docs/deployment/gke.md`.
+
 ## Demo seeding
 
 - Docker now defaults to `APP_SEED_DEMO=false` so restarting the backend container does not reseed or overwrite local demo data.

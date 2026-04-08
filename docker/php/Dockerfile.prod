@@ -1,0 +1,44 @@
+FROM composer:2 AS composer-deps
+
+WORKDIR /app/backend
+
+COPY backend/composer.json backend/composer.lock ./
+
+RUN composer install \
+    --no-dev \
+    --prefer-dist \
+    --no-interaction \
+    --no-progress \
+    --no-scripts
+
+FROM php:8.3-fpm-bookworm AS app
+
+RUN apt-get update && apt-get install -y \
+    git \
+    unzip \
+    libicu-dev \
+    libonig-dev \
+    libpq-dev \
+    libzip-dev \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && docker-php-ext-install intl mbstring opcache pdo_pgsql zip \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY docker/php/entrypoint.prod.sh /usr/local/bin/app-entrypoint
+
+WORKDIR /var/www/html/backend
+
+COPY backend ./
+COPY --from=composer-deps /app/backend/vendor ./vendor
+
+RUN composer dump-autoload --optimize --classmap-authoritative --no-dev \
+    && mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
+    && chown -R www-data:www-data /var/www/html/backend \
+    && chmod +x /usr/local/bin/app-entrypoint
+
+USER www-data
+
+ENTRYPOINT ["app-entrypoint"]
+CMD ["php-fpm", "-F"]

@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: fleet-management
+data:
+  APP_NAME: FleetOS
+  APP_ENV: production
+  APP_DEBUG: "false"
+  APP_URL: http://LOAD_BALANCER_IP
+  FRONTEND_URL: http://LOAD_BALANCER_IP
+  LOG_CHANNEL: stack
+  LOG_LEVEL: info
+  DB_CONNECTION: pgsql
+  DB_HOST: 127.0.0.1
+  DB_PORT: "5432"
+  DB_DATABASE: fleet_management
+  CLOUD_SQL_INSTANCE_CONNECTION_NAME: fleetos-492609:europe-north1:fleetos-postgres
+  SESSION_DRIVER: database
+  SESSION_LIFETIME: "120"
+  SESSION_PATH: /
+  SESSION_DOMAIN: ""
+  SESSION_SECURE_COOKIE: "false"
+  SANCTUM_STATEFUL_DOMAINS: LOAD_BALANCER_IP
+  CORS_ALLOWED_ORIGINS: http://LOAD_BALANCER_IP
+  BROADCAST_CONNECTION: log
+  CACHE_STORE: redis
+  QUEUE_CONNECTION: redis
+  REDIS_CLIENT: phpredis
+  REDIS_HOST: 10.57.1.3
+  REDIS_PORT: "6379"
+  MAIL_MAILER: smtp
+  MAIL_SCHEME: ""
+  MAIL_HOST: mailpit
+  MAIL_PORT: "1025"
+  MAIL_FROM_ADDRESS: hello@example.com
+  MAIL_FROM_NAME: FleetOS
+  FLEET_OFFLINE_THRESHOLD_MINUTES: "10"
+  OPENAI_BASE_URL: https://api.openai.com/v1
+  OPENAI_MODEL: gpt-4.1-mini
+  OPENAI_TIMEOUT_SECONDS: "25"
