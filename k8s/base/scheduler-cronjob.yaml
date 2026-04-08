@@ -36,6 +36,8 @@ spec:
                 capabilities:
                   drop: ["ALL"]
                 runAsNonRoot: true
+                runAsUser: 33
+                runAsGroup: 33
           containers:
             - name: scheduler
               image: REGION-docker.pkg.dev/PROJECT_ID/fleet-management/backend-app:replace-at-deploy
