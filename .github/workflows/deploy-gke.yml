@@ -105,7 +105,13 @@ jobs:
 
       - name: Apply deployment prerequisites
         run: |
-          kubectl apply -k k8s/overlays/production-prereqs
+          kubectl apply -f k8s/base/namespace.yaml
+          kubectl apply -f k8s/base/backend-serviceaccount.yaml
+          kubectl annotate serviceaccount fleet-backend \
+            --namespace fleet-management \
+            iam.gke.io/gcp-service-account=fleet-backend@fleetos-492609.iam.gserviceaccount.com \
+            --overwrite
+          kubectl apply -f k8s/base/backend-configmap.yaml
 
       - name: Update deployment image tags
         run: |
