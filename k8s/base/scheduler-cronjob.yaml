@@ -1,0 +1,53 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: scheduler
+  namespace: fleet-management
+spec:
+  schedule: "* * * * *"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: fleet-backend
+          restartPolicy: Never
+          containers:
+            - name: scheduler
+              image: REGION-docker.pkg.dev/PROJECT_ID/fleet-management/backend-app:latest
+              imagePullPolicy: IfNotPresent
+              command: ["php", "artisan", "schedule:run"]
+              envFrom:
+                - configMapRef:
+                    name: backend-config
+                - secretRef:
+                    name: backend-secrets
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 250m
+                  memory: 256Mi
+            - name: cloud-sql-proxy
+              image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.19.0
+              args:
+                - "--private-ip"
+                - "--port=5432"
+                - "$(CLOUD_SQL_INSTANCE_CONNECTION_NAME)"
+              env:
+                - name: CLOUD_SQL_INSTANCE_CONNECTION_NAME
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backend-config
+                      key: CLOUD_SQL_INSTANCE_CONNECTION_NAME
+              securityContext:
+                runAsNonRoot: true
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 64Mi
+                limits:
+                  cpu: 250m
+                  memory: 128Mi

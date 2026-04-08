@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: queue
+  namespace: fleet-management
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: queue
+  template:
+    metadata:
+      labels:
+        app: queue
+    spec:
+      serviceAccountName: fleet-backend
+      containers:
+        - name: queue
+          image: REGION-docker.pkg.dev/PROJECT_ID/fleet-management/backend-app:latest
+          imagePullPolicy: IfNotPresent
+          command: ["php", "artisan", "queue:work", "--tries=3", "--backoff=5", "--timeout=60", "--sleep=3", "--max-jobs=500", "--max-time=3600"]
+          envFrom:
+            - configMapRef:
+                name: backend-config
+            - secretRef:
+                name: backend-secrets
+          resources:
+            requests:
+              cpu: 150m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+        - name: cloud-sql-proxy
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.19.0
+          args:
+            - "--private-ip"
+            - "--port=5432"
+            - "$(CLOUD_SQL_INSTANCE_CONNECTION_NAME)"
+          env:
+            - name: CLOUD_SQL_INSTANCE_CONNECTION_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: CLOUD_SQL_INSTANCE_CONNECTION_NAME
+          securityContext:
+            runAsNonRoot: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi

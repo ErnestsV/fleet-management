@@ -1,0 +1,33 @@
+namespace: fleet-management
+
+resources:
+  - ../../base
+
+images:
+  - name: REGION-docker.pkg.dev/PROJECT_ID/fleet-management/backend-app
+    newName: europe-north1-docker.pkg.dev/fleetos-492609/fleetos-repo/backend-app
+    newTag: latest
+  - name: REGION-docker.pkg.dev/PROJECT_ID/fleet-management/backend-web
+    newName: europe-north1-docker.pkg.dev/fleetos-492609/fleetos-repo/backend-web
+    newTag: latest
+  - name: REGION-docker.pkg.dev/PROJECT_ID/fleet-management/frontend
+    newName: europe-north1-docker.pkg.dev/fleetos-492609/fleetos-repo/frontend
+    newTag: latest
+
+patches:
+  - target:
+      kind: ConfigMap
+      name: backend-config
+    patch: |-
+      - op: replace
+        path: /data/APP_URL
+        value: http://LOAD_BALANCER_IP
+      - op: replace
+        path: /data/FRONTEND_URL
+        value: http://LOAD_BALANCER_IP
+      - op: replace
+        path: /data/SANCTUM_STATEFUL_DOMAINS
+        value: LOAD_BALANCER_IP
+      - op: replace
+        path: /data/CORS_ALLOWED_ORIGINS
+        value: http://LOAD_BALANCER_IP

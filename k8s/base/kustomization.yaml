@@ -1,0 +1,13 @@
+resources:
+  - namespace.yaml
+  - backend-serviceaccount.yaml
+  - backend-configmap.yaml
+  - backend-deployment.yaml
+  - backend-service.yaml
+  - queue-deployment.yaml
+  - scheduler-cronjob.yaml
+  - frontend-deployment.yaml
+  - frontend-service.yaml
+  - mailpit-deployment.yaml
+  - mailpit-service.yaml
+  - ingress.yaml
