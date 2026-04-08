@@ -45,7 +45,7 @@ Additional committed templates:
 
 1. Cloud SQL for PostgreSQL is created as `fleetos-postgres` with connection name `fleetos-492609:europe-north1:fleetos-postgres`.
 2. Memorystore for Redis is created as `fleetos-redis` with endpoint `10.57.1.3:6379`.
-3. Replace the remaining `LOAD_BALANCER_IP` placeholders in `k8s/overlays/production/kustomization.yaml` and `k8s/base/backend-configmap.yaml` after the ingress receives an external IP.
+3. The ingress external IP is `34.160.221.198`. If Google reprovisions the load balancer later and the IP changes, update the same values in `k8s/overlays/production/kustomization.yaml` and `k8s/base/backend-configmap.yaml`.
 4. Create a real `backend-secrets` manifest or provision those values through your preferred secret manager workflow.
 5. Create or reuse a Google service account with `roles/cloudsql.client`, bind it to the Kubernetes service account `fleet-backend`, and update `k8s/base/backend-serviceaccount.yaml`.
 6. Keep the GKE cluster and Memorystore instance in the same authorized network. Google’s Memorystore docs note that GKE clients must use the same authorized network, and private services access mode requires a VPC-native/IP-alias cluster.
