@@ -680,7 +680,7 @@ php artisan app:simulate-telemetry --count=20
 
 - Trips, assignments, geofences, maintenance, alerts, dashboard, driver insights, telemetry health, fuel insights, profile, vehicles, and drivers are exposed in both API and frontend.
 - Device auth is token-based today. The `DeviceToken` model and ingestion service are structured so HMAC/device-signature auth can replace or augment it later.
-- Vehicle state is materialized in `vehicle_states`; raw events remain append-only in `telemetry_events`.
+- Vehicle state is materialized in `vehicle_states`; raw events remain append-only in `telemetry_events`, which are monthly partitioned on PostgreSQL for better hot-table scalability.
 - Telemetry ingestion is split into a fast accept/store step plus asynchronous processing through `ProcessTelemetryEventJob` and `EvaluateTelemetryAlertsJob`.
 - Trip derivation currently assumes that a trip opens on a moving event and closes on the first later non-moving state.
 - Geofence UI is currently circle-based; the backend geometry shape remains polygon-ready.
@@ -792,7 +792,7 @@ All host ports are configurable through the root `.env` file created from `.env.
 ## Future scaling notes
 
 - The system has dedicated telemetry ingest pods and telemetry queue workers. A later scaling step would be moving raw telemetry from Redis/database-backed queue processing toward a broker/stream such as Pub/Sub when ingest volume becomes much larger.
-- Partition `telemetry_events` by time and/or company once retention volume makes single-table scans and index maintenance too expensive.
+- PostgreSQL `telemetry_events` are monthly partitioned. The next storage step is defining hot-retention and archive policy, for example keeping about 90 days in the main operational store and moving older raw telemetry into archive or colder analytical storage.
 - Add websocket or SSE pushes for live fleet updates instead of relying only on periodic polling.
 - Generalize the current Leaflet implementation behind a map-provider adapter only if multi-provider support or provider switching becomes a real product need.
 - Move alert rules from hardcoded heuristics toward tenant-configurable operational policies; speeding now supports a company-level threshold, but a fuller production version should also support vehicle classes, region-specific policies, and eventually map-based road speed limits with tolerance windows.

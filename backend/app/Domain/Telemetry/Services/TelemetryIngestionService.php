@@ -29,6 +29,7 @@ class TelemetryIngestionService
     {
         [$event, $created] = DB::transaction(function () use ($vehicle, $payload, $messageId) {
             $ingestionKey = $this->buildIngestionKey($vehicle, $payload, $messageId);
+            $this->acquireIngestionLock($ingestionKey);
 
             $event = TelemetryEvent::query()
                 ->where('ingestion_key', $ingestionKey)
@@ -186,5 +187,28 @@ class TelemetryIngestionService
             'processed_at' => now(),
             'processing_error' => null,
         ])->save();
+    }
+
+    private function acquireIngestionLock(string $ingestionKey): void
+    {
+        if (DB::getDriverName() !== 'pgsql') {
+            return;
+        }
+
+        $hash = hash('sha256', $ingestionKey);
+        $first = hexdec(substr($hash, 0, 8));
+        $second = hexdec(substr($hash, 8, 8));
+
+        DB::select('SELECT pg_advisory_xact_lock(?, ?)', [
+            $this->normalizeSignedInt32($first),
+            $this->normalizeSignedInt32($second),
+        ]);
+    }
+
+    private function normalizeSignedInt32(int|float $value): int
+    {
+        return $value > 2147483647
+            ? (int) ($value - 4294967296)
+            : (int) $value;
     }
 }

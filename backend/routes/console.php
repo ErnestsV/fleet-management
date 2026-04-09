@@ -19,3 +19,9 @@ app(Schedule::class)->command('app:check-driver-licenses')
     ->daily()
     ->withoutOverlapping(1440)
     ->onOneServer();
+
+app(Schedule::class)->command('app:ensure-telemetry-partitions')
+    ->name('ensure-telemetry-partitions')
+    ->daily()
+    ->withoutOverlapping(1440)
+    ->onOneServer();

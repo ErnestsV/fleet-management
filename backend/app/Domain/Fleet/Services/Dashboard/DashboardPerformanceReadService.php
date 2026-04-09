@@ -49,10 +49,7 @@ class DashboardPerformanceReadService
             ->distinct('vehicle_id')
             ->count('vehicle_id');
 
-        $freshMinutes = min(
-            max((int) config('fleet.telemetry_fresh_minutes', 15), 1),
-            max((int) config('fleet.offline_threshold_minutes', 10), 1),
-        );
+        $freshMinutes = max((int) config('fleet.telemetry_fresh_minutes', 15), 1);
 
         $freshTelemetryVehicleIds = (clone $states)
             ->whereIn('vehicle_id', $fleetVehicleIds)
