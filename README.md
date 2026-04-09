@@ -76,6 +76,45 @@ Notes:
 - A manual GitHub Actions workflow for building and deploying to GKE is available in `.github/workflows/deploy-gke.yml`.
 - Deployment notes and remaining production decisions are documented in `docs/deployment/gke.md`.
 
+## GKE operations
+
+- Get pods:
+
+```bash
+kubectl get pods -n fleet-management
+```
+
+- Get services and ingress:
+
+```bash
+kubectl get svc,ingress -n fleet-management
+```
+
+- Create a super admin interactively inside a backend pod:
+
+```bash
+kubectl exec -it -n fleet-management <BACKEND_POD_NAME> -c app -- php artisan app:create-super-admin
+```
+
+- Inspect backend logs:
+
+```bash
+kubectl logs deployment/backend -n fleet-management -c app --tail=200
+kubectl logs deployment/backend -n fleet-management -c web --tail=200
+```
+
+- Inspect queue logs:
+
+```bash
+kubectl logs deployment/queue -n fleet-management -c queue --tail=200
+```
+
+- Open Mailpit locally from the cluster:
+
+```bash
+kubectl port-forward --namespace fleet-management svc/mailpit 8025:8025
+```
+
 ## Demo seeding
 
 - Docker now defaults to `APP_SEED_DEMO=false` so restarting the backend container does not reseed or overwrite local demo data.
