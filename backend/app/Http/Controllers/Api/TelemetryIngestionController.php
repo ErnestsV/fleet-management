@@ -13,16 +13,28 @@ class TelemetryIngestionController extends Controller
     {
         $rawToken = (string) $request->bearerToken();
         $vehicle = $service->resolveVehicleFromToken($rawToken, $request->integer('vehicle_id') ?: null);
-        [$event, $state] = $service->ingest($vehicle, $request->validated());
+        [$event, $created] = $service->ingest(
+            $vehicle,
+            $request->validated(),
+            $this->resolveMessageId($request),
+        );
 
         return response()->json([
-            'message' => 'Telemetry accepted.',
+            'message' => $created ? 'Telemetry accepted.' : 'Duplicate telemetry accepted.',
             'event_id' => $event->id,
-            'vehicle_state' => [
-                'vehicle_id' => $state->vehicle_id,
-                'status' => $state->status?->value,
-                'last_event_at' => $state->last_event_at,
-            ],
+            'duplicate' => ! $created,
+            'processing_status' => $event->processed_at !== null ? 'processed' : 'queued',
         ], 202);
+    }
+
+    private function resolveMessageId(IngestTelemetryRequest $request): ?string
+    {
+        $messageId = trim((string) (
+            $request->header('X-Device-Message-Id')
+            ?: $request->header('X-Idempotency-Key')
+            ?: $request->input('message_id')
+        ));
+
+        return $messageId !== '' ? $messageId : null;
     }
 }

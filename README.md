@@ -317,6 +317,69 @@ Important:
 - In local development, the preferred flow is still to create a vehicle in the UI, copy the generated token, and use that exact token in Postman.
 - The seeded `demo-token-<vehicle_id>` values are only a local shortcut for existing demo vehicles.
 
+### How telemetry requests are handled
+
+In simple terms, FleetOS handles device requests in two stages:
+
+1. The device sends telemetry to `POST /api/v1/telemetry/events`.
+2. The API accepts the packet quickly, stores the raw event, checks whether it is a duplicate, and returns `202 Accepted`.
+3. A dedicated background telemetry worker then processes that stored event.
+4. That background processing updates vehicle state, derives trips, evaluates geofence transitions, resolves offline state, and then queues alert evaluation.
+
+This means the device-facing HTTP request is intentionally lightweight. The system no longer tries to do all fleet side effects before replying to the device.
+
+Why this is better:
+
+- devices get a faster response
+- retries from the same device are less likely to create duplicate events
+- telemetry spikes are less likely to slow down the normal web app for human users
+- telemetry processing can scale separately from the dashboard, CRUD pages, and login traffic
+
+### Telemetry pipeline components
+
+- `backend` deployment:
+  - serves the normal web and API traffic for human users
+- `telemetry-ingest` deployment:
+  - serves the telemetry HTTP endpoint through dedicated backend pods
+  - this isolates device traffic from the main user-facing backend pods
+- `telemetry-queue` deployment:
+  - runs queue workers dedicated to telemetry jobs
+  - these workers process `telemetry-processing` and `telemetry-alerts` queues
+
+### Current telemetry flow
+
+```text
+Device
+  -> POST /api/v1/telemetry/events
+  -> telemetry-ingest pods
+  -> store raw telemetry event in telemetry_events
+  -> enqueue ProcessTelemetryEventJob
+  -> telemetry-queue worker picks up job
+  -> update vehicle_states
+  -> derive trips
+  -> process geofence transitions
+  -> resolve offline state
+  -> enqueue EvaluateTelemetryAlertsJob
+  -> telemetry-queue worker evaluates alerts
+  -> frontend reads updated state, trips, and alerts
+```
+
+### Duplicate protection
+
+- Devices may optionally send `message_id` in the payload.
+- The backend also supports `X-Device-Message-Id` or `X-Idempotency-Key` headers.
+- FleetOS stores an internal `ingestion_key` for each telemetry event.
+- If the same packet is retried, the existing stored event is reused instead of creating a second duplicate row.
+
+### What is stored in the database
+
+- `telemetry_events`:
+  - append-only raw device messages plus processing metadata
+- `vehicle_states`:
+  - latest materialized state per vehicle for fast reads in the UI
+
+This split is important: raw history remains intact, while the latest status is fast to query without scanning the full telemetry history every time.
+
 Single event endpoint:
 
 ```http
@@ -618,7 +681,7 @@ php artisan app:simulate-telemetry --count=20
 - Trips, assignments, geofences, maintenance, alerts, dashboard, driver insights, telemetry health, fuel insights, profile, vehicles, and drivers are exposed in both API and frontend.
 - Device auth is token-based today. The `DeviceToken` model and ingestion service are structured so HMAC/device-signature auth can replace or augment it later.
 - Vehicle state is materialized in `vehicle_states`; raw events remain append-only in `telemetry_events`.
-- Alert checks run asynchronously through `EvaluateTelemetryAlertsJob`.
+- Telemetry ingestion is split into a fast accept/store step plus asynchronous processing through `ProcessTelemetryEventJob` and `EvaluateTelemetryAlertsJob`.
 - Trip derivation currently assumes that a trip opens on a moving event and closes on the first later non-moving state.
 - Geofence UI is currently circle-based; the backend geometry shape remains polygon-ready.
 
@@ -728,7 +791,7 @@ All host ports are configurable through the root `.env` file created from `.env.
 
 ## Future scaling notes
 
-- Split telemetry ingestion workers from the web API when ingest volume grows; the current queued alert evaluation and materialized vehicle state already make that separation straightforward.
+- The system has dedicated telemetry ingest pods and telemetry queue workers. A later scaling step would be moving raw telemetry from Redis/database-backed queue processing toward a broker/stream such as Pub/Sub when ingest volume becomes much larger.
 - Partition `telemetry_events` by time and/or company once retention volume makes single-table scans and index maintenance too expensive.
 - Add websocket or SSE pushes for live fleet updates instead of relying only on periodic polling.
 - Generalize the current Leaflet implementation behind a map-provider adapter only if multi-provider support or provider switching becomes a real product need.

@@ -71,7 +71,12 @@ services:
       REDIS_PORT: 6379
       MAIL_HOST: mailpit
       MAIL_PORT: 1025
-    command: ["php", "artisan", "queue:work", "--tries=3", "--backoff=5", "--timeout=60", "--sleep=3", "--max-jobs=500", "--max-time=3600"]
+    command:
+      [
+        "sh",
+        "-lc",
+        "php artisan queue:work --queue=${FLEET_TELEMETRY_PROCESSING_QUEUE:-telemetry-processing},${FLEET_TELEMETRY_ALERTS_QUEUE:-telemetry-alerts},default --tries=3 --backoff=5 --timeout=60 --sleep=3 --max-jobs=500 --max-time=3600"
+      ]
 
   scheduler:
     build:

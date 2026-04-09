@@ -2,6 +2,10 @@
 
 return [
     'speed_alert_threshold_kmh' => (float) env('FLEET_SPEED_ALERT_THRESHOLD_KMH', 90),
+    'telemetry_processing_queue' => env('FLEET_TELEMETRY_PROCESSING_QUEUE', 'telemetry-processing'),
+    'telemetry_alerts_queue' => env('FLEET_TELEMETRY_ALERTS_QUEUE', 'telemetry-alerts'),
+    'telemetry_token_rate_limit_per_minute' => (int) env('FLEET_TELEMETRY_TOKEN_RATE_LIMIT_PER_MINUTE', 120),
+    'telemetry_ip_rate_limit_per_minute' => (int) env('FLEET_TELEMETRY_IP_RATE_LIMIT_PER_MINUTE', 600),
     'offline_threshold_minutes' => (int) env('FLEET_OFFLINE_THRESHOLD_MINUTES', 10),
     'behaviour_min_trips' => (int) env('FLEET_BEHAVIOUR_MIN_TRIPS', 3),
     'dashboard_idle_threshold_hours' => (int) env('FLEET_DASHBOARD_IDLE_THRESHOLD_HOURS', 2),

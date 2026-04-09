@@ -6,6 +6,7 @@ use App\Domain\Alerts\Services\AlertEvaluationService;
 use App\Domain\Alerts\Jobs\EvaluateTelemetryAlertsJob;
 use App\Domain\Fleet\Models\Vehicle;
 use App\Domain\Geofences\Services\GeofenceService;
+use App\Domain\Telemetry\Jobs\ProcessTelemetryEventJob;
 use App\Domain\Telemetry\Models\DeviceToken;
 use App\Domain\Telemetry\Models\TelemetryEvent;
 use App\Domain\Telemetry\Models\VehicleState;
@@ -24,12 +25,25 @@ class TelemetryIngestionService
     ) {
     }
 
-    public function ingest(Vehicle $vehicle, array $payload): array
+    public function ingest(Vehicle $vehicle, array $payload, ?string $messageId = null): array
     {
-        return DB::transaction(function () use ($vehicle, $payload) {
-            $event = TelemetryEvent::create([
+        [$event, $created] = DB::transaction(function () use ($vehicle, $payload, $messageId) {
+            $ingestionKey = $this->buildIngestionKey($vehicle, $payload, $messageId);
+
+            $event = TelemetryEvent::query()
+                ->where('ingestion_key', $ingestionKey)
+                ->lockForUpdate()
+                ->first();
+
+            if ($event) {
+                return [$event, false];
+            }
+
+            return [TelemetryEvent::create([
                 'company_id' => $vehicle->company_id,
                 'vehicle_id' => $vehicle->id,
+                'message_id' => $messageId,
+                'ingestion_key' => $ingestionKey,
                 'occurred_at' => $payload['timestamp'],
                 'latitude' => $payload['latitude'],
                 'longitude' => $payload['longitude'],
@@ -39,10 +53,44 @@ class TelemetryIngestionService
                 'fuel_level' => $payload['fuel_level'] ?? null,
                 'heading' => $payload['heading'] ?? null,
                 'payload' => $payload,
-            ]);
+            ]), true];
+        });
+
+        if ($created || $event->processed_at === null) {
+            ProcessTelemetryEventJob::dispatch($event->id)
+                ->onQueue((string) config('fleet.telemetry_processing_queue', 'telemetry-processing'))
+                ->afterCommit();
+        }
+
+        return [$event->fresh() ?? $event, $created];
+    }
+
+    public function processStoredEvent(TelemetryEvent $event): ?VehicleState
+    {
+        return DB::transaction(function () use ($event) {
+            $event = TelemetryEvent::query()
+                ->lockForUpdate()
+                ->find($event->id);
+
+            if (! $event) {
+                return null;
+            }
+
+            if ($event->processed_at !== null) {
+                return VehicleState::query()
+                    ->where('vehicle_id', $event->vehicle_id)
+                    ->first();
+            }
+
+            if ($event->processing_started_at === null) {
+                $event->forceFill([
+                    'processing_started_at' => now(),
+                    'processing_error' => null,
+                ])->save();
+            }
 
             $currentState = VehicleState::query()
-                ->where('vehicle_id', $vehicle->id)
+                ->where('vehicle_id', $event->vehicle_id)
                 ->lockForUpdate()
                 ->first();
 
@@ -51,17 +99,22 @@ class TelemetryIngestionService
                 && $currentState->last_event_at !== null
                 && $event->occurred_at->lt($currentState->last_event_at)
             ) {
-                return [$event, $currentState];
+                $this->markProcessed($event);
+
+                return $currentState;
             }
 
-            $state = $this->stateResolver->apply($event);
-            $this->alertEvaluationService->resolveOfflineAlerts($vehicle->company_id, $vehicle->id);
+            $state = $this->stateResolver->apply($event, $currentState);
+            $this->alertEvaluationService->resolveOfflineAlerts($event->company_id, $event->vehicle_id);
             $this->tripDerivationService->handle($event, $state);
             $this->geofenceService->syncEvent($event, $state);
+            $this->markProcessed($event);
 
-            EvaluateTelemetryAlertsJob::dispatch($event->id, $state->id);
+            EvaluateTelemetryAlertsJob::dispatch($event->id, $state->id)
+                ->onQueue((string) config('fleet.telemetry_alerts_queue', 'telemetry-alerts'))
+                ->afterCommit();
 
-            return [$event, $state];
+            return $state;
         });
     }
 
@@ -92,5 +145,46 @@ class TelemetryIngestionService
     private function shouldRefreshLastUsedAt(?Carbon $lastUsedAt): bool
     {
         return $lastUsedAt === null || $lastUsedAt->lte(now()->subMinutes(5));
+    }
+
+    private function buildIngestionKey(Vehicle $vehicle, array $payload, ?string $messageId): string
+    {
+        if ($messageId !== null && $messageId !== '') {
+            return hash('sha256', implode('|', [
+                'vehicle',
+                $vehicle->id,
+                'message',
+                $messageId,
+            ]));
+        }
+
+        return hash('sha256', json_encode([
+            'vehicle_id' => $vehicle->id,
+            'timestamp' => (string) $payload['timestamp'],
+            'latitude' => round((float) $payload['latitude'], 7),
+            'longitude' => round((float) $payload['longitude'], 7),
+            'speed_kmh' => round((float) $payload['speed_kmh'], 2),
+            'engine_on' => (bool) $payload['engine_on'],
+            'odometer_km' => isset($payload['odometer_km']) ? round((float) $payload['odometer_km'], 2) : null,
+            'fuel_level' => isset($payload['fuel_level']) ? round((float) $payload['fuel_level'], 2) : null,
+            'heading' => isset($payload['heading']) ? round((float) $payload['heading'], 2) : null,
+        ], JSON_THROW_ON_ERROR));
+    }
+
+    public function markProcessingFailed(int $eventId, string $message): void
+    {
+        TelemetryEvent::query()
+            ->whereKey($eventId)
+            ->update([
+                'processing_error' => mb_substr($message, 0, 2000),
+            ]);
+    }
+
+    private function markProcessed(TelemetryEvent $event): void
+    {
+        $event->forceFill([
+            'processed_at' => now(),
+            'processing_error' => null,
+        ])->save();
     }
 }
