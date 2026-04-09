@@ -6,22 +6,23 @@ import { AiCopilotPanel } from '@/features/ai/AiCopilotPanel';
 import { getAiCopilotUiConfig } from '@/features/ai/copilotContext';
 import { useAlerts } from '@/features/alerts/useAlerts';
 import { logout } from '@/lib/api/auth';
+import { FLEET_ACCESS_ROLES } from '@/lib/constants/roles';
 
-const links = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/companies', label: 'Companies', icon: Building2 },
-  { to: '/users', label: 'Users', icon: Users },
-  { to: '/vehicles', label: 'Vehicles', icon: CarFront },
-  { to: '/live-map', label: 'Live Map', icon: MapPinned },
-  { to: '/drivers', label: 'Drivers', icon: Route },
-  { to: '/driver-insights', label: 'Driver Insights', icon: LineChart },
-  { to: '/fuel-insights', label: 'Fuel Insights', icon: Droplets },
-  { to: '/trips', label: 'Trips', icon: Route },
-  { to: '/alerts', label: 'Alerts', icon: Bell },
-  { to: '/telemetry-health', label: 'Telemetry Health', icon: Activity },
-  { to: '/geofences', label: 'Geofences', icon: Map },
-  { to: '/maintenance', label: 'Maintenance', icon: Wrench },
-  { to: '/profile', label: 'Settings', icon: Settings },
+const allLinks = [
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['owner', 'admin', 'dispatcher', 'viewer'] },
+  { to: '/companies', label: 'Companies', icon: Building2, roles: ['super_admin'] },
+  { to: '/users', label: 'Users', icon: Users, roles: ['owner', 'admin'] },
+  { to: '/vehicles', label: 'Vehicles', icon: CarFront, roles: ['owner', 'admin', 'dispatcher', 'viewer'] },
+  { to: '/live-map', label: 'Live Map', icon: MapPinned, roles: ['owner', 'admin', 'dispatcher', 'viewer'] },
+  { to: '/drivers', label: 'Drivers', icon: Route, roles: ['owner', 'admin', 'dispatcher', 'viewer'] },
+  { to: '/driver-insights', label: 'Driver Insights', icon: LineChart, roles: ['owner', 'admin', 'dispatcher', 'viewer'] },
+  { to: '/fuel-insights', label: 'Fuel Insights', icon: Droplets, roles: ['owner', 'admin', 'dispatcher', 'viewer'] },
+  { to: '/trips', label: 'Trips', icon: Route, roles: ['owner', 'admin', 'dispatcher', 'viewer'] },
+  { to: '/alerts', label: 'Alerts', icon: Bell, roles: ['owner', 'admin', 'dispatcher', 'viewer'] },
+  { to: '/telemetry-health', label: 'Telemetry Health', icon: Activity, roles: ['owner', 'admin', 'dispatcher', 'viewer'] },
+  { to: '/geofences', label: 'Geofences', icon: Map, roles: ['owner', 'admin', 'dispatcher', 'viewer'] },
+  { to: '/maintenance', label: 'Maintenance', icon: Wrench, roles: ['owner', 'admin', 'dispatcher', 'viewer'] },
+  { to: '/profile', label: 'Settings', icon: Settings, roles: ['super_admin', 'owner', 'admin', 'dispatcher', 'viewer'] },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -33,12 +34,20 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [desktopNavExpanded, setDesktopNavExpanded] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
-  const { data: activeAlerts } = useAlerts({ status: 'active', exclude_geofence_exit: true, per_page: 1 }, { refetchInterval: 10000 });
+  const showNotifications = user ? FLEET_ACCESS_ROLES.includes(user.role) : false;
+  const { data: activeAlerts } = useAlerts(
+    { status: 'active', exclude_geofence_exit: true, per_page: 1 },
+    { enabled: showNotifications, refetchInterval: 10000 },
+  );
 
   const activeAlertCount = activeAlerts?.meta?.total ?? 0;
   const aiCopilotConfig = useMemo(
     () => getAiCopilotUiConfig(location.pathname, location.search),
     [location.pathname, location.search],
+  );
+  const links = useMemo(
+    () => allLinks.filter((link) => (user ? link.roles.includes(user.role) : false)),
+    [user],
   );
   const companyLabel = useMemo(() => {
     if (user?.company?.name) {
@@ -154,19 +163,21 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             </div>
             <div className="flex flex-wrap justify-end items-center gap-4">
-              <button
-                type="button"
-                className="relative flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-panel transition hover:border-slate-300 hover:text-slate-900"
-                onClick={() => navigate('/alerts')}
-              >
-                <Bell size={16} />
-                <span className="hidden sm:inline">Notifications</span>
-                {activeAlertCount > 0 ? (
-                  <span className="flex min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[11px] font-semibold text-white">
-                    {activeAlertCount}
-                  </span>
-                ) : null}
-              </button>
+              {showNotifications ? (
+                <button
+                  type="button"
+                  className="relative flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-panel transition hover:border-slate-300 hover:text-slate-900"
+                  onClick={() => navigate('/alerts')}
+                >
+                  <Bell size={16} />
+                  <span className="hidden sm:inline">Notifications</span>
+                  {activeAlertCount > 0 ? (
+                    <span className="flex min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[11px] font-semibold text-white">
+                      {activeAlertCount}
+                    </span>
+                  ) : null}
+                </button>
+              ) : null}
 
               <div ref={profileMenuRef} className="relative">
                 <button

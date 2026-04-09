@@ -5,7 +5,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { AccessDenied } from '@/components/ui/AccessDenied';
 import { RouteContentFallback } from '@/components/ui/RouteContentFallback';
 import type { UserRole } from '@/types/domain';
-import { COMPANY_MANAGEMENT_ROLES, USER_MANAGEMENT_ROLES } from '@/lib/constants/roles';
+import { COMPANY_MANAGEMENT_ROLES, FLEET_ACCESS_ROLES, USER_MANAGEMENT_ROLES } from '@/lib/constants/roles';
 
 const DashboardPage = lazy(() => import('@/pages/DashboardPage').then((module) => ({ default: module.DashboardPage })));
 const LoginPage = lazy(() => import('@/pages/LoginPage').then((module) => ({ default: module.LoginPage })));
@@ -51,6 +51,16 @@ function RoleRoute({ roles }: { roles: UserRole[] }) {
   return roles.includes(user.role) ? <Outlet /> : <AccessDenied />;
 }
 
+function DefaultRoute() {
+  const user = useAuthStore((state) => state.user);
+
+  if (!user) {
+    return <RouteContentFallback />;
+  }
+
+  return <Navigate to={user.role === 'super_admin' ? '/companies' : '/dashboard'} replace />;
+}
+
 export function AppRouter() {
   return (
     <Routes>
@@ -58,23 +68,26 @@ export function AppRouter() {
       <Route path="/forgot-password" element={<Suspense fallback={<RouteContentFallback />}><ForgotPasswordPage /></Suspense>} />
       <Route path="/reset-password" element={<Suspense fallback={<RouteContentFallback />}><ResetPasswordPage /></Suspense>} />
       <Route element={<ProtectedLayout />}>
-        <Route index element={<DashboardPage />} />
+        <Route index element={<DefaultRoute />} />
         <Route element={<RoleRoute roles={COMPANY_MANAGEMENT_ROLES} />}>
           <Route path="/companies" element={<CompaniesPage />} />
         </Route>
         <Route element={<RoleRoute roles={USER_MANAGEMENT_ROLES} />}>
           <Route path="/users" element={<UsersPage />} />
         </Route>
-        <Route path="/vehicles" element={<VehiclesPage />} />
-        <Route path="/live-map" element={<LiveMapPage />} />
-        <Route path="/drivers" element={<DriversPage />} />
-        <Route path="/driver-insights" element={<DriverInsightsPage />} />
-        <Route path="/fuel-insights" element={<FuelInsightsPage />} />
-        <Route path="/trips" element={<TripsPage />} />
-        <Route path="/alerts" element={<AlertsPage />} />
-        <Route path="/telemetry-health" element={<TelemetryHealthPage />} />
-        <Route path="/geofences" element={<GeofencesPage />} />
-        <Route path="/maintenance" element={<MaintenancePage />} />
+        <Route element={<RoleRoute roles={FLEET_ACCESS_ROLES} />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/vehicles" element={<VehiclesPage />} />
+          <Route path="/live-map" element={<LiveMapPage />} />
+          <Route path="/drivers" element={<DriversPage />} />
+          <Route path="/driver-insights" element={<DriverInsightsPage />} />
+          <Route path="/fuel-insights" element={<FuelInsightsPage />} />
+          <Route path="/trips" element={<TripsPage />} />
+          <Route path="/alerts" element={<AlertsPage />} />
+          <Route path="/telemetry-health" element={<TelemetryHealthPage />} />
+          <Route path="/geofences" element={<GeofencesPage />} />
+          <Route path="/maintenance" element={<MaintenancePage />} />
+        </Route>
         <Route path="/profile" element={<ProfilePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

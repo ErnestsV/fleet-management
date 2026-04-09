@@ -9,17 +9,17 @@ class MaintenanceRecordPolicy
 {
     public function viewAny(User $user): bool
     {
-        return (bool) $user;
+        return $user->role?->canAccessFleetData() ?? false;
     }
 
     public function view(User $user, MaintenanceRecord $record): bool
     {
-        return $user->isSuperAdmin() || $user->company_id === $record->company_id;
+        return ($user->role?->canAccessFleetData() ?? false) && $user->company_id === $record->company_id;
     }
 
     public function create(User $user): bool
     {
-        return in_array($user->role?->value, ['super_admin', 'owner', 'admin', 'dispatcher'], true);
+        return $user->role?->canManageFleetData() ?? false;
     }
 
     public function update(User $user, MaintenanceRecord $record): bool

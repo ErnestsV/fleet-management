@@ -15,8 +15,18 @@ enum UserRole: string
         return str($this->value)->replace('_', ' ')->title()->toString();
     }
 
+    public function canAccessFleetData(): bool
+    {
+        return in_array($this, [self::Owner, self::Admin, self::Dispatcher, self::Viewer], true);
+    }
+
+    public function canManageFleetData(): bool
+    {
+        return in_array($this, [self::Owner, self::Admin, self::Dispatcher], true);
+    }
+
     public function canManageUsers(): bool
     {
-        return in_array($this, [self::SuperAdmin, self::Owner, self::Admin], true);
+        return in_array($this, [self::Owner, self::Admin], true);
     }
 }

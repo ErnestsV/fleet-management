@@ -9,16 +9,16 @@ class VehicleDriverAssignmentPolicy
 {
     public function viewAny(User $user): bool
     {
-        return (bool) $user;
+        return $user->role?->canAccessFleetData() ?? false;
     }
 
     public function create(User $user): bool
     {
-        return in_array($user->role?->value, ['super_admin', 'owner', 'admin', 'dispatcher'], true);
+        return $user->role?->canManageFleetData() ?? false;
     }
 
     public function update(User $user, VehicleDriverAssignment $assignment): bool
     {
-        return $this->create($user) && ($user->isSuperAdmin() || $user->company_id === $assignment->company_id);
+        return $this->create($user) && $user->company_id === $assignment->company_id;
     }
 }

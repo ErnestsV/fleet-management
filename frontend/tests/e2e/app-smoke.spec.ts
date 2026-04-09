@@ -217,7 +217,7 @@ test('redirects unauthenticated users to the login page', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
 });
 
-test('renders the authenticated dashboard and mobile navigation with mocked API responses', async ({ page }) => {
+test('renders the authenticated companies page and restricted mobile navigation for super admin users', async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem('fleetos.token', 'test-token');
   });
@@ -263,23 +263,50 @@ test('renders the authenticated dashboard and mobile navigation with mocked API 
     });
   });
 
-  await page.route('**/api/v1/dashboard/summary', async (route) => {
+  await page.route('**/api/v1/companies*', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(dashboardSummary),
+      body: JSON.stringify({
+        data: [
+          {
+            id: 1,
+            name: 'North Logistics',
+            slug: 'north-logistics',
+            timezone: 'Europe/Riga',
+            is_active: true,
+            created_at: '2026-04-01T10:00:00Z',
+          },
+        ],
+        links: {
+          first: null,
+          last: null,
+          prev: null,
+          next: null,
+        },
+        meta: {
+          current_page: 1,
+          from: 1,
+          last_page: 1,
+          path: 'http://localhost/api/v1/companies',
+          per_page: 15,
+          to: 1,
+          total: 1,
+        },
+      }),
     });
   });
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: 'Operations dashboard' })).toBeVisible();
-  await expect(page.getByText('Total vehicles')).toBeVisible();
-  await expect(page.locator('div').filter({ hasText: /^Active alerts$/ }).first()).toBeVisible();
-  await expect(page.getByText('NL-101').first()).toBeVisible();
+  await expect(page).toHaveURL(/\/companies$/);
+  await expect(page.getByRole('heading', { name: 'Companies' })).toBeVisible();
+  await expect(page.getByText('North Logistics')).toBeVisible();
 
   await page.getByRole('button', { name: 'Open mobile navigation' }).click();
-  await expect(page.getByRole('link', { name: 'Vehicles' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Maintenance' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Companies' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Settings' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Vehicles' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Maintenance' })).toHaveCount(0);
 });

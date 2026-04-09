@@ -55,14 +55,17 @@ describe('AppShell', () => {
     clearSessionMock.mockReset();
   });
 
-  it('renders the active alert count badge', () => {
+  it('shows only platform navigation for super admin users', () => {
     renderWithProviders(
       <AppShell>
         <div>Dashboard content</div>
       </AppShell>,
     );
 
-    expect(screen.getByText('1')).toBeInTheDocument();
+    expect(screen.queryByText('1')).not.toBeInTheDocument();
+    expect(screen.getByTitle('Companies')).toBeInTheDocument();
+    expect(screen.getByTitle('Settings')).toBeInTheDocument();
+    expect(screen.queryByTitle('Vehicles')).not.toBeInTheDocument();
   });
 
   it('closes the profile menu when clicking outside', () => {

@@ -10,20 +10,16 @@ class AlertPolicy
 {
     public function viewAny(User $user): bool
     {
-        return (bool) $user;
+        return $user->role?->canAccessFleetData() ?? false;
     }
 
     public function view(User $user, Alert $alert): bool
     {
-        return $user->isSuperAdmin() || $user->company_id === $alert->company_id;
+        return ($user->role?->canAccessFleetData() ?? false) && $user->company_id === $alert->company_id;
     }
 
     public function resolve(User $user, Alert $alert): bool
     {
-        if ($user->isSuperAdmin()) {
-            return true;
-        }
-
         return $user->company_id === $alert->company_id
             && in_array($user->role, [UserRole::Owner, UserRole::Admin], true);
     }
