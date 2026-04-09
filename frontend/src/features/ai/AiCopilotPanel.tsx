@@ -13,9 +13,24 @@ type ChatMessage = AiCopilotHistoryMessage & {
 
 const MAX_HISTORY_MESSAGES = 8;
 
+function createMessageId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  }
+
+  return `msg-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 function createMessage(role: ChatMessage['role'], content: string, tone: ChatMessage['tone'] = 'default'): ChatMessage {
   return {
-    id: crypto.randomUUID(),
+    id: createMessageId(),
     role,
     content,
     tone,
