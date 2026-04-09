@@ -13,6 +13,16 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
+/**
+ * @property int $id
+ * @property int|null $company_id
+ * @property string $name
+ * @property string $email
+ * @property \App\Domain\Shared\Enums\UserRole|null $role
+ * @property string|null $timezone
+ * @property bool $is_active
+ * @property \App\Domain\Companies\Models\Company|null $company
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */

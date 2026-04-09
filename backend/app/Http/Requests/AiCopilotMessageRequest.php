@@ -10,7 +10,7 @@ class AiCopilotMessageRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return (bool) $this->user();
+        return $this->user()?->role?->canAccessFleetData() ?? false;
     }
 
     public function rules(): array

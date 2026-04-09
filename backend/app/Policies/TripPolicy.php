@@ -9,11 +9,11 @@ class TripPolicy
 {
     public function viewAny(User $user): bool
     {
-        return (bool) $user;
+        return $user->role?->canAccessFleetData() ?? false;
     }
 
     public function view(User $user, Trip $trip): bool
     {
-        return $user->isSuperAdmin() || $user->company_id === $trip->company_id;
+        return ($user->role?->canAccessFleetData() ?? false) && $user->company_id === $trip->company_id;
     }
 }

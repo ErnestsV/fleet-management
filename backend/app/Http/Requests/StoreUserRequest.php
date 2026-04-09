@@ -2,9 +2,7 @@
 
 namespace App\Http\Requests;
 
-use App\Domain\Shared\Enums\UserRole;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreUserRequest extends FormRequest
 {
@@ -15,19 +13,10 @@ class StoreUserRequest extends FormRequest
 
     public function rules(): array
     {
-        $roles = $this->user()?->isSuperAdmin()
-            ? collect(UserRole::cases())->map->value->all()
-            : ['admin', 'dispatcher', 'viewer'];
+        $roles = ['admin', 'dispatcher', 'viewer'];
 
         return [
-            'company_id' => [
-                Rule::requiredIf(
-                    $this->user()?->isSuperAdmin() && $this->input('role') !== UserRole::SuperAdmin->value
-                ),
-                'nullable',
-                'integer',
-                'exists:companies,id',
-            ],
+            'company_id' => ['nullable', 'integer', 'exists:companies,id'],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['nullable', 'string', 'min:8'],

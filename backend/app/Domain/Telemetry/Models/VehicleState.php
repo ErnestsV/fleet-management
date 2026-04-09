@@ -8,6 +8,27 @@ use App\Domain\Telemetry\Enums\VehicleStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int $company_id
+ * @property int $vehicle_id
+ * @property \App\Domain\Telemetry\Enums\VehicleStatus|null $status
+ * @property \Illuminate\Support\Carbon|null $last_event_at
+ * @property float|null $latitude
+ * @property float|null $longitude
+ * @property float|null $speed_kmh
+ * @property bool|null $engine_on
+ * @property float|null $odometer_km
+ * @property float|null $fuel_level
+ * @property float|null $heading
+ * @property \Illuminate\Support\Carbon|null $moving_started_at
+ * @property \Illuminate\Support\Carbon|null $idling_started_at
+ * @property \Illuminate\Support\Carbon|null $stopped_started_at
+ * @property \Illuminate\Support\Carbon|null $offline_marked_at
+ * @property array<int>|null $last_geofence_ids
+ * @property \App\Domain\Companies\Models\Company $company
+ * @property \App\Domain\Fleet\Models\Vehicle $vehicle
+ */
 class VehicleState extends Model
 {
     protected $fillable = [

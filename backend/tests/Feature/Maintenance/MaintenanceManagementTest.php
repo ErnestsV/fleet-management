@@ -81,7 +81,7 @@ class MaintenanceManagementTest extends TestCase
         $this->assertSame(180000.0, $schedule->next_due_odometer_km);
     }
 
-    public function test_super_admin_cannot_update_record_with_vehicle_from_other_company_when_company_id_is_omitted(): void
+    public function test_super_admin_cannot_update_maintenance_records(): void
     {
         $superAdmin = User::factory()->superAdmin()->create();
         $companyA = Company::factory()->create();
@@ -115,10 +115,10 @@ class MaintenanceManagementTest extends TestCase
             'title' => 'Updated service',
             'service_date' => now()->toDateString(),
             'currency' => 'EUR',
-        ])->assertStatus(422);
+        ])->assertForbidden();
     }
 
-    public function test_super_admin_cannot_update_schedule_with_vehicle_from_other_company_when_company_id_is_omitted(): void
+    public function test_super_admin_cannot_update_maintenance_schedules(): void
     {
         $superAdmin = User::factory()->superAdmin()->create();
         $companyA = Company::factory()->create();
@@ -140,6 +140,6 @@ class MaintenanceManagementTest extends TestCase
             'vehicle_id' => $vehicleB->id,
             'name' => 'Inspection',
             'interval_days' => 365,
-        ])->assertStatus(422);
+        ])->assertForbidden();
     }
 }

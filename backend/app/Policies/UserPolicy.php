@@ -13,7 +13,7 @@ class UserPolicy
 
     public function view(User $user, User $target): bool
     {
-        return $user->isSuperAdmin() || $user->company_id === $target->company_id;
+        return ($user->role?->canManageUsers() ?? false) && $user->company_id === $target->company_id;
     }
 
     public function create(User $user): bool
@@ -23,10 +23,6 @@ class UserPolicy
 
     public function update(User $user, User $target): bool
     {
-        if ($user->isSuperAdmin()) {
-            return true;
-        }
-
         if ($user->company_id !== $target->company_id || ! $user->role?->canManageUsers()) {
             return false;
         }

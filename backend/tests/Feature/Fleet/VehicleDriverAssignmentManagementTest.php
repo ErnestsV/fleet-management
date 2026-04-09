@@ -36,7 +36,7 @@ class VehicleDriverAssignmentManagementTest extends TestCase
         ])->assertOk();
     }
 
-    public function test_assignment_creation_rejects_cross_company_pairs(): void
+    public function test_super_admin_cannot_create_assignments(): void
     {
         $user = User::factory()->superAdmin()->create(['role' => UserRole::SuperAdmin, 'company_id' => null]);
         $vehicle = Vehicle::factory()->create();
@@ -48,8 +48,7 @@ class VehicleDriverAssignmentManagementTest extends TestCase
             'vehicle_id' => $vehicle->id,
             'driver_id' => $driver->id,
             'assigned_from' => now()->subHour()->toIso8601String(),
-        ])->assertUnprocessable()
-            ->assertJsonValidationErrors(['driver_id']);
+        ])->assertForbidden();
     }
 
     public function test_company_dispatcher_cannot_assign_vehicle_or_driver_from_other_company(): void
