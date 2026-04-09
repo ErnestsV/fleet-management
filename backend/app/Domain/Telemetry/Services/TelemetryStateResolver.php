@@ -9,9 +9,9 @@ use Illuminate\Support\Carbon;
 
 class TelemetryStateResolver
 {
-    public function apply(TelemetryEvent $event): VehicleState
+    public function apply(TelemetryEvent $event, ?VehicleState $state = null): VehicleState
     {
-        $state = VehicleState::firstOrNew([
+        $state ??= VehicleState::firstOrNew([
             'vehicle_id' => $event->vehicle_id,
         ]);
 

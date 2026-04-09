@@ -12,6 +12,8 @@ class TelemetryEvent extends Model
     protected $fillable = [
         'company_id',
         'vehicle_id',
+        'message_id',
+        'ingestion_key',
         'occurred_at',
         'latitude',
         'longitude',
@@ -21,6 +23,9 @@ class TelemetryEvent extends Model
         'fuel_level',
         'heading',
         'payload',
+        'processing_started_at',
+        'processed_at',
+        'processing_error',
     ];
 
     protected function casts(): array
@@ -35,6 +40,8 @@ class TelemetryEvent extends Model
             'fuel_level' => 'float',
             'heading' => 'float',
             'payload' => 'array',
+            'processing_started_at' => 'datetime',
+            'processed_at' => 'datetime',
         ];
     }
 

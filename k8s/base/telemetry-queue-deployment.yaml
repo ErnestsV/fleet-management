@@ -1,17 +1,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: queue
+  name: telemetry-queue
   namespace: fleet-management
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
-      app: queue
+      app: telemetry-queue
   template:
     metadata:
       labels:
-        app: queue
+        app: telemetry-queue
     spec:
       securityContext:
         seccompProfile:
@@ -22,7 +22,19 @@ spec:
         - name: queue
           image: REGION-docker.pkg.dev/PROJECT_ID/fleet-management/backend-app:replace-at-deploy
           imagePullPolicy: IfNotPresent
-          command: ["php", "artisan", "queue:work", "--queue=default", "--tries=3", "--backoff=5", "--timeout=60", "--sleep=3", "--max-jobs=500", "--max-time=3600"]
+          command:
+            [
+              "php",
+              "artisan",
+              "queue:work",
+              "--queue=telemetry-processing,telemetry-alerts",
+              "--tries=5",
+              "--backoff=5",
+              "--timeout=60",
+              "--sleep=1",
+              "--max-jobs=500",
+              "--max-time=3600"
+            ]
           envFrom:
             - configMapRef:
                 name: backend-config
@@ -37,11 +49,11 @@ spec:
             runAsGroup: 33
           resources:
             requests:
-              cpu: 150m
+              cpu: 250m
               memory: 256Mi
             limits:
-              cpu: 500m
-              memory: 512Mi
+              cpu: 1000m
+              memory: 768Mi
         - name: cloud-sql-proxy
           image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.19.0
           args:

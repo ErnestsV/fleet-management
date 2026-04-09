@@ -15,6 +15,7 @@ class IngestTelemetryRequest extends FormRequest
     {
         return [
             'vehicle_id' => ['nullable', 'integer', 'exists:vehicles,id'],
+            'message_id' => ['nullable', 'string', 'max:120'],
             'timestamp' => ['required', 'date'],
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],

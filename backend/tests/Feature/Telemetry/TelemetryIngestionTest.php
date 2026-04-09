@@ -30,7 +30,7 @@ class TelemetryIngestionTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->withHeader('Authorization', 'Bearer '.$plainToken)
+        $response = $this->withHeader('Authorization', 'Bearer '.$plainToken)
             ->postJson('/api/v1/telemetry/events', [
                 'vehicle_id' => $vehicle->id,
                 'timestamp' => now()->toIso8601String(),
@@ -41,10 +41,15 @@ class TelemetryIngestionTest extends TestCase
             ])
             ->assertStatus(202);
 
+        $response->assertJsonPath('duplicate', false);
         $this->assertDatabaseCount('telemetry_events', 1);
         $this->assertDatabaseHas('vehicle_states', [
             'vehicle_id' => $vehicle->id,
             'status' => 'moving',
+        ]);
+        $this->assertDatabaseMissing('telemetry_events', [
+            'vehicle_id' => $vehicle->id,
+            'processed_at' => null,
         ]);
     }
 
@@ -124,6 +129,48 @@ class TelemetryIngestionTest extends TestCase
         $this->assertDatabaseMissing('alerts', [
             'vehicle_id' => $vehicle->id,
             'type' => AlertType::GeofenceExit->value,
+        ]);
+    }
+
+    public function test_duplicate_message_id_is_deduplicated(): void
+    {
+        $company = Company::factory()->create();
+        $vehicle = Vehicle::factory()->create(['company_id' => $company->id]);
+        $plainToken = 'dedupe-token';
+
+        DeviceToken::create([
+            'company_id' => $company->id,
+            'vehicle_id' => $vehicle->id,
+            'name' => 'Test',
+            'token' => hash('sha256', $plainToken),
+            'is_active' => true,
+        ]);
+
+        $payload = [
+            'message_id' => 'device-event-0001',
+            'timestamp' => now()->startOfMinute()->toIso8601String(),
+            'latitude' => 56.95,
+            'longitude' => 24.10,
+            'speed_kmh' => 42,
+            'engine_on' => true,
+        ];
+
+        $firstResponse = $this->withHeader('Authorization', 'Bearer '.$plainToken)
+            ->postJson('/api/v1/telemetry/events', $payload)
+            ->assertStatus(202);
+
+        $secondResponse = $this->withHeader('Authorization', 'Bearer '.$plainToken)
+            ->postJson('/api/v1/telemetry/events', $payload)
+            ->assertStatus(202);
+
+        $firstResponse->assertJsonPath('duplicate', false);
+        $secondResponse->assertJsonPath('duplicate', true);
+        $secondResponse->assertJsonPath('event_id', $firstResponse->json('event_id'));
+
+        $this->assertDatabaseCount('telemetry_events', 1);
+        $this->assertDatabaseHas('telemetry_events', [
+            'vehicle_id' => $vehicle->id,
+            'message_id' => 'device-event-0001',
         ]);
     }
 }

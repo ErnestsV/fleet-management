@@ -3,8 +3,14 @@ resources:
   - backend-serviceaccount.yaml
   - backend-configmap.yaml
   - backend-deployment.yaml
+  - backend-hpa.yaml
   - backend-service.yaml
   - queue-deployment.yaml
+  - telemetry-ingest-deployment.yaml
+  - telemetry-ingest-service.yaml
+  - telemetry-ingest-hpa.yaml
+  - telemetry-queue-deployment.yaml
+  - telemetry-queue-hpa.yaml
   - scheduler-cronjob.yaml
   - frontend-deployment.yaml
   - frontend-service.yaml

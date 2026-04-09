@@ -46,8 +46,10 @@ class AppServiceProvider extends ServiceProvider
         ]);
 
         RateLimiter::for('telemetry', fn (Request $request) => [
-            Limit::perMinute(120)->by('telemetry-token:'.($request->bearerToken() ?: 'missing-token')),
-            Limit::perMinute(600)->by('telemetry-ip:'.$request->ip()),
+            Limit::perMinute(max((int) config('fleet.telemetry_token_rate_limit_per_minute', 120), 1))
+                ->by('telemetry-token:'.($request->bearerToken() ?: 'missing-token')),
+            Limit::perMinute(max((int) config('fleet.telemetry_ip_rate_limit_per_minute', 600), 1))
+                ->by('telemetry-ip:'.$request->ip()),
         ]);
 
         RateLimiter::for('api-read', fn (Request $request) => [
