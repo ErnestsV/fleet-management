@@ -77,7 +77,7 @@ return new class extends Migration
             DB::statement("INSERT INTO telemetry_events ({$columns}) SELECT {$columns} FROM telemetry_events_legacy ORDER BY occurred_at, id");
             DB::statement('DROP TABLE telemetry_events_legacy');
 
-            DB::statement("SELECT setval(pg_get_serial_sequence('telemetry_events', 'id'), COALESCE((SELECT MAX(id) FROM telemetry_events), 1), true)");
+            $this->resetTelemetryEventSequence();
 
             $this->createPartitionedIndexes();
         });
@@ -139,7 +139,7 @@ return new class extends Migration
             DB::statement("INSERT INTO telemetry_events_plain ({$columns}) SELECT {$columns} FROM telemetry_events ORDER BY occurred_at, id");
             DB::statement('DROP TABLE telemetry_events CASCADE');
             DB::statement('ALTER TABLE telemetry_events_plain RENAME TO telemetry_events');
-            DB::statement("SELECT setval(pg_get_serial_sequence('telemetry_events', 'id'), COALESCE((SELECT MAX(id) FROM telemetry_events), 1), true)");
+            $this->resetTelemetryEventSequence();
 
             DB::statement('CREATE INDEX telemetry_events_occurred_at_index ON telemetry_events (occurred_at)');
             DB::statement('CREATE INDEX telemetry_events_company_vehicle_occurred_at_index ON telemetry_events (company_id, vehicle_id, occurred_at)');
@@ -238,5 +238,18 @@ return new class extends Migration
         DB::statement('CREATE INDEX telemetry_events_ingestion_key_idx ON telemetry_events (ingestion_key)');
         DB::statement('CREATE INDEX telemetry_events_company_vehicle_processed_occurred_idx ON telemetry_events (company_id, vehicle_id, processed_at, occurred_at)');
         DB::statement('CREATE INDEX telemetry_events_processed_occurred_idx ON telemetry_events (processed_at, occurred_at)');
+    }
+
+    private function resetTelemetryEventSequence(): void
+    {
+        $maxId = DB::table('telemetry_events')->max('id');
+
+        if ($maxId === null) {
+            DB::statement("SELECT setval(pg_get_serial_sequence('telemetry_events', 'id'), 1, false)");
+
+            return;
+        }
+
+        DB::statement("SELECT setval(pg_get_serial_sequence('telemetry_events', 'id'), {$maxId}, true)");
     }
 };

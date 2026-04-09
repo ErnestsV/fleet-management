@@ -30,17 +30,22 @@ class TelemetryIngestionService
         [$event, $created] = DB::transaction(function () use ($vehicle, $payload, $messageId) {
             $ingestionKey = $this->buildIngestionKey($vehicle, $payload, $messageId);
             $this->acquireIngestionLock($ingestionKey);
+            $reservedEventId = $this->reservedTelemetryEventId($ingestionKey);
 
-            $event = TelemetryEvent::query()
-                ->where('ingestion_key', $ingestionKey)
-                ->lockForUpdate()
-                ->first();
+            if ($reservedEventId !== null) {
+                $event = TelemetryEvent::query()
+                    ->whereKey($reservedEventId)
+                    ->lockForUpdate()
+                    ->first();
 
-            if ($event) {
-                return [$event, false];
+                if ($event) {
+                    return [$event, false];
+                }
             }
 
-            return [TelemetryEvent::create([
+            $this->reserveIngestionKey($ingestionKey);
+
+            $event = TelemetryEvent::create([
                 'company_id' => $vehicle->company_id,
                 'vehicle_id' => $vehicle->id,
                 'message_id' => $messageId,
@@ -54,7 +59,11 @@ class TelemetryIngestionService
                 'fuel_level' => $payload['fuel_level'] ?? null,
                 'heading' => $payload['heading'] ?? null,
                 'payload' => $payload,
-            ]), true];
+            ]);
+
+            $this->markIngestionKeyResolved($ingestionKey, $event->id);
+
+            return [$event, true];
         });
 
         if ($created || $event->processed_at === null) {
@@ -210,5 +219,42 @@ class TelemetryIngestionService
         return $value > 2147483647
             ? (int) ($value - 4294967296)
             : (int) $value;
+    }
+
+    private function reservedTelemetryEventId(string $ingestionKey): ?int
+    {
+        $reservation = DB::table('telemetry_ingestion_keys')
+            ->where('ingestion_key', $ingestionKey)
+            ->lockForUpdate()
+            ->first();
+
+        return $reservation?->telemetry_event_id !== null
+            ? (int) $reservation->telemetry_event_id
+            : null;
+    }
+
+    private function reserveIngestionKey(string $ingestionKey): void
+    {
+        $now = now();
+
+        DB::table('telemetry_ingestion_keys')->upsert(
+            [[
+                'ingestion_key' => $ingestionKey,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]],
+            ['ingestion_key'],
+            ['updated_at'],
+        );
+    }
+
+    private function markIngestionKeyResolved(string $ingestionKey, int $eventId): void
+    {
+        DB::table('telemetry_ingestion_keys')
+            ->where('ingestion_key', $ingestionKey)
+            ->update([
+                'telemetry_event_id' => $eventId,
+                'updated_at' => now(),
+            ]);
     }
 }

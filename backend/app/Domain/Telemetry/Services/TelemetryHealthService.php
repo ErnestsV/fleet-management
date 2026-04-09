@@ -323,7 +323,10 @@ class TelemetryHealthService
 
     private function freshMinutes(): int
     {
-        return max((int) config('fleet.telemetry_fresh_minutes', 15), 1);
+        return min(
+            max((int) config('fleet.telemetry_fresh_minutes', 15), 1),
+            max((int) config('fleet.offline_threshold_minutes', 10), 1),
+        );
     }
 
     private function staleMinutes(): int
