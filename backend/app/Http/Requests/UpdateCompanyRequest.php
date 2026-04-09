@@ -27,6 +27,7 @@ class UpdateCompanyRequest extends FormRequest
             'timezone' => ['nullable', 'string', 'max:64'],
             'is_active' => ['boolean'],
             'settings' => ['nullable', 'array'],
+            'settings.speed_alert_threshold_kmh' => ['nullable', 'numeric', 'min:1', 'max:300'],
         ];
     }
 }

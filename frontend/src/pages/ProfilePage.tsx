@@ -2,17 +2,21 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/app/store/authStore';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Panel } from '@/components/ui/Panel';
-import { useChangePassword, useUpdateProfile } from '@/features/profile/useProfile';
+import { useChangePassword, useUpdateCompanySettings, useUpdateProfile } from '@/features/profile/useProfile';
 import { getApiErrorMessage } from '@/lib/api/errors';
 
 export function ProfilePage() {
   const user = useAuthStore((state) => state.user);
   const profileMutation = useUpdateProfile();
+  const companySettingsMutation = useUpdateCompanySettings();
   const passwordMutation = useChangePassword();
   const [profileForm, setProfileForm] = useState({
     name: user?.name ?? '',
     email: user?.email ?? '',
     timezone: user?.timezone ?? 'Europe/Riga',
+  });
+  const [companySettingsForm, setCompanySettingsForm] = useState({
+    speed_alert_threshold_kmh: user?.company?.settings?.speed_alert_threshold_kmh ?? 90,
   });
   const [passwordForm, setPasswordForm] = useState({
     current_password: '',
@@ -30,14 +34,19 @@ export function ProfilePage() {
       email: user.email,
       timezone: user.timezone ?? 'Europe/Riga',
     });
+    setCompanySettingsForm({
+      speed_alert_threshold_kmh: user.company?.settings?.speed_alert_threshold_kmh ?? 90,
+    });
   }, [user]);
+
+  const canManageCompanySettings = Boolean(user?.company) && (user?.role === 'owner' || user?.role === 'admin');
 
   return (
     <div>
-      <PageHeader title="Profile & settings" description="Authenticated user profile, company context, role, and password management." />
+      <PageHeader title="Profile & settings" description="Authenticated user profile, company context, operational settings, and password management." />
       {!user ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500">Loading profile...</div> : null}
       {user ? (
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid gap-6 xl:grid-cols-2 2xl:grid-cols-4">
         <Panel title="Profile" description="Update the signed-in account details used throughout the platform.">
           <div className="space-y-3">
             <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" value={profileForm.name} onChange={(event) => setProfileForm((state) => ({ ...state, name: event.target.value }))} placeholder="Name" />
@@ -57,6 +66,41 @@ export function ProfilePage() {
             <div><div className="text-slate-500">Company timezone</div><div className="mt-1 font-semibold">{user?.company?.timezone ?? 'N/A'}</div></div>
           </div>
         </Panel>
+        {canManageCompanySettings ? (
+          <Panel title="Company settings" description="Operational company-level settings that affect fleet behavior and alerts.">
+            <div className="space-y-3">
+              <input
+                type="number"
+                min={1}
+                max={300}
+                className="w-full rounded-2xl border border-slate-200 px-4 py-3"
+                value={companySettingsForm.speed_alert_threshold_kmh}
+                onChange={(event) => setCompanySettingsForm({ speed_alert_threshold_kmh: Number(event.target.value || 90) })}
+                placeholder="Speed alert threshold (km/h)"
+              />
+              <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+                Speeding alerts are triggered when telemetry speed is above this company threshold. Default is 90 km/h.
+                <div className="mt-2 text-sky-700">
+                  Active speeding alerts resolve automatically after 3 consecutive telemetry events at or below the configured threshold.
+                </div>
+              </div>
+              <button
+                className="w-full rounded-2xl bg-brand-600 px-4 py-3 font-semibold text-white"
+                onClick={() =>
+                  user.company &&
+                  companySettingsMutation.mutate({
+                    companyId: user.company.id,
+                    speedAlertThresholdKmh: companySettingsForm.speed_alert_threshold_kmh,
+                  })
+                }
+              >
+                {companySettingsMutation.isPending ? 'Saving...' : 'Save company settings'}
+              </button>
+              {companySettingsMutation.isSuccess ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">Company settings updated.</div> : null}
+              {companySettingsMutation.isError ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{getApiErrorMessage(companySettingsMutation.error)}</div> : null}
+            </div>
+          </Panel>
+        ) : null}
         <Panel title="Password" description="Change the current account password safely.">
           <div className="space-y-3">
             <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" type="password" value={passwordForm.current_password} onChange={(event) => setPasswordForm((state) => ({ ...state, current_password: event.target.value }))} placeholder="Current password" />

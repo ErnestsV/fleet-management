@@ -24,7 +24,13 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->report(function (\Throwable $exception, Request $request): void {
+        $exceptions->report(function (\Throwable $exception): void {
+            $request = request();
+
+            if (! $request instanceof Request) {
+                return;
+            }
+
             if (! $request->is('api/*')) {
                 return;
             }

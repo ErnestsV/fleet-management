@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'speed_alert_threshold_kmh' => (float) env('FLEET_SPEED_ALERT_THRESHOLD_KMH', 90),
     'offline_threshold_minutes' => (int) env('FLEET_OFFLINE_THRESHOLD_MINUTES', 10),
     'behaviour_min_trips' => (int) env('FLEET_BEHAVIOUR_MIN_TRIPS', 3),
     'dashboard_idle_threshold_hours' => (int) env('FLEET_DASHBOARD_IDLE_THRESHOLD_HOURS', 2),

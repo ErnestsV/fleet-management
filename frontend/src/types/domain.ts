@@ -12,6 +12,10 @@ export type AuthUser = {
     id: number;
     name: string;
     timezone: string;
+    is_active?: boolean;
+    settings?: {
+      speed_alert_threshold_kmh: number;
+    };
   } | null;
 };
 
@@ -37,6 +41,9 @@ export type Company = {
   name: string;
   slug: string;
   timezone: string;
+  settings: {
+    speed_alert_threshold_kmh: number;
+  };
   is_active: boolean;
   created_at: string;
 };

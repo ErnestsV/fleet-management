@@ -1,4 +1,4 @@
-import { Children, ReactElement, ReactNode, isValidElement, useEffect, useMemo, useRef, useState } from 'react';
+import { Children, ReactElement, ReactNode, isValidElement, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 type OptionProps = {
@@ -39,7 +39,9 @@ export function SelectField({
   children,
 }: SelectFieldProps) {
   const [open, setOpen] = useState(false);
+  const [openAbove, setOpenAbove] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const listboxRef = useRef<HTMLDivElement | null>(null);
 
   const options = useMemo(() => Children.toArray(children).filter(isOptionElement), [children]);
   const normalizedValue = Array.isArray(value) ? String(value[0] ?? '') : String(value ?? '');
@@ -66,6 +68,37 @@ export function SelectField({
 
     return () => document.removeEventListener('mousedown', handlePointerDown);
   }, []);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    function updateDropdownPlacement() {
+      const containerRect = containerRef.current?.getBoundingClientRect();
+      const listboxHeight = listboxRef.current?.offsetHeight ?? 240;
+
+      if (!containerRect) {
+        return;
+      }
+
+      const spaceBelow = window.innerHeight - containerRect.bottom;
+      const spaceAbove = containerRect.top;
+      const shouldOpenAbove = spaceBelow < listboxHeight + 8 && spaceAbove > spaceBelow;
+
+      setOpenAbove(shouldOpenAbove);
+    }
+
+    updateDropdownPlacement();
+
+    window.addEventListener('resize', updateDropdownPlacement);
+    window.addEventListener('scroll', updateDropdownPlacement, true);
+
+    return () => {
+      window.removeEventListener('resize', updateDropdownPlacement);
+      window.removeEventListener('scroll', updateDropdownPlacement, true);
+    };
+  }, [open]);
 
   return (
     <div ref={containerRef} className={`relative ${className}`}>
@@ -100,11 +133,14 @@ export function SelectField({
 
       {open ? (
         <div
+          ref={listboxRef}
           id={listboxId}
           role="listbox"
           aria-labelledby={id}
           tabIndex={-1}
-          className="absolute z-20 mt-2 max-h-56 w-full overflow-y-auto overflow-x-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl"
+          className={`absolute z-20 max-h-56 w-full overflow-y-auto overflow-x-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl ${
+            openAbove ? 'bottom-full mb-2' : 'mt-2'
+          }`}
           onKeyDown={(event) => {
             if (event.key === 'Escape') {
               event.preventDefault();

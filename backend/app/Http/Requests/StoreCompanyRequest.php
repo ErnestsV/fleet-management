@@ -17,6 +17,8 @@ class StoreCompanyRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'timezone' => ['nullable', 'string', 'max:64'],
             'is_active' => ['boolean'],
+            'settings' => ['nullable', 'array'],
+            'settings.speed_alert_threshold_kmh' => ['nullable', 'numeric', 'min:1', 'max:300'],
             'owner' => ['nullable', 'array'],
             'owner.name' => ['required_with:owner', 'string', 'max:255'],
             'owner.email' => ['required_with:owner', 'email'],

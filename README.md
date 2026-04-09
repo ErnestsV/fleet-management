@@ -205,8 +205,8 @@ At a high level:
 ### Live Map
 
 - `Live Map` is the fleet-operations workspace for searching vehicles and viewing their current state on a map-style surface.
-- It uses a provider-agnostic map canvas backed by real vehicle coordinates and selection state.
-- The intended future upgrade path is to replace the placeholder canvas with a real provider such as Mapbox or Leaflet without changing the fleet domain model.
+- It currently uses a Leaflet-backed operations map with real vehicle coordinates, marker selection, and fullscreen search support.
+- A future upgrade path is to abstract the current map integration behind a provider adapter if multi-provider support such as Mapbox becomes necessary later.
 
 ### Drivers
 
@@ -728,9 +728,10 @@ All host ports are configurable through the root `.env` file created from `.env.
 
 ## Future scaling notes
 
-- Split telemetry ingestion workers from the web API when ingest volume grows
-- Partition `telemetry_events` by time and/or company
-- Add websocket pushes for live fleet updates
-- Replace map placeholders with Mapbox/Leaflet adapter components
-- Export analytical aggregates to a warehouse for heavy reporting
-- Add AI integration later around anomaly detection, maintenance suggestions, and fleet assistant workflows without mixing that logic into core CRUD domains
+- Split telemetry ingestion workers from the web API when ingest volume grows; the current queued alert evaluation and materialized vehicle state already make that separation straightforward.
+- Partition `telemetry_events` by time and/or company once retention volume makes single-table scans and index maintenance too expensive.
+- Add websocket or SSE pushes for live fleet updates instead of relying only on periodic polling.
+- Generalize the current Leaflet implementation behind a map-provider adapter only if multi-provider support or provider switching becomes a real product need.
+- Move alert rules from hardcoded heuristics toward tenant-configurable operational policies; speeding now supports a company-level threshold, but a fuller production version should also support vehicle classes, region-specific policies, and eventually map-based road speed limits with tolerance windows.
+- Export analytical aggregates to a warehouse or OLAP store for heavy historical reporting rather than pushing that load onto the transactional PostgreSQL database.
+- Expand the current AI copilot into deeper anomaly detection, maintenance suggestions, and workflow automation without mixing model-serving concerns into core CRUD and telemetry ingestion domains.

@@ -60,7 +60,7 @@ export function FleetRiskOverviewPanel({
 
             return (
               <div key={item.key} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="text-xs uppercase tracking-[0.16em] text-slate-500">{item.label}</div>
                   <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${tone.chip}`}>
                     {item.severity}
@@ -164,7 +164,7 @@ export function OperationalGapsPanel({
           )}
           {attentionVehicles.length > visibleAttentionCount ? (
             <ShowMoreButton
-              label={`Show ${attentionPageSize} more vehicles`}
+              label={`Show more vehicles`}
               onClick={onShowMore}
             />
           ) : null}

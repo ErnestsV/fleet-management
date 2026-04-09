@@ -10,6 +10,9 @@ export async function createCompany(payload: {
   name: string;
   timezone?: string;
   is_active: boolean;
+  settings?: {
+    speed_alert_threshold_kmh: number;
+  };
   owner?: {
     name: string;
     email: string;
@@ -28,6 +31,9 @@ export async function updateCompany(
     timezone?: string;
     slug?: string;
     is_active: boolean;
+    settings?: {
+      speed_alert_threshold_kmh: number;
+    };
   },
 ): Promise<{ data: Company }> {
   const { data } = await apiClient.patch(`/companies/${companyId}`, payload);
