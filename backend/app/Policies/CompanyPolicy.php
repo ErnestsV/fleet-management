@@ -14,7 +14,10 @@ class CompanyPolicy
 
     public function view(User $user, Company $company): bool
     {
-        return $user->isSuperAdmin() || $user->company_id === $company->id;
+        /** @var int|null $userCompanyId */
+        $userCompanyId = $user->company_id;
+
+        return $user->isSuperAdmin() || $userCompanyId === $company->getKey();
     }
 
     public function create(User $user): bool
@@ -24,7 +27,15 @@ class CompanyPolicy
 
     public function update(User $user, Company $company): bool
     {
-        return $user->isSuperAdmin();
+        /** @var int|null $userCompanyId */
+        $userCompanyId = $user->company_id;
+        $canManageUsers = ($user->role?->canManageUsers()) ?? false;
+
+        return $user->isSuperAdmin()
+            || (
+                $userCompanyId === $company->getKey()
+                && $canManageUsers
+            );
     }
 
     public function delete(User $user, Company $company): bool

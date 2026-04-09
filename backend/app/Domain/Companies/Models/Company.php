@@ -12,6 +12,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string $slug
+ * @property string $timezone
+ * @property array<string, mixed>|null $settings
+ * @property bool $is_active
+ */
 class Company extends Model
 {
     /** @use HasFactory<CompanyFactory> */
@@ -51,5 +59,19 @@ class Company extends Model
     public function drivers(): HasMany
     {
         return $this->hasMany(Driver::class);
+    }
+
+    public function speedAlertThresholdKmh(): float
+    {
+        /** @var array<string, mixed>|null $settings */
+        $settings = $this->getAttribute('settings');
+
+        return min(
+            max(
+                (float) data_get($settings, 'speed_alert_threshold_kmh', config('fleet.speed_alert_threshold_kmh', 90)),
+                1
+            ),
+            300
+        );
     }
 }

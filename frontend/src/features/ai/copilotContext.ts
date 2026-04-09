@@ -14,7 +14,7 @@ export type AiCopilotUiConfig = {
 };
 
 export function getAiCopilotUiConfig(pathname: string, search: string): AiCopilotUiConfig | null {
-  if (pathname === '/') {
+  if (pathname === '/dashboard') {
     return {
       context: 'dashboard',
       label: 'Fleet Copilot',

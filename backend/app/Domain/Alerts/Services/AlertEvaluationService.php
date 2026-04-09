@@ -4,6 +4,7 @@ namespace App\Domain\Alerts\Services;
 
 use App\Domain\Alerts\Enums\AlertType;
 use App\Domain\Alerts\Models\Alert;
+use App\Domain\Companies\Models\Company;
 use App\Domain\Fleet\Models\Driver;
 use App\Domain\Maintenance\Models\MaintenanceSchedule;
 use App\Domain\Telemetry\Enums\VehicleStatus;
@@ -17,15 +18,21 @@ class AlertEvaluationService
     public function evaluateTelemetry(TelemetryEvent $event, VehicleState $state): void
     {
         $this->evaluateFuelAnomalies($event, $state);
+        $speedThresholdKmh = $this->speedAlertThresholdKmh($event->company_id);
 
-        if ($event->speed_kmh > 90) {
+        if ($event->speed_kmh > $speedThresholdKmh) {
             $this->createAlert(
                 type: AlertType::Speeding,
                 vehicleId: $event->vehicle_id,
                 companyId: $event->company_id,
                 message: 'Vehicle exceeded the configured speed threshold.',
-                context: ['speed_kmh' => $event->speed_kmh]
+                context: [
+                    'speed_kmh' => $event->speed_kmh,
+                    'threshold_kmh' => $speedThresholdKmh,
+                ]
             );
+        } else {
+            $this->resolveSpeedingAlertsIfRecovered($event, $speedThresholdKmh);
         }
 
         if ($state->status === VehicleStatus::Idling && $state->idling_started_at?->diffInMinutes($event->occurred_at) >= 15) {
@@ -289,6 +296,44 @@ class AlertEvaluationService
             ->whereNull('resolved_at')
             ->where('context->driver_id', $driver->id)
             ->update(['resolved_at' => now()]);
+    }
+
+    private function resolveSpeedingAlertsIfRecovered(TelemetryEvent $event, float $speedThresholdKmh): void
+    {
+        $recentEvents = TelemetryEvent::query()
+            ->where('company_id', $event->company_id)
+            ->where('vehicle_id', $event->vehicle_id)
+            ->where('occurred_at', '<=', $event->occurred_at)
+            ->latest('occurred_at')
+            ->latest('id')
+            ->limit(3)
+            ->get();
+
+        if ($recentEvents->count() < 3) {
+            return;
+        }
+
+        $hasRecovered = $recentEvents->every(
+            fn (TelemetryEvent $telemetryEvent) => $telemetryEvent->speed_kmh <= $speedThresholdKmh
+        );
+
+        if (! $hasRecovered) {
+            return;
+        }
+
+        Alert::query()
+            ->where('company_id', $event->company_id)
+            ->where('vehicle_id', $event->vehicle_id)
+            ->where('type', AlertType::Speeding)
+            ->whereNull('resolved_at')
+            ->update(['resolved_at' => now()]);
+    }
+
+    private function speedAlertThresholdKmh(int $companyId): float
+    {
+        $company = Company::query()->find($companyId);
+
+        return $company?->speedAlertThresholdKmh() ?? (float) config('fleet.speed_alert_threshold_kmh', 90);
     }
 
     private function createAlert(AlertType $type, ?int $vehicleId, int $companyId, string $message, array $context): void

@@ -14,6 +14,9 @@ class CompanyResource extends JsonResource
             'name' => $this->name,
             'slug' => $this->slug,
             'timezone' => $this->timezone,
+            'settings' => [
+                'speed_alert_threshold_kmh' => $this->speedAlertThresholdKmh(),
+            ],
             'is_active' => $this->is_active,
             'created_at' => $this->created_at,
         ];
