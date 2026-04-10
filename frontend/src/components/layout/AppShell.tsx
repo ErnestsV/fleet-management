@@ -37,7 +37,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const showNotifications = user ? FLEET_ACCESS_ROLES.includes(user.role) : false;
   const { data: activeAlerts } = useAlerts(
     { status: 'active', exclude_geofence_exit: true, per_page: 1 },
-    { enabled: showNotifications, refetchInterval: 10000 },
+    { enabled: showNotifications },
   );
 
   const activeAlertCount = activeAlerts?.meta?.total ?? 0;

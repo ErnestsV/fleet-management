@@ -17,7 +17,7 @@ export function AlertsPage() {
     status: status || undefined,
     page,
     per_page: ALERTS_PER_PAGE,
-  }, { refetchInterval: 10000 });
+  });
 
   useEffect(() => {
     setPage(1);

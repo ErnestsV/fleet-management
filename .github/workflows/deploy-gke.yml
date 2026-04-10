@@ -60,7 +60,18 @@ jobs:
           push: true
           tags: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPOSITORY }}/backend-web:${{ github.event.inputs.image_tag }}
 
+      - name: Validate Reverb frontend key
+        env:
+          REVERB_APP_KEY: ${{ vars.REVERB_APP_KEY }}
+        run: |
+          if [ -z "$REVERB_APP_KEY" ]; then
+            echo "Missing required repository variable: REVERB_APP_KEY" >&2
+            exit 1
+          fi
+
       - name: Build and push frontend image
+        env:
+          REVERB_APP_KEY: ${{ vars.REVERB_APP_KEY }}
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -68,6 +79,7 @@ jobs:
           push: true
           build-args: |
             VITE_API_BASE_URL=/api/v1
+            VITE_REVERB_APP_KEY=${{ env.REVERB_APP_KEY }}
           tags: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPOSITORY }}/frontend:${{ github.event.inputs.image_tag }}
 
   deploy:

@@ -9,7 +9,7 @@ import { useDashboardSummary } from '@/features/dashboard/useDashboardSummary';
 import { useDashboardViewModel } from '@/features/dashboard/useDashboardViewModel';
 
 export function DashboardPage() {
-  const { data, isLoading, isError } = useDashboardSummary({ refetchInterval: 10000 });
+  const { data, isLoading, isError } = useDashboardSummary();
   const viewModel = useDashboardViewModel(data);
 
   return (

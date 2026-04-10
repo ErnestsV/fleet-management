@@ -17,6 +17,7 @@ services:
       APP_DEBUG: "true"
       APP_URL: "http://${APP_HOST:-localhost}:${BACKEND_HOST_PORT:-18000}"
       FRONTEND_URL: "http://${APP_HOST:-localhost}:${FRONTEND_HOST_PORT:-15173}"
+      BROADCAST_CONNECTION: reverb
       APP_WAIT_FOR_DB: "${APP_WAIT_FOR_DB:-true}"
       APP_WAIT_FOR_REDIS: "${APP_WAIT_FOR_REDIS:-true}"
       APP_RUN_MIGRATIONS: "${APP_RUN_MIGRATIONS:-true}"
@@ -32,6 +33,17 @@ services:
       SESSION_DOMAIN: ${SESSION_DOMAIN:-localhost}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      REVERB_APP_ID: ${REVERB_APP_ID:?Set REVERB_APP_ID in .env}
+      REVERB_APP_KEY: ${REVERB_APP_KEY:?Set REVERB_APP_KEY in .env}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET:?Set REVERB_APP_SECRET in .env}
+      REVERB_BROADCAST_HOST: reverb
+      REVERB_BROADCAST_PORT: 8080
+      REVERB_BROADCAST_SCHEME: http
+      REVERB_HOST: ${APP_HOST:-localhost}
+      REVERB_PORT: ${REVERB_HOST_PORT:-18010}
+      REVERB_SCHEME: http
+      REVERB_SERVER_HOST: 0.0.0.0
+      REVERB_SERVER_PORT: 8080
       MAIL_HOST: mailpit
       MAIL_PORT: 1025
     ports:
@@ -56,6 +68,7 @@ services:
       APP_DEBUG: "true"
       APP_URL: "http://${APP_HOST:-localhost}:${BACKEND_HOST_PORT:-18000}"
       FRONTEND_URL: "http://${APP_HOST:-localhost}:${FRONTEND_HOST_PORT:-15173}"
+      BROADCAST_CONNECTION: reverb
       APP_WAIT_FOR_DB: "${APP_WAIT_FOR_DB:-true}"
       APP_WAIT_FOR_REDIS: "${APP_WAIT_FOR_REDIS:-true}"
       APP_RUN_MIGRATIONS: "${QUEUE_APP_RUN_MIGRATIONS:-false}"
@@ -69,6 +82,17 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-fleet}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      REVERB_APP_ID: ${REVERB_APP_ID:?Set REVERB_APP_ID in .env}
+      REVERB_APP_KEY: ${REVERB_APP_KEY:?Set REVERB_APP_KEY in .env}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET:?Set REVERB_APP_SECRET in .env}
+      REVERB_BROADCAST_HOST: reverb
+      REVERB_BROADCAST_PORT: 8080
+      REVERB_BROADCAST_SCHEME: http
+      REVERB_HOST: ${APP_HOST:-localhost}
+      REVERB_PORT: ${REVERB_HOST_PORT:-18010}
+      REVERB_SCHEME: http
+      REVERB_SERVER_HOST: 0.0.0.0
+      REVERB_SERVER_PORT: 8080
       MAIL_HOST: mailpit
       MAIL_PORT: 1025
     command:
@@ -97,6 +121,7 @@ services:
       APP_DEBUG: "true"
       APP_URL: "http://${APP_HOST:-localhost}:${BACKEND_HOST_PORT:-18000}"
       FRONTEND_URL: "http://${APP_HOST:-localhost}:${FRONTEND_HOST_PORT:-15173}"
+      BROADCAST_CONNECTION: reverb
       APP_WAIT_FOR_DB: "${APP_WAIT_FOR_DB:-true}"
       APP_WAIT_FOR_REDIS: "${APP_WAIT_FOR_REDIS:-true}"
       APP_RUN_MIGRATIONS: "${SCHEDULER_APP_RUN_MIGRATIONS:-false}"
@@ -110,9 +135,69 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-fleet}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      REVERB_APP_ID: ${REVERB_APP_ID:?Set REVERB_APP_ID in .env}
+      REVERB_APP_KEY: ${REVERB_APP_KEY:?Set REVERB_APP_KEY in .env}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET:?Set REVERB_APP_SECRET in .env}
+      REVERB_BROADCAST_HOST: reverb
+      REVERB_BROADCAST_PORT: 8080
+      REVERB_BROADCAST_SCHEME: http
+      REVERB_HOST: ${APP_HOST:-localhost}
+      REVERB_PORT: ${REVERB_HOST_PORT:-18010}
+      REVERB_SCHEME: http
+      REVERB_SERVER_HOST: 0.0.0.0
+      REVERB_SERVER_PORT: 8080
       MAIL_HOST: mailpit
       MAIL_PORT: 1025
     command: ["php", "artisan", "schedule:work"]
+
+  reverb:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: fleet_reverb
+    user: "${UID:-1000}:${GID:-1000}"
+    working_dir: /var/www/html/backend
+    volumes:
+      - ./backend:/var/www/html/backend
+    depends_on:
+      - postgres
+      - redis
+      - mailpit
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: "http://${APP_HOST:-localhost}:${BACKEND_HOST_PORT:-18000}"
+      FRONTEND_URL: "http://${APP_HOST:-localhost}:${FRONTEND_HOST_PORT:-15173}"
+      BROADCAST_CONNECTION: reverb
+      APP_WAIT_FOR_DB: "${APP_WAIT_FOR_DB:-true}"
+      APP_WAIT_FOR_REDIS: "${APP_WAIT_FOR_REDIS:-true}"
+      APP_RUN_MIGRATIONS: "${REVERB_APP_RUN_MIGRATIONS:-false}"
+      APP_SEED_DEMO: "${REVERB_APP_SEED_DEMO:-false}"
+      APP_SKIP_BOOTSTRAP: "${APP_SKIP_BOOTSTRAP:-false}"
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-fleet_management}
+      DB_USERNAME: ${POSTGRES_USER:-fleet}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-fleet}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REVERB_APP_ID: ${REVERB_APP_ID:?Set REVERB_APP_ID in .env}
+      REVERB_APP_KEY: ${REVERB_APP_KEY:?Set REVERB_APP_KEY in .env}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET:?Set REVERB_APP_SECRET in .env}
+      REVERB_BROADCAST_HOST: reverb
+      REVERB_BROADCAST_PORT: 8080
+      REVERB_BROADCAST_SCHEME: http
+      REVERB_HOST: ${APP_HOST:-localhost}
+      REVERB_PORT: ${REVERB_HOST_PORT:-18010}
+      REVERB_SCHEME: http
+      REVERB_SERVER_HOST: 0.0.0.0
+      REVERB_SERVER_PORT: 8080
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+    ports:
+      - "${REVERB_HOST_PORT:-18010}:8080"
 
   frontend:
     build:
@@ -125,10 +210,15 @@ services:
       - ./frontend:/app/frontend
     environment:
       VITE_API_BASE_URL: "http://${APP_HOST:-localhost}:${BACKEND_HOST_PORT:-18000}/api/v1"
+      VITE_REVERB_APP_KEY: "${REVERB_APP_KEY:?Set REVERB_APP_KEY in .env}"
+      VITE_REVERB_HOST: "${APP_HOST:-localhost}"
+      VITE_REVERB_PORT: "${REVERB_HOST_PORT:-18010}"
+      VITE_REVERB_SCHEME: "http"
     ports:
       - "${FRONTEND_HOST_PORT:-15173}:5173"
     depends_on:
       - backend
+      - reverb
 
   postgres:
     image: postgres:16-alpine

@@ -7,6 +7,7 @@ use App\Domain\Alerts\Models\Alert;
 use App\Domain\Companies\Models\Company;
 use App\Domain\Fleet\Models\Driver;
 use App\Domain\Maintenance\Models\MaintenanceSchedule;
+use App\Domain\Realtime\Services\FleetRealtimeNotifier;
 use App\Domain\Telemetry\Enums\VehicleStatus;
 use App\Domain\Telemetry\Models\TelemetryEvent;
 use App\Domain\Telemetry\Models\VehicleState;
@@ -15,6 +16,11 @@ use Illuminate\Support\Facades\Cache;
 
 class AlertEvaluationService
 {
+    public function __construct(
+        private readonly FleetRealtimeNotifier $fleetRealtimeNotifier,
+    ) {
+    }
+
     public function evaluateTelemetry(TelemetryEvent $event, VehicleState $state): void
     {
         $this->evaluateFuelAnomalies($event, $state);
@@ -198,12 +204,21 @@ class AlertEvaluationService
 
     public function resolveOfflineAlerts(int $companyId, int $vehicleId): void
     {
-        Alert::query()
+        $updated = Alert::query()
             ->where('company_id', $companyId)
             ->where('vehicle_id', $vehicleId)
             ->where('type', AlertType::OfflineVehicle)
             ->whereNull('resolved_at')
             ->update(['resolved_at' => now()]);
+
+        if ($updated > 0) {
+            $this->fleetRealtimeNotifier->notifyAlertChanged(
+                type: AlertType::OfflineVehicle,
+                companyId: $companyId,
+                vehicleId: $vehicleId,
+                reason: 'alert.resolved',
+            );
+        }
     }
 
     public function evaluateMaintenanceSchedule(MaintenanceSchedule $schedule, ?float $currentOdometerKm = null): void
@@ -241,6 +256,8 @@ class AlertEvaluationService
 
     public function resolveMaintenanceAlertsForSchedule(MaintenanceSchedule $schedule): void
     {
+        $resolvedAny = false;
+
         Alert::query()
             ->where('company_id', $schedule->company_id)
             ->where('vehicle_id', $schedule->vehicle_id)
@@ -248,9 +265,19 @@ class AlertEvaluationService
             ->whereNull('resolved_at')
             ->get()
             ->filter(fn (Alert $alert) => (int) data_get($alert->context, 'maintenance_schedule_id') === $schedule->id)
-            ->each(function (Alert $alert): void {
+            ->each(function (Alert $alert) use (&$resolvedAny): void {
                 $alert->forceFill(['resolved_at' => now()])->save();
+                $resolvedAny = true;
             });
+
+        if ($resolvedAny) {
+            $this->fleetRealtimeNotifier->notifyAlertChanged(
+                type: AlertType::MaintenanceDue,
+                companyId: $schedule->company_id,
+                vehicleId: $schedule->vehicle_id,
+                reason: 'alert.resolved',
+            );
+        }
     }
 
     public function evaluateDriverLicense(Driver $driver): void
@@ -290,12 +317,21 @@ class AlertEvaluationService
 
     public function resolveDriverLicenseAlerts(Driver $driver): void
     {
-        Alert::query()
+        $updated = Alert::query()
             ->where('company_id', $driver->company_id)
             ->where('type', AlertType::DriverLicenseExpired)
             ->whereNull('resolved_at')
             ->where('context->driver_id', $driver->id)
             ->update(['resolved_at' => now()]);
+
+        if ($updated > 0) {
+            $this->fleetRealtimeNotifier->notifyAlertChanged(
+                type: AlertType::DriverLicenseExpired,
+                companyId: $driver->company_id,
+                vehicleId: null,
+                reason: 'alert.resolved',
+            );
+        }
     }
 
     private function resolveSpeedingAlertsIfRecovered(TelemetryEvent $event, float $speedThresholdKmh): void
@@ -321,12 +357,21 @@ class AlertEvaluationService
             return;
         }
 
-        Alert::query()
+        $updated = Alert::query()
             ->where('company_id', $event->company_id)
             ->where('vehicle_id', $event->vehicle_id)
             ->where('type', AlertType::Speeding)
             ->whereNull('resolved_at')
             ->update(['resolved_at' => now()]);
+
+        if ($updated > 0) {
+            $this->fleetRealtimeNotifier->notifyAlertChanged(
+                type: AlertType::Speeding,
+                companyId: $event->company_id,
+                vehicleId: $event->vehicle_id,
+                reason: 'alert.resolved',
+            );
+        }
     }
 
     private function speedAlertThresholdKmh(int $companyId): float
@@ -373,6 +418,13 @@ class AlertEvaluationService
                 'triggered_at' => now(),
                 'context' => $context,
             ]);
+
+            $this->fleetRealtimeNotifier->notifyAlertChanged(
+                type: $type,
+                companyId: $companyId,
+                vehicleId: $vehicleId,
+                reason: 'alert.created',
+            );
         });
     }
 

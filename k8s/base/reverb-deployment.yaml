@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reverb
+  namespace: fleet-management
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reverb
+  template:
+    metadata:
+      labels:
+        app: reverb
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: fleet-backend
+      containers:
+        - name: reverb
+          image: REGION-docker.pkg.dev/PROJECT_ID/fleet-management/backend-app:replace-at-deploy
+          imagePullPolicy: IfNotPresent
+          command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+          envFrom:
+            - configMapRef:
+                name: backend-config
+            - secretRef:
+                name: backend-secrets
+          ports:
+            - containerPort: 8080
+              name: websocket
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            runAsNonRoot: true
+            runAsUser: 33
+            runAsGroup: 33
+          resources:
+            requests:
+              cpu: 150m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

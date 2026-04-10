@@ -16,7 +16,21 @@ spec:
                 name: telemetry-ingest
                 port:
                   number: 80
+          - path: /app
+            pathType: Prefix
+            backend:
+              service:
+                name: reverb
+                port:
+                  number: 80
           - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 80
+          - path: /broadcasting
             pathType: Prefix
             backend:
               service:

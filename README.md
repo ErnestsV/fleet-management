@@ -377,6 +377,9 @@ Device
   - append-only raw device messages plus processing metadata
 - `vehicle_states`:
   - latest materialized state per vehicle for fast reads in the UI
+- `telemetry_ingestion_keys`:
+  - duplicate-protection registry for telemetry packets
+  - stores one global ingestion key per accepted packet so device retries do not create duplicate telemetry rows, even though `telemetry_events` is partitioned by month
 
 This split is important: raw history remains intact, while the latest status is fast to query without scanning the full telemetry history every time.
 
@@ -793,7 +796,9 @@ All host ports are configurable through the root `.env` file created from `.env.
 
 - The system has dedicated telemetry ingest pods and telemetry queue workers. A later scaling step would be moving raw telemetry from Redis/database-backed queue processing toward a broker/stream such as Pub/Sub when ingest volume becomes much larger.
 - PostgreSQL `telemetry_events` are monthly partitioned. The next storage step is defining hot-retention and archive policy, for example keeping about 90 days in the main operational store and moving older raw telemetry into archive or colder analytical storage.
-- Add websocket or SSE pushes for live fleet updates instead of relying only on periodic polling.
+- Live fleet updates use Laravel Reverb WebSockets. Backend changes publish company-scoped `fleet.updated` events, the frontend subscribes on a private company channel, and React Query caches are invalidated in short batches so the main operational pages refresh from push rather than timers.
+- Production config enables Redis-backed Reverb scaling so the WebSocket layer is ready for multi-pod operation when the `reverb` deployment is scaled beyond one replica.
+- Future realtime improvements: add a frontend connection-status or reconnect warning, refine the coarse `fleet.updated` topic model into narrower event types for pages that need more targeted live updates, and move broadcasting from `ShouldBroadcastNow` to queued broadcasting if realtime event volume grows enough that synchronous publish cost becomes noticeable.
 - Generalize the current Leaflet implementation behind a map-provider adapter only if multi-provider support or provider switching becomes a real product need.
 - Move alert rules from hardcoded heuristics toward tenant-configurable operational policies; speeding now supports a company-level threshold, but a fuller production version should also support vehicle classes, region-specific policies, and eventually map-based road speed limits with tolerance windows.
 - Export analytical aggregates to a warehouse or OLAP store for heavy historical reporting rather than pushing that load onto the transactional PostgreSQL database.

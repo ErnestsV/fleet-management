@@ -6,6 +6,8 @@ resources:
   - backend-hpa.yaml
   - backend-service.yaml
   - queue-deployment.yaml
+  - reverb-deployment.yaml
+  - reverb-service.yaml
   - telemetry-ingest-deployment.yaml
   - telemetry-ingest-service.yaml
   - telemetry-ingest-hpa.yaml
