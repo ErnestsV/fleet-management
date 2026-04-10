@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Domain\Alerts\Models\Alert;
 use App\Domain\Fleet\Services\Dashboard\DashboardQueryFactory;
+use App\Domain\Realtime\Services\FleetRealtimeNotifier;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AlertIndexRequest;
 use App\Http\Resources\AlertResource;
@@ -16,6 +17,7 @@ class AlertController extends Controller
 {
     public function __construct(
         private readonly DashboardQueryFactory $dashboardQueryFactory,
+        private readonly FleetRealtimeNotifier $fleetRealtimeNotifier,
     ) {
     }
 
@@ -74,6 +76,13 @@ class AlertController extends Controller
                 'vehicle_id' => $alert->vehicle_id,
                 'resolved_by_user_id' => $request->user()->id,
             ]);
+
+            $this->fleetRealtimeNotifier->notifyAlertChanged(
+                type: $alert->type,
+                companyId: $alert->company_id,
+                vehicleId: $alert->vehicle_id,
+                reason: 'alert.resolved',
+            );
         }
 
         return response()->json([

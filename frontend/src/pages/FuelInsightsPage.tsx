@@ -41,7 +41,7 @@ export function FuelInsightsPage() {
     status: status || undefined,
     page,
     per_page: FUEL_INSIGHTS_PER_PAGE,
-  }, { refetchInterval: 30000 });
+  });
 
   useEffect(() => {
     setPage(1);

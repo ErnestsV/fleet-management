@@ -50,7 +50,7 @@ function RankingPanel({
 }
 
 export function DriverInsightsPage() {
-  const { data, isLoading, isError } = useDriverInsights({ refetchInterval: 30000 });
+  const { data, isLoading, isError } = useDriverInsights();
   const [search, setSearch] = useState('');
   const [activityFilter, setActivityFilter] = useState('');
   const [driverStatusFilter, setDriverStatusFilter] = useState('');

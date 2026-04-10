@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode, useState } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { AuthBootstrap } from '@/app/providers/AuthBootstrap';
+import { FleetRealtimeProvider } from '@/app/providers/FleetRealtimeProvider';
 
 type Props = {
   children: ReactNode;
@@ -23,7 +24,9 @@ export function AppProviders({ children }: Props) {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AuthBootstrap>{children}</AuthBootstrap>
+        <AuthBootstrap>
+          <FleetRealtimeProvider>{children}</FleetRealtimeProvider>
+        </AuthBootstrap>
       </BrowserRouter>
     </QueryClientProvider>
   );

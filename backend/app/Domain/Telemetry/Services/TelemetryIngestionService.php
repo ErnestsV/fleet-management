@@ -6,6 +6,7 @@ use App\Domain\Alerts\Services\AlertEvaluationService;
 use App\Domain\Alerts\Jobs\EvaluateTelemetryAlertsJob;
 use App\Domain\Fleet\Models\Vehicle;
 use App\Domain\Geofences\Services\GeofenceService;
+use App\Domain\Realtime\Services\FleetRealtimeNotifier;
 use App\Domain\Telemetry\Jobs\ProcessTelemetryEventJob;
 use App\Domain\Telemetry\Models\DeviceToken;
 use App\Domain\Telemetry\Models\TelemetryEvent;
@@ -22,6 +23,7 @@ class TelemetryIngestionService
         private readonly TelemetryStateResolver $stateResolver,
         private readonly TripDerivationService $tripDerivationService,
         private readonly GeofenceService $geofenceService,
+        private readonly FleetRealtimeNotifier $fleetRealtimeNotifier,
     ) {
     }
 
@@ -123,6 +125,8 @@ class TelemetryIngestionService
             EvaluateTelemetryAlertsJob::dispatch($event->id, $state->id)
                 ->onQueue((string) config('fleet.telemetry_alerts_queue', 'telemetry-alerts'))
                 ->afterCommit();
+
+            DB::afterCommit(fn () => $this->fleetRealtimeNotifier->notifyTelemetryProcessed($event->company_id, $event->vehicle_id));
 
             return $state;
         });

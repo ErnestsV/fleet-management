@@ -44,7 +44,7 @@ export function TelemetryHealthPage() {
     freshness_bucket: freshnessBucket || undefined,
     page,
     per_page: TELEMETRY_HEALTH_PER_PAGE,
-  }, { refetchInterval: 30000 });
+  });
 
   useEffect(() => {
     setPage(1);
