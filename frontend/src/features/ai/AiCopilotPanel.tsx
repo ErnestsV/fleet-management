@@ -1,15 +1,17 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { Bot, LoaderCircle, MessageSquareText, SendHorizontal, Sparkles, X } from 'lucide-react';
+import { FormEvent, Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { Bot, Compass, LoaderCircle, MessageSquareText, SendHorizontal, Sparkles, WandSparkles, X } from 'lucide-react';
 import type { AiCopilotUiConfig } from '@/features/ai/copilotContext';
 import { useAiCopilot } from '@/features/ai/useAiCopilot';
 import type { SendAiCopilotMessagePayload } from '@/lib/api/aiCopilot';
 import { getApiErrorMessage } from '@/lib/api/errors';
-import type { AiCopilotHistoryMessage } from '@/types/domain';
+import type { AiCopilotHistoryMessage, AiCopilotResponse } from '@/types/domain';
 
 type ChatMessage = AiCopilotHistoryMessage & {
   id: string;
   tone?: 'default' | 'error';
 };
+
+type CopilotMode = 'recommend' | 'ask';
 
 const MAX_HISTORY_MESSAGES = 8;
 
@@ -37,12 +39,46 @@ function createMessage(role: ChatMessage['role'], content: string, tone: ChatMes
   };
 }
 
+function renderMessageContent(content: string) {
+  const sections = content
+    .split(/\n{2,}/)
+    .map((section) => section.trim())
+    .filter(Boolean);
+
+  return sections.map((section, index) => {
+    const lines = section.split('\n').map((line) => line.trim()).filter(Boolean);
+    const isBulletList = lines.every((line) => /^([-*•]|\d+\.)\s+/.test(line));
+
+    if (isBulletList) {
+      return (
+        <ul key={`${section}-${index}`} className="space-y-2 pl-5 text-sm leading-6">
+          {lines.map((line, lineIndex) => (
+            <li key={`${index}-${lineIndex}`}>{line.replace(/^([-*•]|\d+\.)\s+/, '')}</li>
+          ))}
+        </ul>
+      );
+    }
+
+    return (
+      <Fragment key={`${section}-${index}`}>
+        {lines.map((line, lineIndex) => (
+          <p key={`${index}-${lineIndex}`} className="text-sm leading-6">
+            {line}
+          </p>
+        ))}
+      </Fragment>
+    );
+  });
+}
+
 export function AiCopilotPanel({ config }: { config: AiCopilotUiConfig }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [mode, setMode] = useState<CopilotMode>('recommend');
   const [draft, setDraft] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([
     createMessage('assistant', config.intro),
   ]);
+  const [lastResponseMeta, setLastResponseMeta] = useState<AiCopilotResponse['meta'] | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const copilotMutation = useAiCopilot();
 
@@ -58,6 +94,8 @@ export function AiCopilotPanel({ config }: { config: AiCopilotUiConfig }) {
     setMessages([createMessage('assistant', config.intro)]);
     setDraft('');
     setIsOpen(false);
+    setMode('recommend');
+    setLastResponseMeta(null);
     copilotMutation.reset();
   }, [config.context]);
 
@@ -84,7 +122,7 @@ export function AiCopilotPanel({ config }: { config: AiCopilotUiConfig }) {
     const nextHistory = [...conversationHistory, nextHistoryMessage].slice(-MAX_HISTORY_MESSAGES);
 
     setMessages((current) => [...current, nextUserMessage]);
-   setDraft('');
+    setDraft('');
 
     try {
       const payload: SendAiCopilotMessagePayload = {
@@ -94,6 +132,7 @@ export function AiCopilotPanel({ config }: { config: AiCopilotUiConfig }) {
       };
       const response = await copilotMutation.mutateAsync(payload);
 
+      setLastResponseMeta(response.meta);
       setMessages((current) => [...current, createMessage('assistant', response.message)]);
     } catch (error) {
       setMessages((current) => [
@@ -108,11 +147,19 @@ export function AiCopilotPanel({ config }: { config: AiCopilotUiConfig }) {
     void submitMessage(draft);
   }
 
+  const latestAssistantMessage = messages.at(-1) ?? null;
+  const lastAssistantMessage = useMemo(
+    () => [...messages].reverse().find((message) => message.role === 'assistant' && message.tone !== 'error') ?? null,
+    [messages],
+  );
+
+  const showConfiguredHint = lastResponseMeta?.configured ?? true;
+
   return (
     <div className="fixed inset-x-4 bottom-5 z-40 flex flex-col items-end gap-3 sm:inset-x-auto sm:right-5">
       {isOpen ? (
         <div className="flex w-full max-w-[26rem] max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl shadow-slate-950/15 sm:max-h-[calc(100dvh-2.5rem)]">
-          <div className="relative overflow-hidden border-b border-slate-200 bg-slate-950 px-5 py-4 text-white">
+          <div className="relative overflow-hidden border-b border-slate-200 bg-slate-950 px-5 pb-5 pt-4 text-white">
             <div className="absolute inset-x-0 top-0 h-24 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.28),transparent_60%)]" />
             <div className="relative flex items-start justify-between gap-4">
               <div>
@@ -131,22 +178,75 @@ export function AiCopilotPanel({ config }: { config: AiCopilotUiConfig }) {
                 <X size={18} />
               </button>
             </div>
+            <div className="relative mt-4 flex flex-wrap items-start gap-2">
+              <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-100">
+                <Compass size={12} />
+                Scope: {config.scopeLabel}
+              </span>
+              <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-100">
+                <Bot size={12} />
+                {copilotMutation.isPending ? 'Reading live analytics' : 'Grounded in current page data'}
+              </span>
+            </div>
           </div>
 
           <div ref={scrollContainerRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-slate-50 px-4 py-4">
-            <div className="flex flex-wrap gap-2">
-              {config.prompts.map((prompt) => (
+            <div className="flex rounded-full border border-slate-200 bg-white p-1 shadow-sm">
+              {([
+                { key: 'recommend', label: 'Recommendations', icon: WandSparkles },
+                { key: 'ask', label: 'Ask', icon: MessageSquareText },
+              ] as const).map(({ key, label, icon: Icon }) => (
                 <button
-                  key={prompt}
+                  key={key}
                   type="button"
-                  className="rounded-full border border-slate-200 bg-white px-3 py-2 text-left text-xs font-medium text-slate-600 transition hover:border-sky-300 hover:text-sky-700"
-                  onClick={() => void submitMessage(prompt)}
-                  disabled={copilotMutation.isPending}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-full px-3 py-2 text-xs font-semibold transition ${
+                    mode === key
+                      ? 'bg-slate-950 text-white'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                  onClick={() => setMode(key)}
                 >
-                  {prompt}
+                  <Icon size={14} />
+                  {label}
                 </button>
               ))}
             </div>
+
+            {messages.length === 1 ? (
+              <div className="rounded-[1.75rem] border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-sm font-semibold text-slate-900">{config.emptyStateTitle}</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{config.emptyStateDescription}</p>
+                <div className="mt-4 space-y-2">
+                  {(mode === 'recommend' ? config.suggestedActions : config.prompts).map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      className="flex w-full items-start rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-left text-sm text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-800"
+                      onClick={() => void submitMessage(prompt)}
+                      disabled={copilotMutation.isPending}
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {messages.length > 1 ? (
+              <div className="flex flex-wrap gap-2">
+                {(mode === 'recommend' ? config.suggestedActions : config.prompts).map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    className="rounded-full border border-slate-200 bg-white px-3 py-2 text-left text-xs font-medium text-slate-600 transition hover:border-sky-300 hover:text-sky-700"
+                    onClick={() => void submitMessage(prompt)}
+                    disabled={copilotMutation.isPending}
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            ) : null}
 
             {messages.map((message) => (
               <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -159,7 +259,9 @@ export function AiCopilotPanel({ config }: { config: AiCopilotUiConfig }) {
                         : 'border border-slate-200 bg-white text-slate-700'
                   }`}
                 >
-                  {message.content}
+                  <div className="space-y-3 whitespace-pre-wrap break-words">
+                    {renderMessageContent(message.content)}
+                  </div>
                 </div>
               </div>
             ))}
@@ -169,6 +271,28 @@ export function AiCopilotPanel({ config }: { config: AiCopilotUiConfig }) {
                 <div className="inline-flex items-center gap-2 rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
                   <LoaderCircle size={16} className="animate-spin" />
                   Thinking over current analytics...
+                </div>
+              </div>
+            ) : null}
+
+            {messages.length > 1
+            && latestAssistantMessage?.role === 'assistant'
+            && latestAssistantMessage.tone !== 'error'
+            && lastAssistantMessage
+            && !copilotMutation.isPending ? (
+              <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Next prompts</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {config.followUps.map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+                      onClick={() => void submitMessage(prompt)}
+                    >
+                      {prompt}
+                    </button>
+                  ))}
                 </div>
               </div>
             ) : null}
@@ -198,7 +322,11 @@ export function AiCopilotPanel({ config }: { config: AiCopilotUiConfig }) {
                 <SendHorizontal size={18} />
               </button>
             </div>
-            <p className="mt-3 text-xs text-slate-400">This copilot answers only from analytics available on this page.</p>
+            <p className="mt-3 text-xs text-slate-400">
+              {showConfiguredHint
+                ? 'Grounded in the live data and summaries available for this page.'
+                : 'OpenAI is not configured right now, so live copilot responses are unavailable.'}
+            </p>
           </form>
         </div>
       ) : null}
@@ -213,7 +341,7 @@ export function AiCopilotPanel({ config }: { config: AiCopilotUiConfig }) {
           <span className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-950 text-white transition group-hover:bg-sky-600">
             <MessageSquareText size={18} />
           </span>
-          <span className="hidden pr-1 sm:inline">Ask {config.label}</span>
+          <span className="hidden pr-1 sm:inline">{config.launcherLabel}</span>
         </button>
       ) : null}
     </div>

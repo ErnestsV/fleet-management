@@ -9,6 +9,9 @@ class AiCopilotContext
     public const FUEL_INSIGHTS = 'fuel_insights';
     public const TELEMETRY_HEALTH = 'telemetry_health';
     public const GEOFENCE_ANALYTICS = 'geofence_analytics';
+    public const ALERTS = 'alerts';
+    public const MAINTENANCE = 'maintenance';
+    public const TRIPS = 'trips';
 
     /**
      * @return list<string>
@@ -21,6 +24,9 @@ class AiCopilotContext
             self::FUEL_INSIGHTS,
             self::TELEMETRY_HEALTH,
             self::GEOFENCE_ANALYTICS,
+            self::ALERTS,
+            self::MAINTENANCE,
+            self::TRIPS,
         ];
     }
 }

@@ -114,7 +114,15 @@ class TripController extends Controller
         $endHour = (int) config('fleet.after_hours_end_hour', 19);
         $hour = (int) $localTimestamp->format('G');
 
-        return $hour < $startHour || $hour >= $endHour;
+        if ($startHour === $endHour) {
+            return true;
+        }
+
+        if ($startHour < $endHour) {
+            return $hour < $startHour || $hour >= $endHour;
+        }
+
+        return $hour >= $startHour || $hour < $endHour;
     }
 
     private function tripFilterBoundary(Request $request, string $date, bool $isEndOfDay): DateTimeInterface

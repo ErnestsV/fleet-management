@@ -24,7 +24,15 @@ export type AiCopilotHistoryMessage = {
   content: string;
 };
 
-export type AiCopilotContext = 'dashboard' | 'driver_insights' | 'fuel_insights' | 'telemetry_health' | 'geofence_analytics';
+export type AiCopilotContext =
+  | 'dashboard'
+  | 'driver_insights'
+  | 'fuel_insights'
+  | 'telemetry_health'
+  | 'geofence_analytics'
+  | 'alerts'
+  | 'maintenance'
+  | 'trips';
 
 export type AiCopilotResponse = {
   message: string;
