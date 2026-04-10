@@ -167,7 +167,7 @@ class PlatformOperationsReadService
                     'reserved_jobs' => (int) ($pending?->reserved_jobs ?? 0),
                     'failed_jobs_24h' => (int) ($failed?->failed_jobs_24h ?? 0),
                     'oldest_pending_age_minutes' => $oldestCreatedAt !== null
-                        ? $now->diffInMinutes(now()->createFromTimestamp($oldestCreatedAt))
+                        ? $now->diffInMinutes($now->copy()->setTimestamp($oldestCreatedAt))
                         : null,
                 ];
             })
