@@ -6,8 +6,8 @@ use App\Domain\Companies\Models\Company;
 use App\Domain\Platform\Models\PlatformJobStatus;
 use App\Domain\Platform\Support\PlatformJobCatalog;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class PlatformOperationsReadService
@@ -100,20 +100,9 @@ class PlatformOperationsReadService
     {
         $safePage = max(1, $page);
         $safePerPage = max(1, min($perPage, 100));
-        $allItems = $this->recentActivityCollection()->values();
-        $total = $allItems->count();
-        $slice = $allItems->slice(($safePage - 1) * $safePerPage, $safePerPage)->values();
-
-        return new LengthAwarePaginator(
-            items: $slice,
-            total: $total,
-            perPage: $safePerPage,
-            currentPage: $safePage,
-            options: [
-                'path' => request()->url(),
-                'query' => request()->query(),
-            ],
-        );
+        return $this->recentActivityQuery()
+            ->paginate($safePerPage, ['*'], 'page', $safePage)
+            ->through(fn ($row): array => $this->mapActivityRow($row));
     }
 
     private function schedulerStatus(?PlatformJobStatus $heartbeat): array
@@ -212,43 +201,52 @@ class PlatformOperationsReadService
 
     private function recentActivity(int $limit): array
     {
-        return $this->recentActivityCollection()
-            ->take($limit)
+        return $this->recentActivityQuery()
+            ->limit($limit)
+            ->get()
+            ->map(fn ($row): array => $this->mapActivityRow($row))
             ->values()
             ->all();
     }
 
-    private function recentActivityCollection()
+    private function recentActivityQuery()
     {
         $companyActivity = Company::query()
-            ->with('users')
-            ->latest('created_at')
-            ->get()
-            ->map(fn (Company $company) => [
-                'type' => 'company',
-                'headline' => $company->name,
-                'description' => $company->is_active ? 'Company is active.' : 'Company is currently inactive.',
-                'occurred_at' => $company->created_at?->toIso8601String(),
-            ]);
+            ->selectRaw("'company' as type")
+            ->selectRaw('name as headline')
+            ->selectRaw('NULL as role')
+            ->selectRaw('NULL as company_name')
+            ->selectRaw('is_active')
+            ->selectRaw('created_at as occurred_at');
 
         $userActivity = User::query()
-            ->with('company')
-            ->latest('created_at')
-            ->get()
-            ->map(fn (User $user) => [
-                'type' => 'user',
-                'headline' => $user->name,
-                'description' => sprintf(
-                    '%s user for %s.',
-                    $user->role?->label() ?? 'Platform',
-                    $user->company?->name ?? 'the platform'
-                ),
-                'occurred_at' => $user->created_at?->toIso8601String(),
-            ]);
+            ->leftJoin('companies', 'companies.id', '=', 'users.company_id')
+            ->selectRaw("'user' as type")
+            ->selectRaw('users.name as headline')
+            ->selectRaw('users.role as role')
+            ->selectRaw('companies.name as company_name')
+            ->selectRaw('NULL as is_active')
+            ->selectRaw('users.created_at as occurred_at');
 
-        return $companyActivity
-            ->concat($userActivity)
-            ->sortByDesc('occurred_at');
+        return DB::query()
+            ->fromSub($companyActivity->unionAll($userActivity), 'platform_activity')
+            ->orderByDesc('occurred_at');
+    }
+
+    private function mapActivityRow(object $row): array
+    {
+        return [
+            'type' => (string) $row->type,
+            'headline' => (string) $row->headline,
+            'description' => $row->type === 'company'
+                ? ((bool) $row->is_active ? 'Company is active.' : 'Company is currently inactive.')
+                : sprintf(
+                    '%s user for %s.',
+                    str((string) ($row->role ?? 'platform'))->replace('_', ' ')->title()->toString(),
+                    $row->company_name ?: 'the platform'
+                ),
+            'occurred_at' => $row->occurred_at ? (string) $row->occurred_at : null,
+        ];
     }
 
     private function exceptionSummary(string $exception): string

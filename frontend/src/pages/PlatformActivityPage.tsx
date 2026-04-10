@@ -11,6 +11,7 @@ export function PlatformActivityPage() {
   const actor = useAuthStore((state) => state.user);
   const [page, setPage] = useState(1);
   const { data, isLoading, isError } = usePlatformActivity({ page, per_page: PAGE_SIZE }, actor?.role === 'super_admin');
+  const isAwaitingActor = actor === null;
 
   const currentPage = data?.meta?.current_page ?? 1;
   const lastPage = data?.meta?.last_page ?? 1;
@@ -23,9 +24,10 @@ export function PlatformActivityPage() {
         description="Paginated history of tenant onboarding and user creation activity visible from the product data model."
       />
       <Panel title="Activity history">
+        {isAwaitingActor ? <div className="text-sm text-slate-500">Loading platform activity...</div> : null}
         {isLoading ? <div className="text-sm text-slate-500">Loading platform activity...</div> : null}
         {isError ? <div className="text-sm text-rose-600">Failed to load platform activity.</div> : null}
-        {!isLoading && !isError ? (
+        {!isAwaitingActor && !isLoading && !isError ? (
           (data?.data.length ?? 0) > 0 ? (
             <>
               <DataTable>
@@ -39,7 +41,7 @@ export function PlatformActivityPage() {
                 </DataTableHead>
                 <DataTableBody>
                   {(data?.data ?? []).map((item, index) => (
-                    <tr key={`${item.type}-${item.headline}-${item.occurred_at}-${index}`}>
+                  <tr key={`${item.type}-${item.headline}-${item.occurred_at}-${index}`}>
                       <td className="px-4 py-3 capitalize text-slate-600">{item.type}</td>
                       <td className="px-4 py-3 font-semibold text-slate-900">{item.headline}</td>
                       <td className="px-4 py-3 text-slate-600">{item.description}</td>

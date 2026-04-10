@@ -11,6 +11,7 @@ export function PlatformFailedJobsPage() {
   const actor = useAuthStore((state) => state.user);
   const [page, setPage] = useState(1);
   const { data, isLoading, isError } = usePlatformFailedJobs({ page, per_page: PAGE_SIZE }, actor?.role === 'super_admin');
+  const isAwaitingActor = actor === null;
 
   const currentPage = data?.meta?.current_page ?? 1;
   const lastPage = data?.meta?.last_page ?? 1;
@@ -23,9 +24,10 @@ export function PlatformFailedJobsPage() {
         description="Paginated history of recent queued job failures visible from the application failure table."
       />
       <Panel title="Failed job history">
+        {isAwaitingActor ? <div className="text-sm text-slate-500">Loading failed jobs...</div> : null}
         {isLoading ? <div className="text-sm text-slate-500">Loading failed jobs...</div> : null}
         {isError ? <div className="text-sm text-rose-600">Failed to load failed jobs.</div> : null}
-        {!isLoading && !isError ? (
+        {!isAwaitingActor && !isLoading && !isError ? (
           (data?.data.length ?? 0) > 0 ? (
             <>
               <DataTable>

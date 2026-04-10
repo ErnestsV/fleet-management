@@ -188,17 +188,21 @@ export function PlatformOperationsPage() {
               </button>
             )}
           >
-            <div className="space-y-3">
-              {summary.recent_activity.map((item, index) => (
-                <div key={`${item.type}-${item.headline}-${index}`} className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-slate-200 p-4">
-                  <div>
-                    <div className="font-semibold text-slate-900">{item.headline}</div>
-                    <div className="mt-1 text-sm text-slate-500">{item.description}</div>
+            {summary.recent_activity.length > 0 ? (
+              <div className="space-y-3">
+                {summary.recent_activity.map((item) => (
+                  <div key={`${item.type}-${item.headline}-${item.occurred_at ?? 'no-date'}`} className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-slate-200 p-4">
+                    <div>
+                      <div className="font-semibold text-slate-900">{item.headline}</div>
+                      <div className="mt-1 text-sm text-slate-500">{item.description}</div>
+                    </div>
+                    <div className="text-sm text-slate-400">{formatDateTime(item.occurred_at)}</div>
                   </div>
-                  <div className="text-sm text-slate-400">{formatDateTime(item.occurred_at)}</div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">No recent platform activity is available yet.</div>
+            )}
           </Panel>
         </div>
       ) : null}
