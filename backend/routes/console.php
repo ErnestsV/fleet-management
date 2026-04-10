@@ -2,6 +2,12 @@
 
 use Illuminate\Console\Scheduling\Schedule;
 
+app(Schedule::class)->command('app:heartbeat-scheduler')
+    ->name('heartbeat-scheduler')
+    ->everyMinute()
+    ->withoutOverlapping(5)
+    ->onOneServer();
+
 app(Schedule::class)->command('app:check-offline-vehicles')
     ->name('check-offline-vehicles')
     ->everyFiveMinutes()

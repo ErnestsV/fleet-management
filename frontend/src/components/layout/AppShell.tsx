@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, Bell, Building2, CarFront, ChevronDown, ChevronsLeft, ChevronsRight, CircleUserRound, Droplets, LayoutDashboard, LineChart, Map, MapPinned, Menu, Route, Settings, Users, Wrench, X } from 'lucide-react';
+import { Activity, Bell, Building2, CarFront, ChevronDown, ChevronsLeft, ChevronsRight, CircleUserRound, Droplets, LayoutDashboard, LineChart, Map, MapPinned, Menu, Route, Settings, ShieldCheck, Users, Wrench, X } from 'lucide-react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/app/store/authStore';
 import { AiCopilotPanel } from '@/features/ai/AiCopilotPanel';
@@ -11,6 +11,7 @@ import { FLEET_ACCESS_ROLES } from '@/lib/constants/roles';
 const allLinks = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['owner', 'admin', 'dispatcher', 'viewer'] },
   { to: '/companies', label: 'Companies', icon: Building2, roles: ['super_admin'] },
+  { to: '/platform-operations', label: 'Platform Operations', icon: ShieldCheck, roles: ['super_admin'] },
   { to: '/users', label: 'Users', icon: Users, roles: ['owner', 'admin'] },
   { to: '/vehicles', label: 'Vehicles', icon: CarFront, roles: ['owner', 'admin', 'dispatcher', 'viewer'] },
   { to: '/live-map', label: 'Live Map', icon: MapPinned, roles: ['owner', 'admin', 'dispatcher', 'viewer'] },
