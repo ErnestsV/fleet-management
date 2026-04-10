@@ -9,6 +9,19 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int $company_id
+ * @property int $vehicle_id
+ * @property \Illuminate\Support\Carbon|null $start_time
+ * @property \Illuminate\Support\Carbon|null $end_time
+ * @property array<string, mixed>|null $start_snapshot
+ * @property array<string, mixed>|null $end_snapshot
+ * @property float $distance_km
+ * @property int $duration_seconds
+ * @property float $average_speed_kmh
+ * @property Vehicle|null $vehicle
+ */
 class Trip extends Model
 {
     /** @use HasFactory<TripFactory> */

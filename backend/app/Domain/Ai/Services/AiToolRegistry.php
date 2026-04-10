@@ -9,7 +9,10 @@ use App\Domain\Ai\Tools\GetDashboardSummaryTool;
 use App\Domain\Ai\Tools\GetDriverInsightsSummaryTool;
 use App\Domain\Ai\Tools\GetFuelInsightsSummaryTool;
 use App\Domain\Ai\Tools\GetGeofenceAnalyticsSummaryTool;
+use App\Domain\Ai\Tools\GetMaintenanceSummaryTool;
+use App\Domain\Ai\Tools\GetOperationalRecommendationsTool;
 use App\Domain\Ai\Tools\GetTelemetryHealthSummaryTool;
+use App\Domain\Ai\Tools\GetTripSummaryTool;
 use App\Domain\Ai\Tools\GetVehicleAttentionListTool;
 use InvalidArgumentException;
 
@@ -33,6 +36,9 @@ class AiToolRegistry
         GetFuelInsightsSummaryTool $fuelInsightsSummaryTool,
         GetTelemetryHealthSummaryTool $telemetryHealthSummaryTool,
         GetGeofenceAnalyticsSummaryTool $geofenceAnalyticsSummaryTool,
+        GetMaintenanceSummaryTool $maintenanceSummaryTool,
+        GetTripSummaryTool $tripSummaryTool,
+        GetOperationalRecommendationsTool $operationalRecommendationsTool,
     ) {
         $this->tools = [
             $dashboardSummaryTool->definition()['name'] => $dashboardSummaryTool,
@@ -42,6 +48,9 @@ class AiToolRegistry
             $fuelInsightsSummaryTool->definition()['name'] => $fuelInsightsSummaryTool,
             $telemetryHealthSummaryTool->definition()['name'] => $telemetryHealthSummaryTool,
             $geofenceAnalyticsSummaryTool->definition()['name'] => $geofenceAnalyticsSummaryTool,
+            $maintenanceSummaryTool->definition()['name'] => $maintenanceSummaryTool,
+            $tripSummaryTool->definition()['name'] => $tripSummaryTool,
+            $operationalRecommendationsTool->definition()['name'] => $operationalRecommendationsTool,
         ];
 
         $this->contexts = [
@@ -50,18 +59,35 @@ class AiToolRegistry
                 'get_alert_summary',
                 'get_vehicle_attention_list',
                 'get_driver_insights_summary',
+                'get_operational_recommendations',
             ],
             AiCopilotContext::DRIVER_INSIGHTS => [
                 'get_driver_insights_summary',
+                'get_operational_recommendations',
             ],
             AiCopilotContext::FUEL_INSIGHTS => [
                 'get_fuel_insights_summary',
+                'get_operational_recommendations',
             ],
             AiCopilotContext::TELEMETRY_HEALTH => [
                 'get_telemetry_health_summary',
+                'get_operational_recommendations',
             ],
             AiCopilotContext::GEOFENCE_ANALYTICS => [
                 'get_geofence_analytics_summary',
+                'get_operational_recommendations',
+            ],
+            AiCopilotContext::ALERTS => [
+                'get_alert_summary',
+                'get_operational_recommendations',
+            ],
+            AiCopilotContext::MAINTENANCE => [
+                'get_maintenance_summary',
+                'get_operational_recommendations',
+            ],
+            AiCopilotContext::TRIPS => [
+                'get_trip_summary',
+                'get_operational_recommendations',
             ],
         ];
     }

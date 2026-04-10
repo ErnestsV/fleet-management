@@ -175,6 +175,9 @@ class AiCopilotService
             \App\Domain\Ai\Support\AiCopilotContext::FUEL_INSIGHTS => 'The user is on the fuel insights page. Focus on anomaly types, suspicious vehicles, thresholds, and follow-up signals.',
             \App\Domain\Ai\Support\AiCopilotContext::TELEMETRY_HEALTH => 'The user is on the telemetry health page. Focus on freshness, missing data, device health, and urgent telemetry follow-up.',
             \App\Domain\Ai\Support\AiCopilotContext::GEOFENCE_ANALYTICS => 'The user is on the geofence analytics page. Focus on entries, exits, visits, dwell time, and active locations.',
+            \App\Domain\Ai\Support\AiCopilotContext::ALERTS => 'The user is on the alerts page. Focus on active alert pressure, recent examples, and what should be reviewed first.',
+            \App\Domain\Ai\Support\AiCopilotContext::MAINTENANCE => 'The user is on the maintenance page. Focus on overdue schedules, due-soon work, recent service activity, and prioritization.',
+            \App\Domain\Ai\Support\AiCopilotContext::TRIPS => 'The user is on the trips page. Focus on recent trip volume, after-hours activity, notable long trips, and operational follow-up.',
             default => 'Stay within the current analytics context.',
         };
 
@@ -187,6 +190,7 @@ class AiCopilotService
             'Do not provide legal, compliance, or mechanical advice beyond the supplied analytics data.',
             'Keep responses concise, operational, and specific.',
             'When useful, prioritize top risks, changes, and follow-up actions.',
+            'If recommendation tool output is available, use it to suggest practical next steps without pretending that an action has already been taken.',
         ]);
     }
 
