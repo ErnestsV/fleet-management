@@ -15,6 +15,9 @@ use App\Http\Controllers\Api\GeofenceController;
 use App\Http\Controllers\Api\MaintenanceRecordController;
 use App\Http\Controllers\Api\MaintenanceScheduleController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\PlatformOperationsController;
+use App\Http\Controllers\Api\PlatformFailedJobsController;
+use App\Http\Controllers\Api\PlatformActivityController;
 use App\Http\Controllers\Api\TelemetryIngestionController;
 use App\Http\Controllers\Api\TelemetryHealthController;
 use App\Http\Controllers\Api\TripController;
@@ -47,6 +50,12 @@ Route::prefix('v1')->group(function () {
             ->middleware('throttle:api-mutate');
 
         Route::get('/dashboard/summary', DashboardController::class)
+            ->middleware('throttle:api-read');
+        Route::get('/platform/operations', PlatformOperationsController::class)
+            ->middleware('throttle:api-read');
+        Route::get('/platform/failed-jobs', PlatformFailedJobsController::class)
+            ->middleware('throttle:api-read');
+        Route::get('/platform/activity', PlatformActivityController::class)
             ->middleware('throttle:api-read');
         Route::post('/ai/copilot/messages', AiCopilotController::class)
             ->middleware('throttle:ai-copilot');

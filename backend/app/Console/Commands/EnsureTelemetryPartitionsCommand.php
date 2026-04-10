@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Domain\Platform\Services\PlatformJobStatusService;
 use App\Domain\Telemetry\Services\TelemetryPartitionService;
 use Illuminate\Console\Command;
 
@@ -11,12 +12,14 @@ class EnsureTelemetryPartitionsCommand extends Command
 
     protected $description = 'Ensure monthly PostgreSQL partitions exist for telemetry_events.';
 
-    public function handle(TelemetryPartitionService $service): int
+    public function handle(TelemetryPartitionService $service, PlatformJobStatusService $statusService): int
     {
-        $created = $service->ensureMonthlyPartitions();
+        return $statusService->runMonitored('ensure-telemetry-partitions', function () use ($service): int {
+            $created = $service->ensureMonthlyPartitions();
 
-        $this->info("Telemetry partition check complete. Created {$created} partition(s).");
+            $this->info("Telemetry partition check complete. Created {$created} partition(s).");
 
-        return self::SUCCESS;
+            return self::SUCCESS;
+        });
     }
 }

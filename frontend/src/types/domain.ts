@@ -56,6 +56,55 @@ export type Company = {
   created_at: string;
 };
 
+export type PlatformOperationsSummary = {
+  overview: {
+    total_companies: number;
+    active_companies: number;
+    inactive_companies: number;
+    active_users: number;
+    pending_jobs: number;
+    reserved_jobs: number;
+    failed_jobs_24h: number;
+    scheduler_status: string;
+    scheduler_last_seen_at: string | null;
+  };
+  scheduled_tasks: {
+    job_key: string;
+    label: string;
+    frequency: string;
+    status: string;
+    last_started_at: string | null;
+    last_finished_at: string | null;
+    last_succeeded_at: string | null;
+    last_failed_at: string | null;
+    last_runtime_ms: number | null;
+    last_error: string | null;
+  }[];
+  queue_health: {
+    queue: string;
+    pending_jobs: number;
+    reserved_jobs: number;
+    failed_jobs_24h: number;
+    oldest_pending_age_minutes: number | null;
+  }[];
+  recent_failed_jobs: {
+    id: number;
+    queue: string;
+    job_name: string;
+    exception: string;
+    failed_at: string;
+  }[];
+  recent_activity: {
+    type: 'company' | 'user';
+    headline: string;
+    description: string;
+    occurred_at: string | null;
+  }[];
+};
+
+export type PlatformFailedJob = PlatformOperationsSummary['recent_failed_jobs'][number];
+export type PlatformActivityItem = PlatformOperationsSummary['recent_activity'][number];
+
 export type DashboardSummary = {
   total_vehicles: number;
   moving_vehicles: number;

@@ -12,6 +12,9 @@ const LoginPage = lazy(() => import('@/pages/LoginPage').then((module) => ({ def
 const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage').then((module) => ({ default: module.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import('@/pages/ResetPasswordPage').then((module) => ({ default: module.ResetPasswordPage })));
 const CompaniesPage = lazy(() => import('@/pages/CompaniesPage').then((module) => ({ default: module.CompaniesPage })));
+const PlatformOperationsPage = lazy(() => import('@/pages/PlatformOperationsPage').then((module) => ({ default: module.PlatformOperationsPage })));
+const PlatformFailedJobsPage = lazy(() => import('@/pages/PlatformFailedJobsPage').then((module) => ({ default: module.PlatformFailedJobsPage })));
+const PlatformActivityPage = lazy(() => import('@/pages/PlatformActivityPage').then((module) => ({ default: module.PlatformActivityPage })));
 const UsersPage = lazy(() => import('@/pages/UsersPage').then((module) => ({ default: module.UsersPage })));
 const VehiclesPage = lazy(() => import('@/pages/VehiclesPage').then((module) => ({ default: module.VehiclesPage })));
 const DriversPage = lazy(() => import('@/pages/DriversPage').then((module) => ({ default: module.DriversPage })));
@@ -71,6 +74,9 @@ export function AppRouter() {
         <Route index element={<DefaultRoute />} />
         <Route element={<RoleRoute roles={COMPANY_MANAGEMENT_ROLES} />}>
           <Route path="/companies" element={<CompaniesPage />} />
+          <Route path="/platform-operations" element={<PlatformOperationsPage />} />
+          <Route path="/platform-operations/failed-jobs" element={<PlatformFailedJobsPage />} />
+          <Route path="/platform-operations/activity" element={<PlatformActivityPage />} />
         </Route>
         <Route element={<RoleRoute roles={USER_MANAGEMENT_ROLES} />}>
           <Route path="/users" element={<UsersPage />} />
