@@ -136,7 +136,12 @@ jobs:
             k8s/base/backend-migrate-job.yaml > /tmp/backend-migrate-job.yaml
           kubectl delete job backend-migrate --namespace fleet-management --ignore-not-found
           kubectl apply -f /tmp/backend-migrate-job.yaml
-          kubectl wait --for=condition=complete job/backend-migrate --namespace fleet-management --timeout=300s
+          if ! kubectl wait --for=condition=complete job/backend-migrate --namespace fleet-management --timeout=900s; then
+            kubectl describe job backend-migrate --namespace fleet-management || true
+            kubectl get pods --namespace fleet-management -l job-name=backend-migrate || true
+            kubectl logs job/backend-migrate --namespace fleet-management --all-containers=true --tail=200 || true
+            exit 1
+          fi
 
       - name: Apply Kubernetes manifests
         run: kubectl apply -k k8s/overlays/production
