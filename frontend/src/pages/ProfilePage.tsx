@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '@/app/store/authStore';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Panel } from '@/components/ui/Panel';
@@ -22,6 +23,11 @@ export function ProfilePage() {
     current_password: '',
     password: '',
     password_confirmation: '',
+  });
+  const [visiblePasswordFields, setVisiblePasswordFields] = useState({
+    current_password: false,
+    password: false,
+    password_confirmation: false,
   });
 
   useEffect(() => {
@@ -103,19 +109,82 @@ export function ProfilePage() {
         ) : null}
         <Panel title="Password" description="Change the current account password safely.">
           <div className="space-y-3">
-            <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" type="password" value={passwordForm.current_password} onChange={(event) => setPasswordForm((state) => ({ ...state, current_password: event.target.value }))} placeholder="Current password" />
-            <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" type="password" value={passwordForm.password} onChange={(event) => setPasswordForm((state) => ({ ...state, password: event.target.value }))} placeholder="New password" />
-            <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" type="password" value={passwordForm.password_confirmation} onChange={(event) => setPasswordForm((state) => ({ ...state, password_confirmation: event.target.value }))} placeholder="Confirm new password" />
+            <div className="relative">
+              <input
+                id="profile-current-password"
+                name="current_password"
+                autoComplete="current-password"
+                className="w-full rounded-2xl border border-slate-200 px-4 py-3 pr-12"
+                type={visiblePasswordFields.current_password ? 'text' : 'password'}
+                value={passwordForm.current_password}
+                onChange={(event) => setPasswordForm((state) => ({ ...state, current_password: event.target.value }))}
+                placeholder="Current password"
+              />
+              <button
+                type="button"
+                className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-2xl text-slate-400 transition hover:text-slate-700"
+                onClick={() => setVisiblePasswordFields((state) => ({ ...state, current_password: !state.current_password }))}
+                aria-label={visiblePasswordFields.current_password ? 'Hide current password' : 'Show current password'}
+              >
+                {visiblePasswordFields.current_password ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            <div className="relative">
+              <input
+                id="profile-new-password"
+                name="password"
+                autoComplete="new-password"
+                className="w-full rounded-2xl border border-slate-200 px-4 py-3 pr-12"
+                type={visiblePasswordFields.password ? 'text' : 'password'}
+                value={passwordForm.password}
+                onChange={(event) => setPasswordForm((state) => ({ ...state, password: event.target.value }))}
+                placeholder="New password"
+              />
+              <button
+                type="button"
+                className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-2xl text-slate-400 transition hover:text-slate-700"
+                onClick={() => setVisiblePasswordFields((state) => ({ ...state, password: !state.password }))}
+                aria-label={visiblePasswordFields.password ? 'Hide new password' : 'Show new password'}
+              >
+                {visiblePasswordFields.password ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            <div className="relative">
+              <input
+                id="profile-password-confirmation"
+                name="password_confirmation"
+                autoComplete="new-password"
+                className="w-full rounded-2xl border border-slate-200 px-4 py-3 pr-12"
+                type={visiblePasswordFields.password_confirmation ? 'text' : 'password'}
+                value={passwordForm.password_confirmation}
+                onChange={(event) => setPasswordForm((state) => ({ ...state, password_confirmation: event.target.value }))}
+                placeholder="Confirm new password"
+              />
+              <button
+                type="button"
+                className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-2xl text-slate-400 transition hover:text-slate-700"
+                onClick={() => setVisiblePasswordFields((state) => ({ ...state, password_confirmation: !state.password_confirmation }))}
+                aria-label={visiblePasswordFields.password_confirmation ? 'Hide password confirmation' : 'Show password confirmation'}
+              >
+                {visiblePasswordFields.password_confirmation ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
             <button
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 font-semibold text-white"
               onClick={() =>
                 passwordMutation.mutate(passwordForm, {
-                  onSuccess: () =>
+                  onSuccess: () => {
                     setPasswordForm({
                       current_password: '',
                       password: '',
                       password_confirmation: '',
-                    }),
+                    });
+                    setVisiblePasswordFields({
+                      current_password: false,
+                      password: false,
+                      password_confirmation: false,
+                    });
+                  },
                 })
               }
             >
