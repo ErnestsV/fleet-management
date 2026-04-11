@@ -9,6 +9,32 @@ Fleet management and telematics SaaS platform inspired by Mapon, Samsara, and Ge
 - `docker-compose.yml`: backend, queue, scheduler, frontend, postgres, redis, mailpit
 - `ARCHITECTURE.md`: current module boundaries and runtime data flow
 
+## Architecture diagrams
+
+### System overview
+
+```mermaid
+flowchart TD
+    UI[React + Vite frontend]
+    API[Laravel API]
+    DB[(PostgreSQL)]
+    Redis[(Redis)]
+    Queue[Queue workers]
+    Scheduler[Scheduler]
+    Reverb[Laravel Reverb WebSockets]
+    AI[AI copilot tools]
+
+    UI --> API
+    API --> DB
+    API --> Redis
+    Redis --> Queue
+    API --> Reverb
+    API --> AI
+    Queue --> DB
+    Scheduler --> DB
+    Reverb --> UI
+```
+
 ## Branch workflow
 
 - `main`: production-ready branch
@@ -75,6 +101,28 @@ Notes:
 - The current GKE scaffold uses in-cluster Mailpit for testing mail flows; it does not send real SMTP mail yet.
 - A manual GitHub Actions workflow for building and deploying to GKE is available in `.github/workflows/deploy-gke.yml`.
 - Deployment notes and remaining production decisions are documented in `docs/deployment/gke.md`.
+
+### GKE deployment flow
+
+```mermaid
+flowchart TD
+    Dev[Manual GitHub Actions dispatch]
+    Auth[Authenticate to Google Cloud]
+    Build[Build production Docker images]
+    Registry[Push to Google Artifact Registry]
+    GKE[Fetch GKE credentials]
+    Migrate[Run Kubernetes migration job]
+    Apply[Apply Kustomize production manifests]
+    Cluster[Google Kubernetes Engine]
+
+    Dev --> Auth
+    Auth --> Build
+    Build --> Registry
+    Registry --> GKE
+    GKE --> Migrate
+    Migrate --> Apply
+    Apply --> Cluster
+```
 
 ## GKE operations
 
@@ -348,20 +396,30 @@ Why this is better:
 
 ### Current telemetry flow
 
-```text
-Device
-  -> POST /api/v1/telemetry/events
-  -> telemetry-ingest pods
-  -> store raw telemetry event in telemetry_events
-  -> enqueue ProcessTelemetryEventJob
-  -> telemetry-queue worker picks up job
-  -> update vehicle_states
-  -> derive trips
-  -> process geofence transitions
-  -> resolve offline state
-  -> enqueue EvaluateTelemetryAlertsJob
-  -> telemetry-queue worker evaluates alerts
-  -> frontend reads updated state, trips, and alerts
+```mermaid
+sequenceDiagram
+    participant Device as Device/Postman
+    participant API as telemetry-ingest API
+    participant DB as PostgreSQL
+    participant Queue as Redis queue
+    participant Worker as telemetry-queue worker
+    participant AlertWorker as alert worker
+    participant Reverb as Laravel Reverb
+    participant UI as React frontend
+
+    Device->>API: POST /api/v1/telemetry/events
+    API->>API: Rate limit request
+    API->>API: Validate payload and resolve device token
+    API->>DB: Store raw telemetry event
+    API->>Queue: Dispatch ProcessTelemetryEventJob
+    Queue->>Worker: Process telemetry job
+    Worker->>DB: Update vehicle_states and derived records
+    Worker->>Queue: Dispatch EvaluateTelemetryAlertsJob
+    Worker->>Reverb: Broadcast fleet.updated
+    Queue->>AlertWorker: Process alert evaluation job
+    AlertWorker->>DB: Store derived alerts and alert state
+    Reverb->>UI: Notify company channel
+    UI->>API: Refetch invalidated queries
 ```
 
 ### Duplicate protection

@@ -81,10 +81,15 @@ export function DrivingBehaviourPanel({
                   type="button"
                   className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 focus:bg-slate-200 focus:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300"
                   aria-label="How behaviour score is calculated"
+                  aria-describedby="driving-behaviour-score-help"
                 >
                   <CircleHelp size={18} />
                 </button>
-                <span className="pointer-events-none absolute left-3 right-3 top-14 z-20 hidden rounded-lg border border-slate-200 bg-white p-3 text-left text-xs normal-case leading-5 tracking-normal text-slate-600 shadow-lg group-hover:block group-focus-within:block sm:left-1/2 sm:right-auto sm:w-72 sm:-translate-x-1/2">
+                <span
+                  id="driving-behaviour-score-help"
+                  role="tooltip"
+                  className="pointer-events-none absolute left-3 right-3 top-14 z-20 hidden rounded-lg border border-slate-200 bg-white p-3 text-left text-xs normal-case leading-5 tracking-normal text-slate-600 shadow-lg group-hover:block group-focus-within:block sm:left-1/2 sm:right-auto sm:w-72 sm:-translate-x-1/2"
+                >
                   Behaviour score is a 0 to 100 vehicle coaching signal for the current dashboard window. It starts from an average-speed baseline that peaks around 55 km/h, then subtracts 8 points for each speeding alert and 4 points for each prolonged idling alert. Vehicles need at least {data.minimum_trip_samples} completed trips before they are included.
                 </span>
               </span>
