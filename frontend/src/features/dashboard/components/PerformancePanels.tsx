@@ -1,3 +1,4 @@
+import { CircleHelp } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Panel } from '@/components/ui/Panel';
 import type { DashboardSummary } from '@/types/domain';
@@ -72,8 +73,27 @@ export function DrivingBehaviourPanel({
     <Panel title="Driving behaviour" description="Vehicle behaviour scoring based on recent trip speeds and recent speeding/idling alerts.">
       <div className="grid gap-6">
         <div className="grid gap-6 md:grid-cols-[180px_minmax(0,1fr)]">
-          <div className="rounded-[28px] bg-slate-50 p-6 text-center">
-            <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Average score</div>
+          <div className="relative rounded-[28px] bg-slate-50 p-6 text-center">
+            <div className="flex items-center justify-center gap-1.5 text-xs uppercase tracking-[0.16em] text-slate-500">
+              <span>Average score</span>
+              <span className="group inline-flex">
+                <button
+                  type="button"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 focus:bg-slate-200 focus:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  aria-label="How behaviour score is calculated"
+                  aria-describedby="driving-behaviour-score-help"
+                >
+                  <CircleHelp size={18} />
+                </button>
+                <span
+                  id="driving-behaviour-score-help"
+                  role="tooltip"
+                  className="pointer-events-none absolute left-3 right-3 top-14 z-20 hidden rounded-lg border border-slate-200 bg-white p-3 text-left text-xs normal-case leading-5 tracking-normal text-slate-600 shadow-lg group-hover:block group-focus-within:block sm:left-1/2 sm:right-auto sm:w-72 sm:-translate-x-1/2"
+                >
+                  Behaviour score is a 0 to 100 vehicle coaching signal for the current dashboard window. It starts from an average-speed baseline that peaks around 55 km/h, then subtracts 8 points for each speeding alert and 4 points for each prolonged idling alert. Vehicles need at least {data.minimum_trip_samples} completed trips before they are included.
+                </span>
+              </span>
+            </div>
             <div className="mt-3 text-5xl font-semibold text-slate-950">
               {data.average_score != null ? data.average_score.toFixed(1) : 'N/A'}
             </div>

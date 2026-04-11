@@ -408,7 +408,8 @@ sequenceDiagram
     participant UI as React frontend
 
     Device->>API: POST /api/v1/telemetry/events
-    API->>API: Validate token, rate limit, validate payload
+    API->>API: Rate limit request
+    API->>API: Validate payload and resolve device token
     API->>DB: Store raw telemetry event
     API->>Queue: Dispatch ProcessTelemetryEventJob
     Queue->>Worker: Process telemetry job
