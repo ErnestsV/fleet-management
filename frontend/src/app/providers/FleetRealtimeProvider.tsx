@@ -165,7 +165,6 @@ export function FleetRealtimeProvider({ children }: PropsWithChildren) {
       }
 
       pendingTopicsRef.current.clear();
-      echo.leave(`company.${companyId}`);
       echo.disconnect();
 
       if (echoRef.current === echo) {
