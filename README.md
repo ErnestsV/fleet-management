@@ -7,7 +7,7 @@ Fleet management and telematics SaaS platform inspired by Mapon, Samsara, and Ge
 - `backend/`: Laravel 12 API, Sanctum auth, domain-oriented services, policies, queue jobs, commands, tests
 - `frontend/`: React + TypeScript + Vite SPA, typed API client, role-aware routing, dashboard and operations pages
 - `docker-compose.yml`: backend, queue, scheduler, frontend, postgres, redis, mailpit
-- `ARCHITECTURE.md`: module boundaries and scaling notes
+- `ARCHITECTURE.md`: current module boundaries and runtime data flow
 
 ## Branch workflow
 
