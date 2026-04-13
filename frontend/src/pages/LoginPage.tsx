@@ -16,7 +16,7 @@ export function LoginPage() {
       <div className="w-full max-w-md rounded-[32px] border border-white/10 bg-white p-8 shadow-2xl">
         <div className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-600">FleetOS</div>
         <h1 className="mt-3 text-3xl font-bold text-slate-950">Sign in</h1>
-        <p className="mt-2 text-sm text-slate-500">Sanctum-backed authentication UI scaffold.</p>
+        <p className="mt-2 text-sm text-slate-500">Access your fleet operations workspace.</p>
         <form
           className="mt-8 space-y-4"
           onSubmit={(event) => {
