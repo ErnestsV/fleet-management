@@ -45,19 +45,30 @@ flowchart TD
 
 ```text
 backend/app/
+  Actions
   Console/Commands
   Domain/
+    Ai/{Contracts,Services,Support,Tools}
     Alerts/{Enums,Jobs,Models,Services}
-    Auth/Services
+    Auth/{Data,Services}
     Companies/{Models,Services}
-    Fleet/{Models,Services}
-    Geofences/Enums
+    Fleet/{Data,Models,Services}
+    Geofences/{Enums,Models,Services}
+    Maintenance/{Models,Services}
+    Platform/{Models,Services,Support}
+    Realtime/{Events,Services}
     Shared/Enums
-    Telemetry/{Enums,Models,Services}
+    Telemetry/{Enums,Jobs,Models,Services}
+    Trips/{Models,Services}
   Http/
     Controllers/Api
+    Controllers/Web
+    Middleware
     Requests
     Resources
+  Mail
+  Models
+  Notifications
   Policies
   Providers
 ```
@@ -67,9 +78,9 @@ backend/app/
 ```text
 frontend/src/
   app/{providers,router,store}
-  components/{layout,maps,ui}
-  features/{auth,dashboard}
-  lib/api
+  components/{forms,layout,maps,ui}
+  features/{ai,alerts,assignments,auth,companies,dashboard,drivers,fuel,geofences,maintenance,platform,profile,telemetry,trips,users,vehicles}
+  lib/{api,constants,utils}
   pages
   styles
   types
@@ -497,7 +508,7 @@ Notes:
 - The telemetry endpoint authenticates the device by hashing the bearer token and matching it against `device_tokens.token`.
 - The request body does not use `device_identifier`. The token identifies the device/vehicle pair.
 - Keep timestamps increasing. Delayed historical backfill events are stored, but out-of-order payloads make manual QA harder to reason about.
-- Alerts and dashboard summaries poll in the frontend approximately every 10 seconds, so external Postman events should appear shortly without a hard refresh.
+- When Reverb is configured, processed telemetry broadcasts a company-scoped `fleet.updated` event and the frontend invalidates the affected React Query caches. If realtime broadcasting is not configured in the environment, refresh the page after sending external Postman events.
 
 Accepted payload fields:
 
